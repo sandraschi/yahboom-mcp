@@ -15,8 +15,10 @@ async def execute(
     correlation_id = ctx.correlation_id if ctx else "manual-execution"
     logger.info(f"Diagnostics: {operation}", extra={"correlation_id": correlation_id})
 
-    # Use bridge from context if available
-    bridge = ctx.get("bridge") if ctx else None
+    # Use bridge from global state
+    from ..state import _state
+
+    bridge = _state.get("bridge")
     bridge_connected = bridge.connected if bridge else False
 
     if operation == "health_check":

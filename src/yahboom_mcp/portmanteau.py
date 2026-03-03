@@ -1,6 +1,6 @@
 from fastmcp import Context
 import logging
-from .operations import motion, sensors, diagnostics, trajectory
+from .state import _state
 
 logger = logging.getLogger("yahboom-mcp.portmanteau")
 
@@ -26,12 +26,16 @@ async def yahboom_tool(
 
     try:
         if op_lower in ["forward", "backward", "turn_left", "turn_right", "stop"]:
+            from .operations import motion
+
             return await motion.execute(ctx, op_lower, param1, param2, payload)
         elif op_lower in ["read_imu", "read_encoders", "read_battery"]:
+            from .operations import sensors
+
             return await sensors.execute(ctx, op_lower, param1, param2, payload)
         elif op_lower in ["start_recording", "stop_recording", "list_trajectories"]:
-            # Trajectory operations
-            manager = ctx.get("trajectory_manager") if ctx else None
+            # Trajectory operations from global state
+            manager = _state.get("trajectory_manager")
             if not manager:
                 return {"success": False, "error": "Trajectory manager not available"}
 
@@ -44,6 +48,8 @@ async def yahboom_tool(
             elif op_lower == "list_trajectories":
                 return {"success": True, "trajectories": manager.list_trajectories()}
         elif op_lower in ["health_check", "config_show"]:
+            from .operations import diagnostics
+
             return await diagnostics.execute(ctx, op_lower, param1, param2, payload)
         else:
             return {

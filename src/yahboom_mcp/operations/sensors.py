@@ -16,8 +16,10 @@ async def execute(
     correlation_id = ctx.correlation_id if ctx else "manual-execution"
     logger.info(f"Sensors: {operation}", extra={"correlation_id": correlation_id})
 
-    # Use bridge from context if available
-    bridge = ctx.get("bridge") if ctx else None
+    # Use bridge from global state
+    from ..state import _state
+
+    bridge = _state.get("bridge")
 
     if bridge and bridge.connected:
         if operation == "read_imu":
