@@ -52,7 +52,10 @@ mcp = FastMCP("Yahboom ROS 2", lifespan=lifespan)
 
 
 # SOTA 2026: Direct FastAPI route for video streaming
-@mcp.app.get("/stream")
+app = mcp.as_starlette_app()
+
+
+@app.get("/stream")
 async def video_feed():
     video_bridge = mcp.context.get("video_bridge")
     if not video_bridge or not video_bridge.active:
