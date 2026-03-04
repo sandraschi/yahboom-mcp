@@ -95,8 +95,148 @@ app.add_middleware(
 mcp = FastMCP.from_fastapi(app, name="Yahboom ROS 2")
 
 
-# Register Portmanteau Tool
+# ─────────────────────────────────────────────────────────────────────────────
+# Help System — multi-level drill-down
+# ─────────────────────────────────────────────────────────────────────────────
+
+_HELP: dict = {
+    "categories": {
+        "motion": {
+            "description": "Robot motion control — linear/angular velocity commands via ROS 2.",
+            "topics": {
+                "forward": "Move forward: yahboom(action='move', linear=0.2, angular=0.0). linear range 0.0–1.0 m/s.",
+                "backward": "Move backward: yahboom(action='move', linear=-0.2, angular=0.0). Negative linear values.",
+                "turn": "Turn in place: yahboom(action='move', linear=0.0, angular=0.5). Positive=left, negative=right (rad/s).",
+                "stop": "Emergency stop: yahboom(action='move', linear=0.0, angular=0.0). Always safe to call.",
+                "mecanum": "Mecanum kinematics: 4 independently driven wheels allow omnidirectional movement. Strafe with combined linear+angular.",
+                "limits": "Velocity limits: linear max ±1.0 m/s, angular max ±2.0 rad/s. Exceeding limits is clamped by firmware.",
+            },
+        },
+        "sensors": {
+            "description": "Telemetry and sensor data — IMU, battery, and odometry.",
+            "topics": {
+                "imu": "IMU data: 9-axis (accel/gyro/mag). heading in degrees 0–360. yahboom(action='read_imu').",
+                "battery": "Battery: percentage 0–100. Below 20% = low warning. yahboom(action='health').",
+                "telemetry": "Full telemetry: battery + IMU + velocity. GET http://localhost:10792/api/v1/telemetry — only available when bridge connected.",
+                "odometry": "Odometry: wheel encoder-based position estimation via /odom ROS topic (in development).",
+                "camera": "Camera: MJPEG stream at http://localhost:10792/stream — only active when VideoBridge is initialized.",
+            },
+        },
+        "connection": {
+            "description": "Connecting the MCP server to the Yahboom G1 robot.",
+            "topics": {
+                "requirements": "Requirements: Yahboom G1 powered on, Raspberry Pi running ROS 2 Humble, ROSBridge server running on port 9090.",
+                "rosbridge": "Start ROSBridge on the robot: `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`.",
+                "env_vars": "Configure robot IP: set YAHBOOM_IP=192.168.x.x and YAHBOOM_BRIDGE_PORT=9090 before starting the server.",
+                "cli": "CLI flags: `uv run yahboom-mcp --mode dual --robot-ip 192.168.1.100 --port 10792`.",
+                "verify": "Verify: GET http://localhost:10792/api/v1/health — returns {connected: true} when bridge is live.",
+                "wifi": "WiFi setup: Robot and workstation must be on the same LAN subnet. Use the Onboarding page at /onboarding to configure.",
+            },
+        },
+        "api": {
+            "description": "REST API endpoints served by the FastAPI Unified Gateway.",
+            "topics": {
+                "health": "GET /api/v1/health — returns {status, connected, timestamp}. No auth required.",
+                "telemetry": "GET /api/v1/telemetry — returns {battery, imu, velocity}. Returns error if bridge offline.",
+                "move": "POST /api/v1/control/move?linear=0.2&angular=0.0 — sends Twist command directly to /cmd_vel.",
+                "stream": "GET /stream — MJPEG video stream. Usable in <img src> tags. Requires VideoBridge active.",
+                "mcp_sse": "MCP over SSE: GET /sse connects AI clients (Claude Desktop, Cursor). Use with mcp_config.json.",
+                "docs": "Swagger UI: http://localhost:10792/docs — interactive API explorer for all REST endpoints.",
+            },
+        },
+        "mcp_tools": {
+            "description": "MCP tools exposed to AI clients via the portmanteau yahboom() interface.",
+            "topics": {
+                "yahboom": "Main portmanteau tool. action param routes to sub-operations.",
+                "move": "yahboom(action='move', linear=float, angular=float) — velocity command.",
+                "health": "yahboom(action='health') — returns bridge connection state and battery.",
+                "read_imu": "yahboom(action='read_imu') — returns heading, pitch, roll from 9-axis IMU.",
+                "move_to": "yahboom(action='move_to', x=float, y=float) — autonomous waypoint navigation (requires odometry).",
+                "help": "yahboom_help(category=..., topic=...) — this help system.",
+            },
+        },
+        "startup": {
+            "description": "Starting the server and dashboard.",
+            "topics": {
+                "start_script": "Windows: run start.ps1 (double-click start.bat). Clears port 10792, starts Python server + Vite dashboard.",
+                "manual": "Manual start: `uv run yahboom-mcp --mode dual --port 10792` for server only.",
+                "dashboard": "Dashboard UI runs on http://localhost:10793 (Vite dev server).",
+                "modes": "Modes: stdio (MCP only), http (FastAPI+SSE only), dual (both). Default is stdio for MCP clients.",
+                "logs": "Logs: server logs to stderr. Vite logs to console. Check start.ps1 output for errors.",
+            },
+        },
+        "troubleshooting": {
+            "description": "Common issues and fixes.",
+            "topics": {
+                "blank_dashboard": "Dashboard blank: ensure BrowserRouter is present in main.tsx. Check browser console for TypeError.",
+                "server_down": "Server not on 10792: run start.ps1. If port blocked: `netstat -ano | findstr 10792` to find conflicting process.",
+                "bot_offline": "Bot offline banner: ROSBridge not reachable. Check robot IP with ping, confirm rosbridge_server running.",
+                "npm_error": "npm Win32 error: start.ps1 uses `cmd /c npm` — do not change to direct npm call.",
+                "fastmcp_error": "FastMCP version mismatch: use FastMCP.from_fastapi(app) pattern, not mcp.app (removed in v3.0).",
+                "cors": "CORS errors: FastAPI app must have CORSMiddleware before FastMCP.from_fastapi() is called.",
+            },
+        },
+    }
+}
+
+
+async def yahboom_help(
+    category: str | None = None,
+    topic: str | None = None,
+) -> dict:
+    """
+    Multi-level help system for the Yahboom MCP server.
+
+    Drill-down levels:
+      1. No args            → list all categories with descriptions
+      2. category only      → list topics within that category
+      3. category + topic   → full detail for that topic
+
+    Categories: motion, sensors, connection, api, mcp_tools, startup, troubleshooting
+    """
+    cats = _HELP["categories"]
+
+    if not category:
+        return {
+            "help": "Yahboom ROS 2 MCP Help System",
+            "usage": "Call with category= to drill down, then category+topic= for full detail.",
+            "categories": {k: v["description"] for k, v in cats.items()},
+        }
+
+    cat = cats.get(category)
+    if not cat:
+        return {
+            "error": f"Unknown category: '{category}'",
+            "available": list(cats.keys()),
+        }
+
+    if not topic:
+        return {
+            "category": category,
+            "description": cat["description"],
+            "topics": {
+                k: v[:80] + "…" if len(v) > 80 else v for k, v in cat["topics"].items()
+            },
+            "hint": f"Add topic= with one of: {', '.join(cat['topics'].keys())}",
+        }
+
+    detail = cat["topics"].get(topic)
+    if not detail:
+        return {
+            "error": f"Unknown topic: '{topic}' in category '{category}'",
+            "available": list(cat["topics"].keys()),
+        }
+
+    return {
+        "category": category,
+        "topic": topic,
+        "detail": detail,
+    }
+
+
+# Register tools
 mcp.tool()(yahboom_tool)
+mcp.tool()(yahboom_help)
 
 # --- Custom API Endpoints (Native to FastMCP App) ---
 
@@ -129,18 +269,55 @@ async def health():
 
 @app.get("/api/v1/telemetry")
 async def telemetry():
-    """Get system telemetry for Dashboard visualization."""
-    bridge = _state.get("bridge")
-    if not bridge or not bridge.connected:
-        return {"error": "ROS 2 bridge not connected"}
+    """
+    Real-time telemetry from all connected ROS 2 sensors.
 
-    # SOTA: Return real telemetry if available, else simulated for UI testing
-    return {
-        "battery": 85.0,  # Simulated
-        "imu": {"heading": 342.0},
-        "velocity": {"linear": 0.5, "angular": 0.0},
-        "timestamp": datetime.now().isoformat(),
-    }
+    Returns live data from:
+    - /imu/data        → heading, pitch, roll, accel, gyro
+    - /battery_state   → percentage, voltage
+    - /odom            → position, linear/angular velocity
+    - /scan            → nearest obstacle per 8 sectors + global nearest
+
+    Falls back to clearly-marked simulated values when bridge is offline.
+    """
+    bridge = _state.get("bridge")
+
+    if bridge and bridge.connected:
+        data = bridge.get_full_telemetry()
+        data["source"] = "live"
+    else:
+        # Simulated fallback for UI testing without robot
+        data = {
+            "battery": 85.0,
+            "voltage": 11.8,
+            "imu": {
+                "heading": 342.0,
+                "yaw": -18.0,
+                "pitch": 0.5,
+                "roll": -0.3,
+                "angular_velocity": {"x": 0.0, "y": 0.0, "z": 0.0},
+                "linear_acceleration": {"x": 0.01, "y": 0.0, "z": 9.81},
+            },
+            "velocity": {"linear": 0.0, "angular": 0.0},
+            "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "scan": {
+                "nearest_m": None,
+                "obstacles": {
+                    "front": None,
+                    "front_right": None,
+                    "right": None,
+                    "back_right": None,
+                    "back": None,
+                    "back_left": None,
+                    "left": None,
+                    "front_left": None,
+                },
+            },
+            "source": "simulated",
+        }
+
+    data["timestamp"] = datetime.now().isoformat()
+    return data
 
 
 @app.post("/api/v1/control/move")
