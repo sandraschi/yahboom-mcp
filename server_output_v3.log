@@ -1,0 +1,3 @@
+usage: yahboom-mcp [-h] [--mode {stdio,http,dual}] [--host HOST] [--port PORT]
+                   [--robot-ip ROBOT_IP] [--debug]
+yahboom-mcp: error: unrecognized arguments: = Start-Process uv -ArgumentList "run", "yahboom-mcp", "--mode", "http", "--port", "10792" -PassThru

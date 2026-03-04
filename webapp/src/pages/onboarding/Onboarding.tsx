@@ -1,0 +1,152 @@
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Rocket, Shield, Server, Info, CheckCircle2, AlertCircle } from 'lucide-react';
+
+const Onboarding: React.FC = () => {
+    const [step, setStep] = useState(1);
+    const [config, setConfig] = useState({
+        robotIp: '192.168.1.100',
+        port: '9090',
+    });
+
+    return (
+        <div className="max-w-4xl mx-auto py-8">
+            <div className="flex items-center gap-4 mb-10">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
+                    <Rocket className="text-indigo-400 w-6 h-6" />
+                </div>
+                <div>
+                    <h1 className="text-3xl font-bold text-white tracking-tight">Robot Onboarding</h1>
+                    <p className="text-slate-400 text-sm">Initialize and bind your Yahboom G1 hardware to the Mission Control Gateway.</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                {[
+                    { id: 1, label: 'Hardware Discovery', desc: 'Scan local network for ROS 2 nodes.' },
+                    { id: 2, label: 'Substrate Link', desc: 'Establish high-performance Websocket bridge.' },
+                    { id: 3, label: 'System Validation', desc: 'Verify sensor flux and actuator health.' }
+                ].map((s) => (
+                    <div key={s.id} className={`p-4 rounded-2xl border transition-all ${step === s.id ? 'bg-indigo-500/10 border-indigo-500/40' : 'bg-[#0f0f12]/50 border-white/5 opacity-50'}`}>
+                        <div className="flex items-center gap-3 mb-2">
+                            <span className={`w-6 h-6 rounded-full text-xs flex items-center justify-center ${step === s.id ? 'bg-indigo-500 text-white' : 'bg-slate-800 text-slate-500'}`}>{s.id}</span>
+                            <span className="text-sm font-semibold text-slate-200">{s.label}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed font-medium">{s.desc}</p>
+                    </div>
+                ))}
+            </div>
+
+            <motion.div
+                layout
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-[#0f0f12]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-8 lg:p-12 shadow-2xl relative overflow-hidden"
+            >
+                <div className="absolute top-0 right-0 p-8 opacity-5">
+                    <Server size={120} />
+                </div>
+
+                {step === 1 && (
+                    <div className="space-y-8 relative z-10">
+                        <div>
+                            <h2 className="text-xl font-bold text-white mb-2">Hardware Discovery</h2>
+                            <p className="text-slate-400 text-sm font-medium">Configure your Yahboom G1's local IP address and bridge port.</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Robot host / IP</label>
+                                <input
+                                    type="text"
+                                    value={config.robotIp}
+                                    onChange={(e) => setConfig({ ...config, robotIp: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-indigo-500/50 transition-colors font-mono"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Bridge Port</label>
+                                <input
+                                    type="text"
+                                    value={config.port}
+                                    onChange={(e) => setConfig({ ...config, port: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-indigo-500/50 transition-colors font-mono"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 p-4 rounded-xl bg-orange-500/5 border border-orange-500/10">
+                            <Info className="text-orange-400 w-5 h-5 flex-shrink-0" />
+                            <p className="text-xs text-orange-200/70 font-medium leading-relaxed">
+                                Ensure your robot is powered on and both the robot and this workstation are connected to the same local area network.
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={() => setStep(2)}
+                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-indigo-600/20 active:scale-[0.98]"
+                        >
+                            Test Hardware Connection
+                        </button>
+                    </div>
+                )}
+
+                {step === 2 && (
+                    <div className="text-center py-12 space-y-8 relative z-10">
+                        <div className="flex justify-center">
+                            <div className="w-20 h-20 rounded-full border-4 border-indigo-500/30 border-t-indigo-500 animate-spin" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-white mb-2">Establishing Substrate Link...</h2>
+                            <p className="text-slate-400 text-sm font-medium">Scanning for ROS 2 nodes on {config.robotIp}.</p>
+                        </div>
+                        <button
+                            onClick={() => setStep(3)}
+                            className="px-8 py-3 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all text-sm font-bold"
+                        >
+                            Skip Scan (Debug Mode)
+                        </button>
+                    </div>
+                )}
+
+                {step === 3 && (
+                    <div className="space-y-8 relative z-10">
+                        <div className="flex items-center gap-4 p-6 rounded-2xl bg-green-500/10 border border-green-500/20">
+                            <CheckCircle2 className="text-green-400 w-8 h-8" />
+                            <div>
+                                <h2 className="text-lg font-bold text-white leading-tight">System Validated</h2>
+                                <p className="text-green-400/80 text-xs font-medium">Substrate link established with 0.4ms latency.</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Health Summary</h3>
+                            <div className="space-y-2">
+                                {[
+                                    { label: 'IMU Vector Flux', status: 'Optimal' },
+                                    { label: 'Battery Core', status: '82% - Stable' },
+                                    { label: 'Odom Array', status: 'Active' },
+                                    { label: 'LIDAR Path', status: 'Link Established' }
+                                ].map((item, idx) => (
+                                    <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5">
+                                        <span className="text-sm font-medium text-slate-300">{item.label}</span>
+                                        <span className="text-xs font-bold text-indigo-400">{item.status}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => window.location.href = '/'}
+                            className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-green-600/20"
+                        >
+                            Enter Mission Control
+                        </button>
+                    </div>
+                )}
+            </motion.div>
+        </div>
+    );
+};
+
+export default Onboarding;

@@ -1,0 +1,35 @@
+2026-03-04 03:48:45,241 - yahboom-mcp - INFO - Unified Gateway Routes:
+2026-03-04 03:48:45,242 - yahboom-mcp - INFO -   /openapi.json -> openapi
+2026-03-04 03:48:45,242 - yahboom-mcp - INFO -   /docs -> swagger_ui_html
+2026-03-04 03:48:45,242 - yahboom-mcp - INFO -   /docs/oauth2-redirect -> swagger_ui_redirect
+2026-03-04 03:48:45,242 - yahboom-mcp - INFO -   /redoc -> redoc_html
+2026-03-04 03:48:45,242 - yahboom-mcp - INFO -   /mcp -> None
+2026-03-04 03:48:45,242 - yahboom-mcp - INFO -   /stream -> video_feed
+2026-03-04 03:48:45,242 - yahboom-mcp - INFO -   /api/v1/health -> health
+2026-03-04 03:48:45,242 - yahboom-mcp - INFO - Starting Unified Gateway on 0.0.0.0:10792
+D:\Dev\repos\yahboom-mcp\.venv\Lib\site-packages\websockets\legacy\__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+D:\Dev\repos\yahboom-mcp\.venv\Lib\site-packages\uvicorn\protocols\websockets\websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+  from websockets.server import WebSocketServerProtocol
+INFO:     Started server process [504892]
+INFO:     Waiting for application startup.
+2026-03-04 03:48:45,279 - yahboom-mcp - INFO - Yahboom MCP Unified Gateway starting up
+2026-03-04 03:48:45,279 - yahboom-mcp.core.ros2_bridge - INFO - Connecting to ROSBridge at localhost:9090...
+2026-03-04 03:48:47,331 - twisted - INFO - <twisted.internet.tcp.Connector instance at 0x1f0ca7a2900 disconnected IPv4Address(type='TCP', host='localhost', port=9090)> will retry in 2 seconds
+2026-03-04 03:48:47,331 - twisted - INFO - Stopping factory <roslibpy.comm.comm_autobahn.AutobahnRosBridgeClientFactory object at 0x000001F0CA7A2660>
+2026-03-04 03:48:50,329 - twisted - INFO - Starting factory <roslibpy.comm.comm_autobahn.AutobahnRosBridgeClientFactory object at 0x000001F0CA7A2660>
+2026-03-04 03:48:52,372 - twisted - INFO - <twisted.internet.tcp.Connector instance at 0x1f0ca7a2900 disconnected IPv4Address(type='TCP', host='localhost', port=9090)> will retry in 6 seconds
+2026-03-04 03:48:52,373 - twisted - INFO - Stopping factory <roslibpy.comm.comm_autobahn.AutobahnRosBridgeClientFactory object at 0x000001F0CA7A2660>
+2026-03-04 03:48:55,298 - yahboom-mcp.core.ros2_bridge - ERROR - Failed to connect to ROSBridge: Failed to connect to ROS
+2026-03-04 03:48:55,298 - yahboom-mcp - WARNING - Yahboom ROS 2 Bridge failed to connect - operating in degraded mode
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:10792 (Press CTRL+C to quit)
+2026-03-04 03:48:59,283 - twisted - INFO - Starting factory <roslibpy.comm.comm_autobahn.AutobahnRosBridgeClientFactory object at 0x000001F0CA7A2660>
+2026-03-04 03:49:01,331 - twisted - INFO - <twisted.internet.tcp.Connector instance at 0x1f0ca7a2900 disconnected IPv4Address(type='TCP', host='localhost', port=9090)> will retry in 21 seconds
+2026-03-04 03:49:01,331 - twisted - INFO - Stopping factory <roslibpy.comm.comm_autobahn.AutobahnRosBridgeClientFactory object at 0x000001F0CA7A2660>
+2026-03-04 03:49:22,637 - twisted - INFO - Starting factory <roslibpy.comm.comm_autobahn.AutobahnRosBridgeClientFactory object at 0x000001F0CA7A2660>
+2026-03-04 03:49:24,679 - twisted - INFO - <twisted.internet.tcp.Connector instance at 0x1f0ca7a2900 disconnected IPv4Address(type='TCP', host='localhost', port=9090)> will retry in 48 seconds
+2026-03-04 03:49:24,679 - twisted - INFO - Stopping factory <roslibpy.comm.comm_autobahn.AutobahnRosBridgeClientFactory object at 0x000001F0CA7A2660>
+2026-03-04 03:50:13,318 - twisted - INFO - Starting factory <roslibpy.comm.comm_autobahn.AutobahnRosBridgeClientFactory object at 0x000001F0CA7A2660>
+2026-03-04 03:50:15,358 - twisted - INFO - <twisted.internet.tcp.Connector instance at 0x1f0ca7a2900 disconnected IPv4Address(type='TCP', host='localhost', port=9090)> will retry in 129 seconds
+2026-03-04 03:50:15,358 - twisted - INFO - Stopping factory <roslibpy.comm.comm_autobahn.AutobahnRosBridgeClientFactory object at 0x000001F0CA7A2660>

@@ -25,7 +25,15 @@ async def yahboom_tool(
     op_lower = operation.lower().strip()
 
     try:
-        if op_lower in ["forward", "backward", "turn_left", "turn_right", "stop"]:
+        if op_lower in [
+            "forward",
+            "backward",
+            "turn_left",
+            "turn_right",
+            "stop",
+            "strafe_left",
+            "strafe_right",
+        ]:
             from .operations import motion
 
             return await motion.execute(ctx, op_lower, param1, param2, payload)

@@ -23,10 +23,21 @@ async def execute(
 
     bridge = _state.get("bridge")
 
+    linear_x = param1 if operation in ["forward", "backward"] else 0.0
+    linear_y = param1 if operation in ["strafe_left", "strafe_right"] else 0.0
+    angular_z = param1 if "turn" in operation else 0.0
+
+    # Adjust signs for direction
+    if operation == "backward":
+        linear_x = -linear_x
+    if operation == "strafe_right":
+        linear_y = -linear_y
+
     if bridge and bridge.connected:
         success = await bridge.publish_velocity(
-            linear_x=param1 if operation in ["forward", "backward"] else 0.0,
-            angular_z=param1 if "turn" in operation else 0.0,
+            linear_x=linear_x,
+            linear_y=linear_y,
+            angular_z=angular_z,
         )
         status = "command_sent" if success else "command_failed"
     else:
@@ -39,8 +50,9 @@ async def execute(
         "result": {
             "status": status,
             "parameters": {
-                "linear": param1 if operation in ["forward", "backward"] else 0.0,
-                "angular": param1 if "turn" in operation else 0.0,
+                "linear_x": linear_x,
+                "linear_y": linear_y,
+                "angular_z": angular_z,
             },
         },
         "correlation_id": correlation_id,

@@ -1,6 +1,15 @@
 # Yahboom ROS 2 MCP - SOTA 2026 Startup Script
 # Author: Sandra Schipal (v1.0.0 - 2026-03-03)
 
+Param(
+    [string]$RobotIP = "localhost"
+)
+
+if ($RobotIP -ne "localhost") {
+    $env:YAHBOOM_IP = $RobotIP
+    Write-Host "[YAHBOOM-MCP] Target Robot IP: $RobotIP" -ForegroundColor Cyan
+}
+
 $APP_PORT = 10792
 $WEBAPP_PORT = 10793
 
@@ -27,15 +36,39 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # 3. Start MCP Server (Background)
-Write-Host "[3/4] Starting Yahboom MCP Server on Port $APP_PORT..." -ForegroundColor Green
+Write-Host "[3/4] Starting Yahboom MCP Server on Port $APP_PORT (Dual Mode)..." -ForegroundColor Green
 $env:PYTHONPATH = "src"
-Start-Process uv -ArgumentList "run", "yahboom-mcp" -NoNewWindow -PassThru
+# Use dual mode to support both stdio and http (needed for dashboard)
+$serverProc = Start-Process uv -ArgumentList "run", "yahboom-mcp", "--mode", "dual", "--port", "$APP_PORT" -NoNewWindow -PassThru
 
-# 4. Webapp Handshake (Future Phase 3 integration)
-Write-Host "[4/4] Note: Dashboard UI (Port $WEBAPP_PORT) is in scaffold phase." -ForegroundColor Gray
+# 4. Start Dashboard UI (Background)
+Write-Host "[4/4] Starting Dashboard UI on Port $WEBAPP_PORT..." -ForegroundColor Green
+if (-not (Test-Path "webapp\node_modules")) {
+    Write-Host "      -> node_modules missing. Running npm install..." -ForegroundColor Yellow
+    Push-Location webapp
+    npm install --quiet
+    Pop-Location
+}
+
+Push-Location webapp
+$dashboardProc = Start-Process cmd -ArgumentList "/c", "npm", "run", "dev" -NoNewWindow -PassThru
+Pop-Location
 
 Write-Host "`n[SUCCESS] Yahboom ROS 2 Fleet Integration Active." -ForegroundColor Green
 Write-Host "----------------------------------------------------"
-Write-Host "Server Port: $APP_PORT"
-Write-Host "Dashboard: http://localhost:$WEBAPP_PORT"
+Write-Host "Server Port: $APP_PORT (MCP SSE + API)"
+Write-Host "Dashboard:   http://localhost:$WEBAPP_PORT"
 Write-Host "----------------------------------------------------`n"
+Write-Host "Press Ctrl+C to stop both processes..."
+
+try {
+    while ($true) {
+        Start-Sleep -Seconds 1
+    }
+}
+finally {
+    Write-Host "`n[SHUTDOWN] Stopping processes..." -ForegroundColor Yellow
+    Stop-Process -Id $serverProc.Id -Force -ErrorAction SilentlyContinue
+    Stop-Process -Id $dashboardProc.Id -Force -ErrorAction SilentlyContinue
+    Write-Host "[DONE] Cleanup complete." -ForegroundColor Green
+}

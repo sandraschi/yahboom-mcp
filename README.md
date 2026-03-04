@@ -1,6 +1,6 @@
-# Yahboom ROS 2 MCP Server (v1.0.0)
+# Yahboom ROS 2 MCP Server (v1.2.0)
 
-Industrial-grade agentic control interface for the **Yahboom G1 ROS 2 Robot** (Raspberry Pi 5 / ROS 2 Humble). This project is a core component of the [Robotics Fleet](docs/fleet_overview.md).
+Industrial-grade agentic control interface for the **Yahboom Raspbot v2** (Raspberry Pi 5 / ROS 2 Humble). This project is a core component of the [Robotics Fleet](docs/fleet_overview.md).
 
 ## 🤖 Federated Robotics Fleet
 Yahboom-MCP operates as a specialized manipulation and navigation node within a wider federated fleet including:
@@ -49,7 +49,10 @@ Access the premium monitoring interface at:
 
 ## 📚 Documentation
 For detailed guides on fleet architecture, integration, and status, see the [docs](docs/) directory:
-- [Fleet Overview](docs/fleet_overview.md)
-- [Architecture](docs/architecture.md)
-- [Integration Guide](docs/integration_guide.md)
-- [Project Status](docs/status.md)
+- [Connectivity Guide](docs/CONNECTIVITY.md) — WiFi setup and robot IP discovery.
+- [Architecture](docs/architecture.md) — System design and Portmanteau pattern.
+- [Pi-less Setup](docs/PI_LESS_SETUP.md) — High-performance PC-as-Brain configuration.
+- [AI & Vision Capabilities](docs/AI_CAPABILITIES.md) — Local LLMs and computer vision on RPi 5.
+- [Fleet Overview](docs/fleet_overview.md) — Vision for the federated robotics fleet.
+- [Integration Guide](docs/integration_guide.md) — Cross-robot workflows.
+- [Project Status](docs/status.md) — Roadmap and completion metrics.

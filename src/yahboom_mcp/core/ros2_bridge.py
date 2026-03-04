@@ -94,18 +94,20 @@ class ROS2Bridge:
             self.ros.terminate()
             self.connected = False
 
-    async def publish_velocity(self, linear_x: float, angular_z: float):
-        """Send velocity command to the robot."""
+    async def publish_velocity(
+        self, linear_x: float, angular_z: float, linear_y: float = 0.0
+    ):
+        """Send velocity command to the robot (including strafing for Mecanum wheels)."""
         if not self.connected or not self.cmd_vel_topic:
             logger.warning("Cannot publish velocity: Not connected")
             return False
 
         twist = {
-            "linear": {"x": linear_x, "y": 0.0, "z": 0.0},
+            "linear": {"x": linear_x, "y": linear_y, "z": 0.0},
             "angular": {"x": 0.0, "y": 0.0, "z": angular_z},
         }
         self.cmd_vel_topic.publish(roslibpy.Message(twist))
-        logger.info(f"Published cmd_vel: x={linear_x}, z={angular_z}")
+        logger.info(f"Published cmd_vel: x={linear_x}, y={linear_y}, z={angular_z}")
         return True
 
     async def get_sensor_data(self, key: str) -> Dict[str, Any]:
