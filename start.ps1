@@ -28,7 +28,7 @@ function Kill-Port {
                 Write-Host "      -> PID $p killed (port $Port)" -ForegroundColor DarkGray
             }
             catch {
-                Write-Host "      -> PID $p: could not kill ($($_.Exception.Message))" -ForegroundColor DarkYellow
+                Write-Host "      -> PID ${p}: could not kill ($($_.Exception.Message))" -ForegroundColor DarkYellow
             }
         }
     }
