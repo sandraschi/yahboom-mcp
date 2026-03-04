@@ -20,14 +20,14 @@ function Clear-Port {
     if (-not $conns) { return $false }
 
     $portPids = $conns | Select-Object -ExpandProperty OwningProcess -Unique
-    foreach ($pid in $portPids) {
-        if ($pid -and $pid -ne 0) {
+    foreach ($procId in $portPids) {
+        if ($procId -and $procId -ne 0) {
             try {
-                Stop-Process -Id $pid -Force -ErrorAction Stop
-                Write-Host "      -> PID $pid killed (port $Port)" -ForegroundColor DarkGray
+                Stop-Process -Id $procId -Force -ErrorAction Stop
+                Write-Host "      -> PID $procId killed (port $Port)" -ForegroundColor DarkGray
             }
             catch {
-                Write-Host "      -> PID $pid could not be killed" -ForegroundColor DarkYellow
+                Write-Host "      -> PID $procId could not be killed" -ForegroundColor DarkYellow
             }
         }
     }
