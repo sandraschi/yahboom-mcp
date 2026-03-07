@@ -10,20 +10,31 @@ Yahboom-MCP operates as a specialized manipulation and navigation node within a 
 
 ## 🚀 SOTA 2026 Architecture
 
-This server is built on **FastMCP 3.0** and implements high-density agentic workflows using the **Portmanteau Pattern**.
+This server is built on **FastMCP 3.1** and implements high-density agentic workflows using the **Portmanteau Pattern**, **sampling** (SEP-1577), **prompts**, **skills**, and **scripts**.
 
-- **Port**: `10792` (SOTA Webapp Dashboard)
-- **Protocol**: FastMCP 3.0 (GA Feb 18, 2026)
-- **AI Core**: SEP-1577 Sampling with trajectory reasoning.
+- **Port**: `10792` (backend), `10793` (Vite dashboard)
+- **Protocol**: FastMCP 3.1
+- **AI Core**: SEP-1577 sampling via `yahboom_agentic_workflow`; prompts for quick-start, patrol, diagnostics.
 
-## 🛠️ Operations Hub
+## 🛠️ Tools
 
-| Operation | Family | Description |
-|-----------|--------|-------------|
-| `forward` | Motion | Trajectory-aware motion control |
-| `read_imu` | Sensors | 9-axis telemetry feedback |
-| `move_to` | Navigation | Autonomous waypoint resolution |
-| `health` | Diagnostics | Real-time system integrity |
+| Tool | Description |
+|------|-------------|
+| `yahboom(operation, ...)` | Single operation: health_check, forward, backward, turn_left, turn_right, strafe_*, stop, read_imu, read_battery, trajectory recording, config_show |
+| `yahboom_help(category, topic)` | Multi-level help (motion, sensors, connection, api, mcp_tools, startup, troubleshooting) |
+| `yahboom_agentic_workflow(goal)` | High-level goal; LLM plans and runs a sequence of health/motion/sensor steps (sampling with sub-tools) |
+
+## 📋 Prompts
+
+- `yahboom_quick_start(robot_ip)` — Setup and connect instructions
+- `yahboom_patrol(duration_seconds)` — Patrol plan (e.g. square)
+- `yahboom_diagnostics()` — Diagnostic checklist
+
+## 📂 Skills & Scripts
+
+- **skills/yahboom-operator.md** — Operator skill: tool usage, prompts, workflow rules
+- **scripts/check_health.py** — REST health/telemetry (no MCP client): `python scripts/check_health.py [--base http://localhost:10792]`
+- **scripts/run_patrol_square.ps1** — Check server and print agentic workflow usage
 
 ## 📦 Getting Started
 
@@ -31,18 +42,20 @@ This server is built on **FastMCP 3.0** and implements high-density agentic work
 # Install dependencies
 uv sync
 
-# Start the server (SOTA standard)
-uv run yahboom-mcp
+# Start server (stdio for Cursor/Claude; dual for dashboard + MCP)
+uv run python -m yahboom_mcp.server --mode stdio
+# Or with web dashboard:
+uv run python -m yahboom_mcp.server --mode dual --port 10792
 ```
 
 ## 🌐 SOTA Webapp Dashboard
 
-Access the premium monitoring interface at:
-[http://localhost:10792](http://localhost:10792)
+Backend API: [http://localhost:10792](http://localhost:10792) (when running `--mode dual`).  
+Dashboard UI: [http://localhost:10793](http://localhost:10793) (Vite dev server; start via `webapp/start.bat` or `start.ps1`).
 
 ## ⚖️ Status & Compliance
-- [x] FastMCP 3.0 Standard
-- [x] SEP-1577 Sampling Verified
+- [x] FastMCP 3.1 (sampling, prompts)
+- [x] SEP-1577 agentic workflow tool
 - [x] Multi-MCP Integration (Resonite/HumeReady)
 - [x] SOTA 2026 Webapp Visuals
 - [x] Federated Fleet Integration
