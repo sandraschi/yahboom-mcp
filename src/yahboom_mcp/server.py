@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SOTA 2026 Yahboom G1 ROS 2 MCP Server
+SOTA 2026 Yahboom Raspbot v2 ROS 2 MCP Server
 **Timestamp**: 2026-03-04
 **Standards**: FastMCP 3.0+, Unified Gateway, SEP-1577
 
@@ -16,7 +16,7 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastmcp import FastMCP
@@ -26,6 +26,7 @@ from .state import _state
 from .portmanteau import yahboom_tool
 from .agentic import yahboom_agentic_workflow
 from .core.ros2_bridge import ROS2Bridge
+from .core.esp32_bridge import ESP32Bridge
 from .core.video_bridge import VideoBridge
 from .operations.trajectory import TrajectoryManager
 
@@ -45,16 +46,21 @@ async def lifespan(app: FastAPI):
     """SOTA 2026 Life-cycle management for ROS 2 and Hardware resources."""
     logger.info("Yahboom MCP Unified Gateway starting up")
 
-    # SOTA: Support configurable Robot IP via environment variable
     robot_host = os.environ.get("YAHBOOM_IP", "localhost")
-    bridge_port = int(os.environ.get("YAHBOOM_BRIDGE_PORT", 9090))
+    connection = (os.environ.get("YAHBOOM_CONNECTION") or "rosbridge").strip().lower()
 
-    # Initialize and connect ROS 2 bridge
-    bridge = ROS2Bridge(host=robot_host, port=bridge_port)
-    connected = await bridge.connect()
+    if connection == "esp32":
+        esp32_port = int(os.environ.get("YAHBOOM_ESP32_PORT", 2323))
+        bridge = ESP32Bridge(host=robot_host, port=esp32_port)
+        connected = await bridge.connect()
+        logger.info("Using ESP32 WiFi bridge (Pi-less mode)")
+    else:
+        bridge_port = int(os.environ.get("YAHBOOM_BRIDGE_PORT", 9090))
+        bridge = ROS2Bridge(host=robot_host, port=bridge_port)
+        connected = await bridge.connect()
 
-    # Initialize Video Bridge (requires bridge.ros)
-    video_bridge = VideoBridge(bridge.ros) if connected and bridge.ros else None
+    # Video Bridge only when ROS (has bridge.ros)
+    video_bridge = VideoBridge(bridge.ros) if connected and getattr(bridge, "ros", None) else None
     if video_bridge:
         video_bridge.start()
 
@@ -62,7 +68,7 @@ async def lifespan(app: FastAPI):
     trajectory_manager = TrajectoryManager()
 
     if connected:
-        logger.info(f"Yahboom ROS 2 Bridge connected to {robot_host}:{bridge_port}")
+        logger.info("Yahboom bridge connected to %s", robot_host)
     else:
         logger.warning(
             "Yahboom ROS 2 Bridge failed to connect - operating in degraded mode"
@@ -131,6 +137,20 @@ class ChatRequest(BaseModel):
     messages: list[dict[str, str]]  # [{ "role": "user"|"assistant"|"system", "content": "..." }]
 
 
+# System preprompt so the chat LLM talks intelligently about Yahboom (hardware, tools, workflows).
+YAHBOOM_CHAT_PREPROMPT = """You are the AI companion for the Yahboom Raspbot v2 dashboard. You help users control and understand the robot.
+
+Platform: Raspberry Pi 5, ROS 2 Humble, four mecanum wheels (holonomic: forward, backward, strafe, rotate). Sensors: LIDAR, camera, IMU, wheel encoders. Battery and telemetry are available via the backend.
+
+You are in the web dashboard chat. You do NOT have direct access to MCP tools here; the user may use Cursor/Claude for that. In this chat you should:
+- Answer questions about the robot (hardware, motion, sensors, connection, troubleshooting).
+- Suggest next steps: e.g. "Check health and battery in the Dashboard, then try a short forward command from Mission Control."
+- If they ask to do something multi-step (patrol, record a path), suggest they use the agentic workflow in an MCP client, or use Mission Control + Dashboard for manual steps.
+- Warn if low battery (< 20%): avoid long motions and suggest charging.
+- Be concise and technical; avoid filler. When you don't know, say so.
+"""
+
+
 # Create FastMCP instance using the FastAPI app
 mcp = FastMCP.from_fastapi(app, name="Yahboom ROS 2")
 
@@ -153,24 +173,25 @@ _HELP: dict = {
             },
         },
         "sensors": {
-            "description": "Telemetry and sensor data — IMU, battery, and odometry.",
+            "description": "Telemetry and sensor data — IMU, battery, odometry, LIDAR.",
             "topics": {
-                "imu": "IMU data: 9-axis (accel/gyro/mag). heading in degrees 0–360. yahboom(action='read_imu').",
-                "battery": "Battery: percentage 0–100. Below 20% = low warning. yahboom(action='health').",
+                "imu": "IMU data: 9-axis (accel/gyro/mag). heading in degrees 0–360. yahboom(operation='read_imu').",
+                "battery": "Battery: percentage 0–100. Below 20% = low warning. yahboom(operation='health_check').",
                 "telemetry": "Full telemetry: battery + IMU + velocity. GET http://localhost:10792/api/v1/telemetry — only available when bridge connected.",
                 "odometry": "Odometry: wheel encoder-based position estimation via /odom ROS topic (in development).",
+                "lidar": "LIDAR: lidar(operation='read', source='yahboom'|'dreame'|'auto'). Yahboom /scan → obstacles (8 sectors) + nearest_m. Dreame D20 Pro map via DREAME_MAP_URL.",
                 "camera": "Camera: MJPEG stream at http://localhost:10792/stream — only active when VideoBridge is initialized.",
             },
         },
         "connection": {
-            "description": "Connecting the MCP server to the Yahboom G1 robot.",
+            "description": "Connecting the MCP server to the Yahboom Raspbot v2 robot.",
             "topics": {
-                "requirements": "Requirements: Yahboom G1 powered on, Raspberry Pi running ROS 2 Humble, ROSBridge server running on port 9090.",
+                "requirements": "Requirements: Yahboom Raspbot v2 powered on, Raspberry Pi running ROS 2 Humble, ROSBridge server running on port 9090.",
                 "rosbridge": "Start ROSBridge on the robot: `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`.",
                 "env_vars": "Configure robot IP: set YAHBOOM_IP=192.168.x.x and YAHBOOM_BRIDGE_PORT=9090 before starting the server.",
                 "cli": "CLI flags: `uv run yahboom-mcp --mode dual --robot-ip 192.168.1.100 --port 10792`.",
                 "verify": "Verify: GET http://localhost:10792/api/v1/health — returns {connected: true} when bridge is live.",
-                "wifi": "WiFi setup: Robot and workstation must be on the same LAN subnet. Use the Onboarding page at /onboarding to configure.",
+                "wifi": "WiFi setup: Robot and workstation on same LAN. Raspbot v2 hotspot: SSID 'raspbot', password '12345678'. Robot IP 192.168.1.11, port 6000. Set YAHBOOM_IP=192.168.1.11 and YAHBOOM_BRIDGE_PORT=6000 (or 9090 for standard rosbridge), then restart server. Use Onboarding page at /onboarding to configure.",
             },
         },
         "api": {
@@ -191,6 +212,7 @@ _HELP: dict = {
                 "move": "yahboom(action='move', linear=float, angular=float) — velocity command.",
                 "health": "yahboom(action='health') — returns bridge connection state and battery.",
                 "read_imu": "yahboom(action='read_imu') — returns heading, pitch, roll from 9-axis IMU.",
+                "lidar": "lidar(operation='read'|'read_raw'|'read_dreame_map', source='yahboom'|'dreame'|'auto') — Yahboom /scan (optional) or Dreame D20 Pro map (optional, DREAME_MAP_URL).",
                 "move_to": "yahboom(action='move_to', x=float, y=float) — autonomous waypoint navigation (requires odometry).",
                 "help": "yahboom_help(category=..., topic=...) — this help system.",
             },
@@ -274,18 +296,43 @@ async def yahboom_help(
     }
 
 
+# --- LIDAR portmanteau (Yahboom optional + Dreame D20 Pro scan) ---
+
+
+async def lidar(
+    ctx=None,
+    operation: str = "read",
+    source: str = "auto",
+    param1: str | float | None = None,
+    param2: str | float | None = None,
+    payload: dict | None = None,
+) -> dict:
+    """LIDAR and map data from Yahboom (optional) or Dreame D20 Pro scan (optional).
+
+    Operations:
+    - read: Obstacle summary (nearest per 8 sectors + global nearest). Source: yahboom when bridge connected, or dreame when DREAME_MAP_URL set.
+    - read_raw: Same as read for yahboom; full ranges not cached. Use for planning with obstacles/nearest_m.
+    - read_dreame_map: Fetch LIDAR/map from Dreame D20 Pro scan. Requires DREAME_MAP_URL (e.g. robotics-mcp or dreame-mcp map endpoint).
+
+    Source: yahboom | dreame | auto (try yahboom first, then dreame).
+    """
+    from .operations import lidar as lidar_ops
+    return await lidar_ops.execute(ctx, operation, source, param1, param2, payload)
+
+
 # Register tools
 mcp.tool()(yahboom_tool)
 mcp.tool()(yahboom_help)
 mcp.tool()(yahboom_agentic_workflow)
+mcp.tool()(lidar)
 
 # --- Prompts (FastMCP 3.1) ---
 
 
 @mcp.prompt
 def yahboom_quick_start(robot_ip: str = "localhost") -> str:
-    """Get step-by-step instructions to connect and run the Yahboom G1 robot with this MCP server."""
-    return f"""You are helping set up the Yahboom G1 ROS 2 MCP server.
+    """Get step-by-step instructions to connect and run the Yahboom Raspbot v2 robot with this MCP server."""
+    return f"""You are helping set up the Yahboom Raspbot v2 ROS 2 MCP server.
 
 1. Ensure the robot is powered and on the same LAN. ROSBridge must be running on the robot (e.g. `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`).
 2. Set YAHBOOM_IP={robot_ip} (or the robot's actual IP) and start the server: `uv run python -m yahboom_mcp.server --mode dual --port 10792`.
@@ -314,6 +361,26 @@ def yahboom_diagnostics() -> str:
 4. If bridge is disconnected, verify YAHBOOM_IP, robot power, and rosbridge_server on the robot."""
 
 
+@mcp.prompt
+def yahboom_patrol_apartment() -> str:
+    """Standard action: patrol the apartment (full circuit of main rooms, avoid obstacles, return to start)."""
+    return """Execute a patrol of the apartment with the Yahboom Raspbot v2 robot.
+
+1. Call yahboom(operation='health_check') and ensure battery is sufficient (> 20%).
+2. Use yahboom_agentic_workflow with a goal like: "Patrol the apartment: do a full circuit of the main rooms. Move forward along walls, turn at corners, avoid obstacles using LIDAR/common sense. Return to the starting position and stop. Report battery when done."
+3. Alternatively use a sequence of yahboom(operation='forward', param1=duration), yahboom(operation='turn_left'|'turn_right', param1=duration), and lidar(operation='read') to check obstacles. Prefer agentic_workflow for multi-step patrol."""
+
+
+@mcp.prompt
+def yahboom_go_to_recharge() -> str:
+    """Standard action: go to recharge (drive to charging station and stop). Contactless recharger to be equipped later."""
+    return """Send the Yahboom Raspbot v2 robot to the charging station.
+
+1. Call yahboom(operation='health_check'). If battery is critical (< 15%), prioritise a short path to the dock.
+2. Use yahboom_agentic_workflow with a goal like: "Go to recharge: drive to the charging station and stop. Position the robot so it is aligned with the dock. (Contactless recharger will be equipped later; for now just stop at the dock.)"
+3. If the dock position is known (fixed coordinates or landmark), you can use a sequence of forward/turn/strafe and stop. Otherwise instruct the user to guide the robot manually to the dock or to define the dock waypoint."""
+
+
 # --- Custom API Endpoints (Native to FastMCP App) ---
 
 
@@ -328,6 +395,19 @@ async def video_feed():
         video_bridge.mjpeg_generator(),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
+
+
+@app.get("/api/v1/snapshot")
+async def snapshot():
+    """Single JPEG frame for embodied AI / VLM. Returns 204 if no frame yet."""
+    video_bridge = _state.get("video_bridge")
+    if not video_bridge or not video_bridge.active:
+        return Response(status_code=204)
+
+    jpeg = video_bridge.get_latest_frame_jpeg()
+    if not jpeg:
+        return Response(status_code=204)
+    return Response(content=jpeg, media_type="image/jpeg")
 
 
 @app.get("/api/v1/health")
@@ -397,15 +477,14 @@ async def telemetry():
 
 
 @app.post("/api/v1/control/move")
-async def control_move(linear: float, angular: float):
-    """Direct motion control endpoint for Dashboard UI."""
+async def control_move(linear: float = 0.0, angular: float = 0.0, linear_y: float = 0.0):
+    """Direct motion control endpoint for Dashboard UI and embodied loop."""
     bridge = _state.get("bridge")
     if not bridge or not bridge.connected:
-        return {"error": "ROS 2 bridge not connected"}
+        return {"error": "Bridge not connected"}
 
-    # Execute motion via bridge
-    await bridge.cmd_vel(linear, angular)
-    return {"status": "success", "command": {"linear": linear, "angular": angular}}
+    ok = await bridge.publish_velocity(linear_x=linear, angular_z=angular, linear_y=linear_y)
+    return {"status": "success" if ok else "failed", "command": {"linear": linear, "angular": angular, "linear_y": linear_y}}
 
 
 # --- Ollama / LLM (Settings + Chat) ---
@@ -452,14 +531,21 @@ async def update_llm_settings(body: LLMSettingsUpdate):
 async def chat_completion(body: ChatRequest):
     """
     Chat completion via Ollama. Uses model from Settings (GET/PUT /api/v1/settings/llm).
+    Injects a Yahboom-specific system preprompt so the LLM answers intelligently about the robot.
     Body: { "messages": [ { "role": "user"|"assistant"|"system", "content": "..." } ] }
     """
     model = (_llm_settings.get("model") or "").strip()
     if not model:
         raise HTTPException(status_code=400, detail="No model selected. Configure LLM model in Settings.")
-    messages = body.messages or []
+    messages = list(body.messages or [])
     if not messages:
         raise HTTPException(status_code=400, detail="messages array is required")
+    # Prepend system message so Ollama gets Yahboom context (dashboard chat has no MCP tools).
+    preprompt = {"role": "system", "content": YAHBOOM_CHAT_PREPROMPT}
+    if messages and messages[0].get("role") == "system":
+        messages[0]["content"] = YAHBOOM_CHAT_PREPROMPT + "\n\n" + (messages[0].get("content") or "")
+    else:
+        messages.insert(0, preprompt)
     payload = {"model": model, "messages": messages, "stream": False}
     data = await _ollama_post("/api/chat", payload)
     if data is None:

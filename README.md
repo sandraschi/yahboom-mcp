@@ -33,6 +33,7 @@ This server is built on **FastMCP 3.1** and implements high-density agentic work
 ## 📂 Skills & Scripts
 
 - **skills/yahboom-operator.md** — Operator skill: tool usage, prompts, workflow rules
+- **skills/yahboom-robots-expert.md** — Expert skill: hardware, ROS 2, URDF/frames, mecanum, fleet integration
 - **scripts/check_health.py** — REST health/telemetry (no MCP client): `python scripts/check_health.py [--base http://localhost:10792]`
 - **scripts/run_patrol_square.ps1** — Check server and print agentic workflow usage
 
@@ -65,6 +66,9 @@ For detailed guides on fleet architecture, integration, and status, see the [doc
 - [Connectivity Guide](docs/CONNECTIVITY.md) — WiFi setup and robot IP discovery.
 - [Architecture](docs/architecture.md) — System design and Portmanteau pattern.
 - [Pi-less Setup](docs/PI_LESS_SETUP.md) — High-performance PC-as-Brain configuration.
+- [Hardware & ROS 2](docs/HARDWARE_AND_ROS2.md) — Pi tiers, ROS 2 interaction, terminal tools, LIDAR integration.
+- [Embodied AI](docs/EMBODIED_AI.md) — Observe -> LLM -> act loop, snapshot/move API.
+- [Neurophilosophy overview](docs/NEUROPHILOSOPHY_OVERVIEW.md) — Damasio, GWT, IIT, enactivism; arxiv papers; link to embodied loop.
 - [AI & Vision Capabilities](docs/AI_CAPABILITIES.md) — Local LLMs and computer vision on RPi 5.
 - [Fleet Overview](docs/fleet_overview.md) — Vision for the federated robotics fleet.
 - [Integration Guide](docs/integration_guide.md) — Cross-robot workflows.

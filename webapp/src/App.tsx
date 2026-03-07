@@ -14,6 +14,7 @@ import Apps from './pages/apps/Apps';
 import LLM from './pages/llm/LLM';
 import Analytics from './pages/analytics/Analytics';
 import Viz from './pages/viz/Viz';
+import MapPage from './pages/map/Map';
 
 import ErrorBoundary from './components/common/ErrorBoundary';
 
@@ -38,6 +39,7 @@ function App() {
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/help" element={<Help />} />
                     <Route path="/viz" element={<Viz />} />
+                    <Route path="/map" element={<MapPage />} />
 
                     {/* Fallback */}
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MessageSquare, Send, Cpu, User, Loader2, AlertCircle } from 'lucide-react';
 import { api, type ChatMessage } from '../../lib/api';
@@ -12,11 +13,20 @@ const INITIAL_AI =
     'Greetings. G1 Substrate Link sequence complete. I am ready for manual or autonomous directives. What is our objective?';
 
 const Chat: React.FC = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [messages, setMessages] = useState<Message[]>([{ role: 'ai', content: INITIAL_AI }]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [modelHint, setModelHint] = useState<string | null>(null);
+
+    useEffect(() => {
+        const prompt = searchParams.get('prompt');
+        if (prompt) {
+            setInput(decodeURIComponent(prompt));
+            setSearchParams({}, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
 
     const loadLlmHint = useCallback(async () => {
         try {
@@ -66,7 +76,7 @@ const Chat: React.FC = () => {
                 <div>
                     <h1 className="text-3xl font-bold text-white tracking-tight">AI Companion</h1>
                     <p className="text-slate-400 text-sm">
-                        Natural language interface for Yahboom G1. {modelHint ? `Model: ${modelHint}` : 'Select a model in Settings.'}
+                        Natural language interface for Yahboom Raspbot v2. {modelHint ? `Model: ${modelHint}` : 'Select a model in Settings.'}
                     </p>
                 </div>
             </div>

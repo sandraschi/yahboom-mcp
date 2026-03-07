@@ -14,7 +14,8 @@ import {
     Monitor,
     Activity,
     Box,
-    ScanLine
+    ScanLine,
+    Map
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -27,6 +28,7 @@ const navItems = [
     { path: '/onboarding', label: 'Onboarding', icon: Rocket },
     { path: '/analytics', label: 'Analytics', icon: Activity },
     { path: '/viz', label: 'Visualization', icon: ScanLine },
+    { path: '/map', label: 'Map', icon: Map },
     { path: '/chat', label: 'AI Companion', icon: MessageSquare },
     { path: '/tools', label: 'MCP Tools', icon: Wrench },
     { path: '/apps', label: 'Apps Hub', icon: Box },

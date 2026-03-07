@@ -99,8 +99,8 @@ function StlPart({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Single spinning wheel (loads real STL, spins on X axis)
-// URDF visual origin rpy = pi/2, 0, 0
+// Single spinning wheel — vertical (disc in YZ plane, axle along X)
+// Rotation [0, pi/2, 0] puts wheel vertical; spin around local X (axle)
 // ─────────────────────────────────────────────────────────────────────────────
 function WheelMesh({
     url,
@@ -115,14 +115,13 @@ function WheelMesh({
 }) {
     const groupRef = useRef<THREE.Group>(null!)
     useFrame((_, delta) => {
-        groupRef.current.rotation.y += delta * spin
+        groupRef.current.rotation.x += delta * spin
     })
     return (
         <group ref={groupRef} position={position}>
-            {/* URDF visual rpy = pi/2,0,0  +  optional y-flip for left/right mirror */}
             <StlPart
                 url={url}
-                rotation={[Math.PI / 2, 0, flip ? Math.PI : 0]}
+                rotation={[0, Math.PI / 2, flip ? Math.PI : 0]}
                 color="#222222"
                 metalness={0.3}
                 roughness={0.8}
@@ -281,19 +280,19 @@ function Floor() {
         <>
             <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} receiveShadow>
                 <planeGeometry args={[8, 8]} />
-                <meshStandardMaterial color="#080810" />
+                <meshStandardMaterial color="#12121a" />
             </mesh>
             <Grid
                 position={[0, 0, 0]}
                 args={[8, 8]}
                 cellSize={0.25}
-                cellThickness={0.4}
-                cellColor="#1e1e3a"
+                cellThickness={0.5}
+                cellColor="#2a2a4a"
                 sectionSize={1}
-                sectionThickness={0.8}
-                sectionColor="#2d2d6a"
+                sectionThickness={1}
+                sectionColor="#3d3d6e"
                 fadeDistance={6}
-                fadeStrength={1.5}
+                fadeStrength={1.2}
                 infiniteGrid
             />
         </>
@@ -361,7 +360,7 @@ const Viz = () => {
                     <div>
                         <h1 className="text-2xl font-bold text-white tracking-tight">3D Visualization</h1>
                         <p className="text-slate-400 text-xs">
-                            ROSMASTER X3 — real STL meshes from URDF
+                            Raspbot v2 — real STL meshes from URDF
                             {' · '}
                             <a
                                 href="https://github.com/automaticaddison/yahboom_rosmaster"
@@ -384,31 +383,32 @@ const Viz = () => {
             </div>
 
             {/* 3D Canvas */}
-            <div className="flex-1 rounded-2xl overflow-hidden border border-white/10 bg-[#050508] relative min-h-0">
+            <div className="flex-1 rounded-2xl overflow-hidden border border-white/10 bg-[#0f0f18] relative min-h-0">
                 <Canvas
                     shadows
                     camera={{ position: [0.5, 0.4, 0.8], fov: 45, near: 0.001, far: 50 }}
                     gl={{ antialias: true }}
                 >
-                    <color attach="background" args={['#050508']} />
-                    <fog attach="fog" args={['#050508', 3, 10]} />
+                    <color attach="background" args={['#0f0f18']} />
+                    <fog attach="fog" args={['#0f0f18', 4, 12]} />
 
-                    {/* Lighting: key + fill + rim so robot reads clearly */}
-                    <ambientLight intensity={0.55} />
-                    <hemisphereLight args={['#404060', '#0a0a12', 0.6]} />
+                    {/* Brighter lighting: key + fill + rim */}
+                    <ambientLight intensity={0.85} />
+                    <hemisphereLight args={['#7070a0', '#1a1a2e', 0.85]} />
                     <directionalLight
                         position={[1.2, 1.8, 1.2]}
-                        intensity={2.2}
+                        intensity={3.2}
                         castShadow
                         shadow-mapSize={[1024, 1024]}
                         shadow-bias={-0.0001}
                     />
-                    <directionalLight position={[-0.8, 0.6, -0.6]} intensity={0.7} />
-                    <pointLight position={[-0.5, 0.5, -0.5]} intensity={0.6} color="#6366f1" />
-                    <pointLight position={[0.5, 0.25, 0.5]} intensity={0.4} color="#93c5fd" />
+                    <directionalLight position={[-0.8, 0.6, -0.6]} intensity={1.2} />
+                    <directionalLight position={[0, 1, 0.5]} intensity={0.8} />
+                    <pointLight position={[-0.5, 0.5, -0.5]} intensity={1} color="#6366f1" />
+                    <pointLight position={[0.5, 0.25, 0.5]} intensity={0.7} color="#93c5fd" />
 
                     <Suspense fallback={<RobotFallback />}>
-                        <Environment preset="night" />
+                        <Environment preset="studio" />
                         <Floor />
                         <AxisLabels />
                         <G1Robot yaw={yaw} linearVel={linearVel} />

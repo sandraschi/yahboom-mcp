@@ -2,12 +2,23 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Rocket, Shield, Server, Info, CheckCircle2, AlertCircle } from 'lucide-react';
 
+const RASPBOT_HOTSPOT = {
+    ssid: 'raspbot',
+    password: '12345678',
+    ip: '192.168.1.11',
+    port: '6000',
+};
+
 const Onboarding: React.FC = () => {
     const [step, setStep] = useState(1);
     const [config, setConfig] = useState({
-        robotIp: '192.168.1.100',
-        port: '9090',
+        robotIp: RASPBOT_HOTSPOT.ip,
+        port: RASPBOT_HOTSPOT.port,
     });
+
+    const applyRaspbotHotspot = () => {
+        setConfig({ robotIp: RASPBOT_HOTSPOT.ip, port: RASPBOT_HOTSPOT.port });
+    };
 
     return (
         <div className="max-w-4xl mx-auto py-8">
@@ -17,7 +28,7 @@ const Onboarding: React.FC = () => {
                 </div>
                 <div>
                     <h1 className="text-3xl font-bold text-white tracking-tight">Robot Onboarding</h1>
-                    <p className="text-slate-400 text-sm">Initialize and bind your Yahboom G1 hardware to the Mission Control Gateway.</p>
+                    <p className="text-slate-400 text-sm">Initialize and bind your Yahboom Raspbot v2 to the Mission Control Gateway.</p>
                 </div>
             </div>
 
@@ -51,7 +62,24 @@ const Onboarding: React.FC = () => {
                     <div className="space-y-8 relative z-10">
                         <div>
                             <h2 className="text-xl font-bold text-white mb-2">Hardware Discovery</h2>
-                            <p className="text-slate-400 text-sm font-medium">Configure your Yahboom G1's local IP address and bridge port.</p>
+                            <p className="text-slate-400 text-sm font-medium">Configure your Raspbot v2 IP and bridge port. Use the robot hotspot or your LAN.</p>
+                        </div>
+
+                        <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+                            <h3 className="text-sm font-bold text-indigo-300 mb-2">Raspbot v2 hotspot (recommended)</h3>
+                            <p className="text-slate-400 text-xs mb-3">Connect this PC to the robot&apos;s WiFi, then use the preset below.</p>
+                            <ul className="text-xs text-slate-300 font-mono space-y-1 mb-3">
+                                <li>SSID: <span className="text-white">{RASPBOT_HOTSPOT.ssid}</span></li>
+                                <li>Password: <span className="text-white">{RASPBOT_HOTSPOT.password}</span></li>
+                                <li>Robot IP: <span className="text-white">{RASPBOT_HOTSPOT.ip}</span> (port {RASPBOT_HOTSPOT.port})</li>
+                            </ul>
+                            <button
+                                type="button"
+                                onClick={applyRaspbotHotspot}
+                                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold"
+                            >
+                                Use hotspot preset (192.168.1.11 : 6000)
+                            </button>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -72,13 +100,14 @@ const Onboarding: React.FC = () => {
                                     onChange={(e) => setConfig({ ...config, port: e.target.value })}
                                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-indigo-500/50 transition-colors font-mono"
                                 />
+                                <p className="text-[11px] text-slate-500">6000 = robot service; 9090 = standard rosbridge</p>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-3 p-4 rounded-xl bg-orange-500/5 border border-orange-500/10">
                             <Info className="text-orange-400 w-5 h-5 flex-shrink-0" />
                             <p className="text-xs text-orange-200/70 font-medium leading-relaxed">
-                                Ensure your robot is powered on and both the robot and this workstation are connected to the same local area network.
+                                The server reads YAHBOOM_IP and YAHBOOM_BRIDGE_PORT at startup. From webapp folder run: <span className="font-mono text-orange-300">.\start.ps1 -RobotIP 192.168.1.11 -BridgePort 6000</span> (or set env vars and restart). Connect this PC to WiFi &quot;{RASPBOT_HOTSPOT.ssid}&quot; first.
                             </p>
                         </div>
 

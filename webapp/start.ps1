@@ -2,12 +2,17 @@
 # Author: Sandra Schipal (v1.2.0 - 2026-03-04)
 
 Param(
-    [string]$RobotIP = "localhost"
+    [string]$RobotIP = "localhost",
+    [int]$BridgePort = 0
 )
 
 if ($RobotIP -ne "localhost") {
     $env:YAHBOOM_IP = $RobotIP
     Write-Host "[YAHBOOM-MCP] Target Robot IP: $RobotIP" -ForegroundColor Cyan
+}
+if ($BridgePort -gt 0) {
+    $env:YAHBOOM_BRIDGE_PORT = [string]$BridgePort
+    Write-Host "[YAHBOOM-MCP] Bridge Port: $BridgePort" -ForegroundColor Cyan
 }
 
 $APP_PORT = 10792

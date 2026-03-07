@@ -12,7 +12,7 @@ async def yahboom_tool(
     param2: str | float | None = None,
     payload: dict | None = None,
 ) -> dict:
-    """Unified control tool for Yahboom ROSmaster G1 (ROS 2 Humble).
+    """Unified control tool for Yahboom Raspbot v2 (ROS 2 Humble).
 
     Single entry point for motion, sensors, diagnostics, and trajectory recording.
     All operations return a dict with "success" (bool), and on failure "error" (str)
