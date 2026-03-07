@@ -15,13 +15,16 @@ import asyncio
 from datetime import datetime
 from contextlib import asynccontextmanager
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from fastmcp import FastMCP
+import httpx
 
 from .state import _state
 from .portmanteau import yahboom_tool
+from .agentic import yahboom_agentic_workflow
 from .core.ros2_bridge import ROS2Bridge
 from .core.video_bridge import VideoBridge
 from .operations.trajectory import TrajectoryManager
@@ -90,6 +93,43 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Ollama / LLM (webapp Settings + Chat) ---
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+_llm_settings: dict = {"provider": "ollama", "model": ""}
+
+
+async def _ollama_get(path: str) -> dict | None:
+    """GET from Ollama API; returns None on failure."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(f"{OLLAMA_BASE_URL.rstrip('/')}{path}")
+            if r.status_code == 200:
+                return r.json()
+    except Exception as e:
+        logger.debug("Ollama request failed: %s", e)
+    return None
+
+
+async def _ollama_post(path: str, json: dict) -> dict | None:
+    """POST to Ollama API; returns None on failure."""
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            r = await client.post(f"{OLLAMA_BASE_URL.rstrip('/')}{path}", json=json)
+            if r.status_code == 200:
+                return r.json()
+    except Exception as e:
+        logger.debug("Ollama POST failed: %s", e)
+    return None
+
+
+class LLMSettingsUpdate(BaseModel):
+    model: str = ""
+
+
+class ChatRequest(BaseModel):
+    messages: list[dict[str, str]]  # [{ "role": "user"|"assistant"|"system", "content": "..." }]
+
 
 # Create FastMCP instance using the FastAPI app
 mcp = FastMCP.from_fastapi(app, name="Yahboom ROS 2")
@@ -237,6 +277,42 @@ async def yahboom_help(
 # Register tools
 mcp.tool()(yahboom_tool)
 mcp.tool()(yahboom_help)
+mcp.tool()(yahboom_agentic_workflow)
+
+# --- Prompts (FastMCP 3.1) ---
+
+
+@mcp.prompt
+def yahboom_quick_start(robot_ip: str = "localhost") -> str:
+    """Get step-by-step instructions to connect and run the Yahboom G1 robot with this MCP server."""
+    return f"""You are helping set up the Yahboom G1 ROS 2 MCP server.
+
+1. Ensure the robot is powered and on the same LAN. ROSBridge must be running on the robot (e.g. `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`).
+2. Set YAHBOOM_IP={robot_ip} (or the robot's actual IP) and start the server: `uv run python -m yahboom_mcp.server --mode dual --port 10792`.
+3. Open the dashboard at http://localhost:10793. Use Mission Control for telemetry and the Chat page for natural-language commands.
+4. From an MCP client (Cursor, Claude Desktop), use the yahboom tool with operation=health_check first, then motion operations (forward, backward, turn_left, turn_right, stop).
+5. For high-level goals use the yahboom_agentic_workflow tool with a natural-language goal."""
+
+
+@mcp.prompt
+def yahboom_patrol(duration_seconds: str = "10") -> str:
+    """Generate a patrol plan for the Yahboom robot (e.g. square or figure-8)."""
+    return f"""Plan a safe patrol for the Yahboom G1 robot lasting about {duration_seconds} seconds.
+
+Use the yahboom_agentic_workflow tool with a goal like: "Patrol in a square: move forward 2 seconds, turn left 90 degrees, repeat 4 times, then stop and report battery."
+Or use individual yahboom(operation=...) calls for forward, turn_left, turn_right, stop. Always check health first."""
+
+
+@mcp.prompt
+def yahboom_diagnostics() -> str:
+    """Get a diagnostic checklist for the Yahboom robot and MCP server."""
+    return """Run a quick diagnostic on the Yahboom setup:
+
+1. Call yahboom(operation='health_check') to see ROS bridge connection and battery.
+2. If connected, call yahboom(operation='read_imu') for orientation and yahboom(operation='read_battery') for power.
+3. Check the dashboard at http://localhost:10793 (Mission Control) for live telemetry and the 3D Viz page.
+4. If bridge is disconnected, verify YAHBOOM_IP, robot power, and rosbridge_server on the robot."""
+
 
 # --- Custom API Endpoints (Native to FastMCP App) ---
 
@@ -330,6 +406,68 @@ async def control_move(linear: float, angular: float):
     # Execute motion via bridge
     await bridge.cmd_vel(linear, angular)
     return {"status": "success", "command": {"linear": linear, "angular": angular}}
+
+
+# --- Ollama / LLM (Settings + Chat) ---
+
+
+@app.get("/api/v1/settings/ollama/status")
+async def ollama_status():
+    """Check if Ollama is reachable (for Settings page)."""
+    data = await _ollama_get("/api/version")
+    return {
+        "connected": data is not None,
+        "base_url": OLLAMA_BASE_URL,
+    }
+
+
+@app.get("/api/v1/settings/ollama/models")
+async def ollama_models():
+    """List models discovered from Ollama (for Settings page dropdown)."""
+    data = await _ollama_get("/api/tags")
+    if data is None:
+        return {"models": [], "error": "Ollama unreachable"}
+    raw = data.get("models") or []
+    models = [
+        {"name": m.get("name") or m.get("model", ""), "size": m.get("size"), "modified_at": m.get("modified_at")}
+        for m in raw
+    ]
+    return {"models": models}
+
+
+@app.get("/api/v1/settings/llm")
+async def get_llm_settings():
+    """Current LLM provider and selected model (for chat/settings)."""
+    return {"provider": _llm_settings.get("provider", "ollama"), "model": _llm_settings.get("model", "")}
+
+
+@app.put("/api/v1/settings/llm")
+async def update_llm_settings(body: LLMSettingsUpdate):
+    """Set selected Ollama model (persists in process memory)."""
+    _llm_settings["model"] = body.model or ""
+    return {"provider": "ollama", "model": _llm_settings["model"]}
+
+
+@app.post("/api/v1/chat")
+async def chat_completion(body: ChatRequest):
+    """
+    Chat completion via Ollama. Uses model from Settings (GET/PUT /api/v1/settings/llm).
+    Body: { "messages": [ { "role": "user"|"assistant"|"system", "content": "..." } ] }
+    """
+    model = (_llm_settings.get("model") or "").strip()
+    if not model:
+        raise HTTPException(status_code=400, detail="No model selected. Configure LLM model in Settings.")
+    messages = body.messages or []
+    if not messages:
+        raise HTTPException(status_code=400, detail="messages array is required")
+    payload = {"model": model, "messages": messages, "stream": False}
+    data = await _ollama_post("/api/chat", payload)
+    if data is None:
+        raise HTTPException(status_code=502, detail="Ollama unreachable or request failed")
+    msg = data.get("message")
+    if not msg:
+        raise HTTPException(status_code=502, detail="Ollama returned no message")
+    return {"message": {"role": msg.get("role", "assistant"), "content": msg.get("content", "")}}
 
 
 # --- Entry Points ---

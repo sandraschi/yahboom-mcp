@@ -5,13 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-03-04
+## [1.4.0] - 2026-03-04
+
+### Added
+- **Unified Gateway Roadmap**: Defined migration path to FastMCP 3.1 architecture (documented in `docs/FASTMCP3_UNIFIED_GATEWAY.md`).
+- **Architecture**: Planned consolidation of MCP and HTTP services into a single FastAPI instance.
+
+## [1.3.0] - 2026-03-04
+
+### Added
+- **SOTA 2026 Dashboard**: Successfully consolidated all experimental UI enhancements from `webapp2` back into the primary `webapp`.
+- **Infrastructure**: Moved `start.ps1` and `start.bat` into the `webapp/` directory following the standardized project pattern.
+- **Unified Gateway**: Validated full compliance with FastMCP 3.1 architecture (consolidated MCP+HTTP).
 
 ### Fixed
-- **`start.ps1`**: `npm run dev` no longer fails on Windows — wrapped `npm` with `cmd /c` to handle batch-file execution correctly.
-- **`server.py`**: Replaced `mcp.app` usage (removed in FastMCP 3.0) with `FastAPI`-first pattern — `FastAPI` instance is created first, then wrapped via `FastMCP.from_fastapi()`.
-- **`webapp/src/main.tsx`**: Added missing `BrowserRouter` wrapper; absence caused `Routes`/`NavLink` to throw a missing router-context error on load.
-- **`webapp/src/pages/dashboard/Dashboard.tsx`**: Telemetry endpoint returns `{"error": ...}` when ROS bridge is offline. Frontend was calling `.toFixed()` on undefined `battery`/`imu` fields causing an unhandled `TypeError` that unmounted the whole React tree. Fixed with deep optional chaining (`?.`) and validated state setters.
+- **React Runtime**: Resolved "Black Screen" issue by aligning `react` and `react-dom` to version `19.0.0` (Fixed by Windsurf).
+- **Consolidation**: Removed redundant `webapp2` experimental directory.
+
+## [1.2.0] - 2026-03-04
+
+### Added
+- **Experimental Substrate**: Created `webapp2` to test high-density SOTA visuals (Tailwind/Framer Motion).
+- **Architecture**: Implemented `AppLayout` and `Sidebar` patterns for unified fleet command.
+
+### Fixed
+- **`start.ps1`**: `npm run dev` no longer fails on Windows — wrapped `npm` with `cmd /c`.
 
 ## [1.1.0] - 2026-03-03
 

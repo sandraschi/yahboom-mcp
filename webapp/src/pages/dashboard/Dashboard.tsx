@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { api } from '../../lib/api'
 import {
-    Activity, Battery, Compass, Square,
+    Activity, Battery, Compass,
     ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
     Monitor, Zap, Shield, Rocket, WifiOff, AlertTriangle, Link2,
-    Keyboard, Navigation
+    Keyboard, Navigation, Square
 } from 'lucide-react'
 
 // --- Types ---
@@ -56,20 +57,18 @@ const Dashboard = () => {
     const [wasdActive, setWasdActive] = useState(false)  // user has enabled keyboard mode
     const moveRef = useRef<(l: number, a: number) => void>(() => { })
 
-    // --- Telemetry polling ---
+    // --- Telemetry polling (via api client / Vite proxy to backend) ---
     useEffect(() => {
         const poll = async () => {
             try {
-                const hRes = await fetch('http://localhost:10792/api/v1/health')
-                const hData = await hRes.json()
+                const hData = await api.getHealth()
                 if (hData.status) {
                     setHealth(hData)
                     setConnState(hData.connected ? 'connected' : 'bot_offline')
                 }
-                const tRes = await fetch('http://localhost:10792/api/v1/telemetry')
-                const tData = await tRes.json()
+                const tData = await api.getTelemetry()
                 if (tData.battery !== undefined) setTelemetry(tData)
-            } catch {
+            } catch (err) {
                 setHealth(null)
                 setConnState('server_down')
             }
@@ -83,12 +82,9 @@ const Dashboard = () => {
     const move = useCallback(async (linear: number, angular: number) => {
         if (connState !== 'connected') return
         try {
-            await fetch(
-                `http://localhost:10792/api/v1/control/move?linear=${linear}&angular=${angular}`,
-                { method: 'POST' }
-            )
+            await api.postMove(linear, angular)
         } catch {
-            console.error('Movement failed')
+            // movement failed
         }
     }, [connState])
 
@@ -284,34 +280,34 @@ const Dashboard = () => {
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Inertial Path</span>
                         </div>
                         <div className="text-4xl font-black text-white">{imu?.heading?.toFixed(1) ?? '—'}°</div>
-                        <div className="grid grid-cols-3 gap-2 pt-1">
+                        <div className="grid grid-cols-2 gap-4 mb-6">
                             {[
+                                { label: 'Heading', val: imu?.heading },
                                 { label: 'Pitch', val: imu?.pitch },
                                 { label: 'Roll', val: imu?.roll },
-                                { label: 'Yaw', val: imu?.yaw },
                             ].map(({ label, val }) => (
-                                <div key={label} className="bg-white/5 rounded-xl px-3 py-2 text-center">
+                                <div key={label} className="bg-white/5 rounded-2xl p-4 border border-white/5">
                                     <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-0.5">{label}</div>
-                                    <div className="text-sm font-mono text-slate-200">{val?.toFixed(1) ?? '—'}°</div>
+                                    <div className="text-sm font-mono text-slate-200">{typeof val === 'number' ? val.toFixed(1) : '—'}°</div>
                                 </div>
                             ))}
                         </div>
-                        {imu?.linear_acceleration && (() => {
-                            const accel = imu.linear_acceleration
+                        {imu?.linear_acceleration && typeof imu.linear_acceleration === 'object' && (() => {
+                            const accel = imu.linear_acceleration as Record<string, number>
                             return (
                                 <div className="grid grid-cols-3 gap-2">
                                     {(['x', 'y', 'z'] as const).map(ax => (
                                         <div key={ax} className="bg-white/5 rounded-xl px-3 py-2 text-center">
                                             <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-0.5">Accel {ax.toUpperCase()}</div>
-                                            <div className="text-[11px] font-mono text-slate-300">
-                                                {accel[ax].toFixed(2)} m/s²
+                                            <div className="text-sm font-mono text-slate-300">
+                                                {typeof accel[ax] === 'number' ? accel[ax].toFixed(2) : '—'}
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             )
                         })()}
-                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest pt-1">
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest pt-4">
                             <Activity size={12} className="text-indigo-500" /> Real-time IMU Flux
                         </div>
                     </div>
@@ -324,12 +320,15 @@ const Dashboard = () => {
                                 <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Odometry Position</span>
                             </div>
                             <div className="grid grid-cols-3 gap-2">
-                                {(['x', 'y', 'z'] as const).map(ax => (
-                                    <div key={ax} className="bg-white/5 rounded-xl px-3 py-2 text-center">
-                                        <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-0.5">{ax.toUpperCase()}</div>
-                                        <div className="text-sm font-mono text-slate-200">{telemetry.position![ax].toFixed(3)} m</div>
-                                    </div>
-                                ))}
+                                {(['x', 'y', 'z'] as const).map(ax => {
+                                    const val = telemetry.position?.[ax]
+                                    return (
+                                        <div key={ax} className="bg-white/5 rounded-xl px-3 py-2 text-center">
+                                            <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-0.5">{ax.toUpperCase()}</div>
+                                            <div className="text-sm font-mono text-slate-200">{typeof val === 'number' ? val.toFixed(3) : '—'} m</div>
+                                        </div>
+                                    )
+                                })}
                             </div>
                         </div>
                     )}

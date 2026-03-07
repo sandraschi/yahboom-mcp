@@ -393,16 +393,19 @@ const Viz = () => {
                     <color attach="background" args={['#050508']} />
                     <fog attach="fog" args={['#050508', 3, 10]} />
 
-                    {/* Lighting */}
-                    <ambientLight intensity={0.4} />
+                    {/* Lighting: key + fill + rim so robot reads clearly */}
+                    <ambientLight intensity={0.55} />
+                    <hemisphereLight args={['#404060', '#0a0a12', 0.6]} />
                     <directionalLight
-                        position={[1, 2, 1]}
-                        intensity={1.8}
+                        position={[1.2, 1.8, 1.2]}
+                        intensity={2.2}
                         castShadow
                         shadow-mapSize={[1024, 1024]}
+                        shadow-bias={-0.0001}
                     />
-                    <pointLight position={[-0.5, 0.5, -0.5]} intensity={0.5} color="#6366f1" />
-                    <pointLight position={[0, 0.3, 0]} intensity={0.3} color="#60a5fa" />
+                    <directionalLight position={[-0.8, 0.6, -0.6]} intensity={0.7} />
+                    <pointLight position={[-0.5, 0.5, -0.5]} intensity={0.6} color="#6366f1" />
+                    <pointLight position={[0.5, 0.25, 0.5]} intensity={0.4} color="#93c5fd" />
 
                     <Suspense fallback={<RobotFallback />}>
                         <Environment preset="night" />
