@@ -1,10 +1,69 @@
-# Python-generated files
+# Python
 __pycache__/
-*.py[oc]
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
+develop-eggs/
 dist/
+eggs/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
 wheels/
-*.egg-info
+MANIFEST
 
 # Virtual environments
 .venv
+venv/
+env/
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs and local data
+*.log
+tmp/
+temp/
+.cache/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+ruff_errors.json
+
+# Node (webapp)
+node_modules/
+webapp/node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build / package
+*.tar.gz
+*.zip
+.mcpb/
+
+# Backup / scratch
+*.bak
+*.backup
+*_old.py

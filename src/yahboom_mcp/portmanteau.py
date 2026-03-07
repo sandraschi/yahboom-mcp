@@ -12,9 +12,30 @@ async def yahboom_tool(
     param2: str | float | None = None,
     payload: dict | None = None,
 ) -> dict:
-    """
-    Unified control tool for Yahboom ROS 2.
-    Consolidates motion, sensor, and hardware operations.
+    """Unified control tool for Yahboom ROSmaster G1 (ROS 2 Humble).
+
+    Single entry point for motion, sensors, diagnostics, and trajectory recording.
+    All operations return a dict with "success" (bool), and on failure "error" (str)
+    and "correlation_id". Optional fields vary by operation (e.g. "message", "trajectories").
+
+    Supported operations:
+
+    - Motion: forward, backward, turn_left, turn_right, strafe_left, strafe_right, stop.
+      Use param1 (and optionally param2) for duration or speed as documented per op.
+    - Sensors: read_imu, read_battery, read_encoders.
+    - Diagnostics: health_check, config_show.
+    - Trajectory: start_recording, stop_recording (param1 = basename), list_trajectories.
+
+    Args:
+        ctx: FastMCP context (optional); used for correlation_id and logging.
+        operation: One of the operations listed above (case-insensitive).
+        param1: First parameter (duration, speed, basename, etc. as required by operation).
+        param2: Second parameter when needed by operation.
+        payload: Optional extra key-value payload for future use.
+
+    Returns:
+        dict: {"success": bool, ...}. On success may include "message", "trajectories",
+        or operation-specific data. On failure includes "error" and "correlation_id".
     """
     correlation_id = ctx.correlation_id if ctx else "manual-execution"
     logger.info(
