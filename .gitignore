@@ -67,3 +67,5 @@ yarn-error.log*
 *.bak
 *.backup
 *_old.py
+# Rust / Zed IDE — rust-analyzer may create target/ at repo root
+target/
