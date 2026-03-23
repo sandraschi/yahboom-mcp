@@ -39,14 +39,19 @@ This server is built on **FastMCP 3.1** and implements high-density agentic work
 
 ## 📦 Getting Started
 
+**Robot connection:** The server connects to ROSBridge on the robot. Default robot IP is **192.168.0.250** (Ethernet). Override with env: `YAHBOOM_IP=192.168.0.250` (or `YAHBOOM_IP=192.168.1.11` for WiFi hotspot). Rosbridge port: `YAHBOOM_BRIDGE_PORT=9090` (default).
+
 ```powershell
-# Install dependencies
+git clone https://github.com/sandraschi/yahboom-mcp.git
+Set-Location yahboom-mcp
 uv sync
 
 # Start server (stdio for Cursor/Claude; dual for dashboard + MCP)
 uv run python -m yahboom_mcp.server --mode stdio
-# Or with web dashboard:
+# Or with web dashboard (robot on Ethernet 192.168.0.250 by default):
 uv run python -m yahboom_mcp.server --mode dual --port 10792
+# Or set robot IP explicitly:
+$env:YAHBOOM_IP = "192.168.0.250"; uv run python -m yahboom_mcp.server --mode dual --port 10792
 ```
 
 ## 🌐 SOTA Webapp Dashboard
@@ -67,6 +72,9 @@ For detailed guides on fleet architecture, integration, and status, see the [doc
 - [Architecture](docs/architecture.md) — System design and Portmanteau pattern.
 - [Pi-less Setup](docs/PI_LESS_SETUP.md) — High-performance PC-as-Brain configuration.
 - [Hardware & ROS 2](docs/HARDWARE_AND_ROS2.md) — Pi tiers, ROS 2 interaction, terminal tools, LIDAR integration.
+- [Raspbot motion troubleshooting](docs/RASPBOT_MOTION_TROUBLESHOOTING.md) — Camera works but no drive; SSH and `/cmd_vel` checks.
+- [Webapp 3D Viz](docs/WEBAPP_3D_VIZ.md) — R3F scene, Y-up vs URDF Z-up, wheel/chassis placement.
+- [Testing](docs/TESTING.md) — pytest layout, `MockROS2Bridge`, `YAHBOOM_USE_MOCK_BRIDGE`, hardware markers.
 - [Embodied AI](docs/EMBODIED_AI.md) — Observe -> LLM -> act loop, snapshot/move API.
 - [Neurophilosophy overview](docs/NEUROPHILOSOPHY_OVERVIEW.md) — Damasio, GWT, IIT, enactivism; arxiv papers; link to embodied loop.
 - [AI & Vision Capabilities](docs/AI_CAPABILITIES.md) — Local LLMs and computer vision on RPi 5.
