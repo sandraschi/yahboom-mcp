@@ -15,7 +15,14 @@ import {
     Activity,
     Box,
     ScanLine,
-    Map
+    Map,
+    Layers,
+    Gamepad2,
+    Gauge,
+    Package,
+    Shield,
+    Lightbulb,
+    Play
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -29,10 +36,17 @@ const navItems = [
     { path: '/analytics', label: 'Analytics', icon: Activity },
     { path: '/viz', label: 'Visualization', icon: ScanLine },
     { path: '/map', label: 'Map', icon: Map },
+    { path: '/lidar-map', label: 'Lidar Map', icon: Layers },
+    { path: '/lidar-addon', label: 'Lidar addon', icon: Package },
+    { path: '/movement', label: 'Movement', icon: Gamepad2 },
+    { path: '/sensors', label: 'Sensors', icon: Gauge },
+    { path: '/peripherals', label: 'Peripherals', icon: Lightbulb },
     { path: '/chat', label: 'AI Companion', icon: MessageSquare },
     { path: '/tools', label: 'MCP Tools', icon: Wrench },
     { path: '/apps', label: 'Apps Hub', icon: Box },
     { path: '/llm', label: 'Local LLM', icon: Cpu },
+    { path: '/diagnostics', label: 'Diagnostics', icon: Shield },
+    { path: '/workflows', label: 'Workflows', icon: Play },
     { path: '/settings', label: 'Settings', icon: Settings },
     { path: '/help', label: 'Help', icon: HelpCircle },
 ];
@@ -56,7 +70,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                             animate={{ opacity: 1 }}
                             className="flex flex-col"
                         >
-                            <span className="text-lg font-bold tracking-tight text-white leading-tight">G1 MISSION</span>
+                            <span className="text-lg font-bold tracking-tight text-white leading-tight">BOOMY MISSION</span>
                             <span className="text-[10px] font-medium text-indigo-400/80 uppercase tracking-widest leading-none">Industrial Console</span>
                         </motion.div>
                     )}

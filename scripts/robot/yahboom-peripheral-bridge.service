@@ -1,0 +1,15 @@
+[Unit]
+Description=Yahboom Raspbot v2 Peripheral Bridge (GPIO/I2C)
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/pi/yahboom-mcp/scripts/robot/peripheral_bridge.py
+WorkingDirectory=/home/pi/yahboom-mcp
+User=pi
+Group=pi
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

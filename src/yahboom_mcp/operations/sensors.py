@@ -38,8 +38,21 @@ async def execute(
             result = await bridge.get_sensor_data("odom")
         elif operation == "read_lidar":
             result = await bridge.get_sensor_data("scan")
+        elif operation == "read_camera_status":
+            # Check if camera topic is actually publishing
+            v_bridge = _state.get("video_bridge")
+            result = {
+                "active": v_bridge.active if v_bridge else False,
+                "topic": v_bridge.topic_name if v_bridge else None,
+                "frame_count": v_bridge.frame_count if v_bridge else 0,
+            }
         elif operation == "read_all":
             result = bridge.get_full_telemetry()
+            v_bridge = _state.get("video_bridge")
+            result["camera"] = {
+                "active": v_bridge.active if v_bridge else False,
+                "frame_count": v_bridge.frame_count if v_bridge else 0
+            }
         else:
             result = {
                 "status": "unknown_sensor_operation",
@@ -48,61 +61,23 @@ async def execute(
                     "read_battery",
                     "read_odom",
                     "read_lidar",
+                    "read_camera_status",
                     "read_all",
                 ],
             }
         status = "live_data"
     else:
-        # Clearly-marked mock fallback when bridge is not connected
-        mock_data: dict = {
-            "read_imu": {
-                "heading": 0.0,
-                "yaw": 0.0,
-                "pitch": 0.0,
-                "roll": 0.0,
-                "angular_velocity": {"x": 0.0, "y": 0.0, "z": 0.0},
-                "linear_acceleration": {"x": 0.0, "y": 0.0, "z": 9.81},
-            },
-            "read_battery": {
-                "voltage": 11.8,
-                "percentage": 85.0,
-                "power_supply_status": None,
-            },
-            "read_odom": {
-                "position": {"x": 0.0, "y": 0.0, "z": 0.0},
-                "heading": 0.0,
-                "velocity": {"linear": 0.0, "angular": 0.0},
-            },
-            "read_lidar": {
-                "nearest_m": None,
-                "obstacles": {
-                    "front": None,
-                    "front_right": None,
-                    "right": None,
-                    "back_right": None,
-                    "back": None,
-                    "back_left": None,
-                    "left": None,
-                    "front_left": None,
-                },
-                "num_points": 0,
-            },
-            "read_all": {
-                "battery": 85.0,
-                "voltage": 11.8,
-                "imu": {"heading": 0.0, "pitch": 0.0, "roll": 0.0},
-                "velocity": {"linear": 0.0, "angular": 0.0},
-                "position": {"x": 0.0, "y": 0.0, "z": 0.0},
-                "scan": {"nearest_m": None},
-            },
+        # ─────────────────────────────────────────────────────────────────────
+        # SOTA v12.0 Integrity: No Silent Mocks.
+        # ─────────────────────────────────────────────────────────────────────
+        result = {
+            "status": "robot_offline",
+            "message": "Connection to ROS 2 bridge or SSH bridge is currently down.",
+            "data": None
         }
-        # Also handle legacy alias
-        if operation == "read_encoders":
-            operation = "read_odom"
-        result = mock_data.get(operation, {"status": "unknown_sensor_operation"})
-        status = "mock_data"
+        status = "offline"
         logger.warning(
-            f"Sensor '{operation}' returning mock data (bridge not connected)"
+            f"Sensor '{operation}' failed: Robot is OFFLINE (No mock data fallback)"
         )
 
     return {

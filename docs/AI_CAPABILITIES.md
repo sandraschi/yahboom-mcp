@@ -1,6 +1,6 @@
 # AI & Vision Capabilities: ROS 2 on Raspberry Pi 5 (16GB)
 
-The combination of **ROS 2 Humble**, a **Raspberry Pi 5 (16GB)**, and the **Yahboom G1** hardware provides a surprisingly powerful platform for local AI and advanced computer vision.
+The combination of **ROS 2 Humble**, a **Raspberry Pi 5 (16GB)**, and the **Yahboom Raspbot v2** hardware provides a surprisingly powerful platform for local AI and advanced computer vision.
 
 ## 1. Local LLMs (The "Voice/Brain" of the Bot)
 
@@ -40,7 +40,7 @@ ROS 2 integrates natively with:
 ROS 2 isn't just about running code; it's about **distributed coordination**:
 1.  **Node Isolation**: Your LLM can run in one process, Face Recognition in another, and Motor Control in a third. If the LLM crashes, the robot can still "Stop" safely.
 2.  **DDS Transport**: It handles the complexities of networking. You could run the heavy LLM on your **PC** and the Face Detection on the **Pi**, and ROS 2 makes them talk as if they were in the same script.
-3.  **Standardization**: Every robot uses the same messages (`sensor_msgs/Image`, `geometry_msgs/Twist`). You can swap a Yahboom G1 for a Unitree Go2, and your high-level AI code stays the same.
+3. **Standardization**: Every robot uses the same messages (`sensor_msgs/Image`, `geometry_msgs/Twist`). You can swap a Yahboom Raspbot v2 for another ROS 2 platform, and your high-level AI code stays the same.
 
 ## 5. Summary: Coffee Shop Scenario
 For a "Coffee Shop" bot, you would likely use:

@@ -75,8 +75,33 @@ The STM32 does not run a LIDAR driver; the ESP32 bridge does not speak LIDAR. Op
 
 ---
 
-## 5. See also
+## 5. Yahboom MS200 LIDAR addon (Raspbot v2)
 
-- [Pi-less Setup](PI_LESS_SETUP.md) — PC-as-brain, ESP32 bridge, ~$100 bot.
+Yahboom’s **MS200 TOF LIDAR** is the recommended addon for Raspbot v2. It is not sold as a “Raspbot v2 kit”; you add it separately.
+
+| Item | Detail |
+|------|--------|
+| **Product** | MS200 TOF LIDAR (360°, 0.03–12 m, serial/USB) |
+| **Price** | ~\$139 USD (e.g. Newegg, Yahboom store). Check [Yahboom](https://www.yahboom.net/study/MS200) for current price and bundles. |
+| **ROS** | ROS 1 and ROS 2 drivers; publishes `sensor_msgs/LaserScan` (e.g. on `/scan`). |
+| **Integration** | Plug into the Pi’s USB; run Yahboom’s ROS 2 driver on the robot; yahboom-mcp already consumes `/scan` for telemetry and the Lidar Map page. |
+
+**Steps after purchase**
+
+1. Mount and connect the MS200 to the Raspberry Pi (USB–serial).
+2. On the Pi: install and run the Yahboom MS200 ROS 2 driver so `/scan` is published.
+3. Start rosbridge as usual; the dashboard **Lidar Map** (Yahboom `/scan`) and telemetry will show data automatically.
+
+**Links**
+
+- Yahboom MS200 tutorial: [yahboom.net/study/MS200](https://www.yahboom.net/study/MS200)
+- Dashboard: **Lidar Map** page (Yahboom scan) and **Sensors** / Mission Control telemetry.
+
+---
+
+## 6. See also
+
+- [Pi-less Setup](PI_LESS_SETUP.md) — PC-as-brain, ESP32 bridge, ~\$100 bot.
 - [Connectivity Guide](CONNECTIVITY.md) — WiFi and robot IP.
 - [AI & Vision Capabilities](AI_CAPABILITIES.md) — Local LLMs and vision on Pi 5.
+- Dashboard **Lidar addon** page — MS200 setup and integration status.

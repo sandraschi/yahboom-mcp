@@ -8,7 +8,10 @@ execute sequences of robot operations via sub-tools.
 from __future__ import annotations
 
 import logging
+from typing import Annotated
+
 from fastmcp import Context
+from pydantic import Field
 
 from .state import _state
 from .portmanteau import yahboom_tool
@@ -63,12 +66,15 @@ async def _read_sensors(sensor_type: str = "all") -> str:
     return str(out)
 
 
-async def yahboom_agentic_workflow(goal: str, ctx: Context) -> str:
+async def yahboom_agentic_workflow(
+    goal: Annotated[str, Field(description="High-level goal in natural language, e.g. 'patrol in a square', 'check battery and report'.")],
+    ctx: Context,
+) -> str:
     """
-    Achieve a high-level robot goal by planning and executing a sequence of operations (SEP-1577).
+    Achieve a high-level robot goal by planning and executing a sequence of operations (SEP-1577). Uses get_robot_health, move_robot, read_sensors as sub-tools.
 
-    Use this for goals like: "patrol in a square", "check battery and report", "move forward 2 seconds then stop".
-    The LLM will use the available sub-tools (get_robot_health, move_robot, read_sensors) to plan and run steps.
+    Returns:
+        str: Summary of steps executed and the outcome (or error message if the workflow failed).
     """
     import json
 

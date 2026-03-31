@@ -15,5 +15,5 @@
 
 ## ⚪ Planned (Future)
 - **Dreame-MCP Separation**: Extracting vacuum logic to its own server.
-- **Unitree G1 Support**: Advanced humanoid integration.
+- **Humanoid Support**: Advanced humanoid integration.
 - **3D Hub**: Unified visualization of all robot maps.

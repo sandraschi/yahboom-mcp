@@ -24,6 +24,11 @@ Expand the single-robot MCP ecosystem into a federated robotics fleet. Enable hi
 - Multi-camera feed integration.
 - 3D world view of the shared spatial map.
 
+### 2.5 Fleet Hardware Diagnostics
+- **I2C Control Layer**: Standardize on **100kHz** baudrate for Pi 5 based robotics expansion boards to prevent data corruption.
+- **Remote Recovery Shell**: Centralized `SSHBridge` capability in all robot MCP servers for kernel-level troubleshooting.
+- **Diagnostic Hub**: Real-time log streaming (`dmesg`) and stack inspection tools registered across the fleet.
+
 ## 3. Success Metrics
 - **Interoperability**: Successful cross-server tool calling between 3+ robots.
 - **Efficiency**: 30% reduction in mapping time via collaborative SLAM.
@@ -32,4 +37,4 @@ Expand the single-robot MCP ecosystem into a federated robotics fleet. Enable hi
 ## 4. Roadmap
 - **Phase 4**: Documentation migration and Fleet Registry setup (Current).
 - **Phase 5**: Cross-robot workflow implementation and sampling logic.
-- **Phase 6**: Unitree Go2/G1 high-performance integration.
+- **Phase 6**: Advanced Fleet Coordination and manipulation.

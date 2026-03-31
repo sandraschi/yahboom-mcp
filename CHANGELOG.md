@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-alpha.2] - 2026-03-30
+
+### Fixed
+- **Branding Purge**: Removed all incorrect "G1 MISSION" and "Unitree G1" hallucination references across the codebase.
+- **Mission Identity**: Standardized on **BOOMY MISSION** for the webapp and correctly identified hardware as **Yahboom Raspbot v2** in all prompts and docs.
+- **Roadmap Cleanup**: Sanitized `PRD.md` to prevent recurring branding hallucinations.
+
+## [2.0.0-alpha.1] - 2026-03-29
+
+### Added
+- **Boomy Insight Diagnostic Suite**: A comprehensive hardware-level telemetry and recovery layer.
+- **SSH Bridge**: Secure `paramiko`-based remote shell for Pi 5 maintenance directly from the webapp.
+- **Diagnostics Dashboard**: Real-time view for I2C bus state, kernel log streaming (`dmesg`), and stack health.
+- **New MCP Tools**: Registered `inspect_boomy_stack` and `execute_boomy_command`.
+
+### Fixed
+- **I2C Expansion Board Stability**: Capped I2C baudrate at **100kHz** via `dtparam` to resolve Raspberry Pi 5 controller timeout failures.
+- **Port Allocation**: Standardized webapp frontend at port **10893** following SOTA v12.0 guidelines.
+
 ## [1.4.0] - 2026-03-04
 
 ### Added

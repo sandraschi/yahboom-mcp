@@ -99,6 +99,8 @@ class ROS2Bridge:
     /battery_state     sensor_msgs/BatteryState  → state["battery"]
     /odom              nav_msgs/Odometry         → state["odom"]
     /scan              sensor_msgs/LaserScan     → state["scan"]
+    /sonar             sensor_msgs/Range         → state["ir_proximity"]
+    /infrared_line     std_msgs/Int32MultiArray  → state["line_sensors"]
     """
 
     def __init__(self, host: str = "localhost", port: int = 9090):
@@ -111,8 +113,11 @@ class ROS2Bridge:
             "odom": {},
             "battery": {},
             "scan": {},
+            "ir_proximity": None,  # Optional: list of distances (m) when topic configured
+            "line_sensors": None,  # Optional: list of line-follower readings when topic configured
             "last_update": 0,
         }
+        self.on_reconnect_callback = None
 
         # Topics
         self.cmd_vel_topic: Optional[roslibpy.Topic] = None
@@ -120,57 +125,96 @@ class ROS2Bridge:
         self.battery_listener: Optional[roslibpy.Topic] = None
         self.odom_listener: Optional[roslibpy.Topic] = None
         self.scan_listener: Optional[roslibpy.Topic] = None
+        self.sonar_listener: Optional[roslibpy.Topic] = None
+        self.line_status_listener: Optional[roslibpy.Topic] = None
+        self.button_listener: Optional[roslibpy.Topic] = None
 
-    async def connect(self):
-        """Establish connection to the ROSBridge server."""
+    async def connect(self, timeout_sec: float = 5.0):
+        """Establish connection to the ROSBridge server (non-blocking)."""
         try:
             logger.info(f"Connecting to ROSBridge at {self.host}:{self.port}...")
             self.ros = roslibpy.Ros(host=self.host, port=self.port)
             self.ros.on_ready(lambda: logger.info("ROSBridge connection ready"))
+            
+            # Start the background worker thread (non-blocking in roslibpy)
+            self.ros.run()
 
-            # Use run_in_executor to avoid blocking the event loop during initial connect
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, self.ros.run)
+            # Poll for connection status to avoid blocking the whole server startup
+            start_time = asyncio.get_event_loop().time()
+            while (not self.ros or not self.ros.is_connected):
+                if (asyncio.get_event_loop().time() - start_time) > timeout_sec:
+                    logger.warning(f"Connection timeout to ROSBridge at {self.host}:{self.port}")
+                    break
+                await asyncio.sleep(0.2)
 
-            self.connected = self.ros.is_connected
-            if self.connected:
-                self._setup_topics()
-                logger.info(
-                    "ROS 2 Bridge successfully connected and topics initialized"
-                )
+            is_now_connected = self.ros.is_connected if self.ros else False
+            
+            if is_now_connected and not self.connected:
+                # Transitioning from Offline -> Online
+                await self._setup_topics()
+                self.connected = True
+                logger.info("ROS 2 Bridge successfully connected and topics initialized")
+            elif not is_now_connected:
+                self.connected = False
+                logger.error("ROSBridge did not connect within timeout (Check Robot IP)")
+                
             return self.connected
         except Exception as e:
-            logger.error(f"Failed to connect to ROSBridge: {e}")
+            logger.error(f"Critical failure in ROSBridge connection: {e}")
             self.connected = False
             return False
 
-    def _setup_topics(self):
-        """Initialize publishers and subscribers."""
+    async def _setup_topics(self):
+        """Initialize publishers and subscribers with SOTA v12.0 Auto-Discovery."""
         if not self.ros:
             return
 
-        # Velocity Publisher
+        # 1. Fetch available topics to map Yahboom-native names
+        try:
+            future = asyncio.Future()
+            self.ros.get_topics(lambda topics: future.set_result(topics))
+            available_topics = await asyncio.wait_for(future, timeout=2.0)
+            logger.info(f"Auto-Discovery: Found {len(available_topics)} topics on robot.")
+        except Exception as e:
+            logger.warning(f"Auto-Discovery failed ({e}), using defaults")
+            available_topics = []
+
+        # 2. Map Topics (Preference for Yahboom-native names)
+        # Velocity
         self.cmd_vel_topic = roslibpy.Topic(self.ros, "/cmd_vel", "geometry_msgs/Twist")
 
-        # IMU Subscriber
-        self.imu_listener = roslibpy.Topic(self.ros, "/imu/data", "sensor_msgs/Imu")
+        # IMU (/imu vs /imu/data)
+        imu_topic = "/imu" if "/imu" in available_topics else "/imu/data"
+        self.imu_listener = roslibpy.Topic(self.ros, imu_topic, "sensor_msgs/Imu")
         self.imu_listener.subscribe(self._imu_callback)
 
-        # Battery Subscriber
-        self.battery_listener = roslibpy.Topic(
-            self.ros, "/battery_state", "sensor_msgs/BatteryState"
-        )
+        # Battery (/battery vs /battery_state)
+        bat_topic = "/battery" if "/battery" in available_topics else "/battery_state"
+        self.battery_listener = roslibpy.Topic(self.ros, bat_topic, "sensor_msgs/BatteryState")
         self.battery_listener.subscribe(self._battery_callback)
 
-        # Odometry Subscriber
+        # Odometry
         self.odom_listener = roslibpy.Topic(self.ros, "/odom", "nav_msgs/Odometry")
         self.odom_listener.subscribe(self._odom_callback)
 
-        # LIDAR Scan Subscriber
+        # LIDAR Scan
         self.scan_listener = roslibpy.Topic(self.ros, "/scan", "sensor_msgs/LaserScan")
         self.scan_listener.subscribe(self._scan_callback)
+        
+        # Sonar (Ultrasound Range)
+        sonar_topic = "/sonar" if "/sonar" in available_topics else "/ultrasound"
+        self.sonar_listener = roslibpy.Topic(self.ros, sonar_topic, "sensor_msgs/Range")
+        self.sonar_listener.subscribe(self._sonar_callback)
+        
+        # Line Follower (IR Array)
+        self.line_status_listener = roslibpy.Topic(self.ros, "/infrared_line", "std_msgs/Int32MultiArray")
+        self.line_status_listener.subscribe(self._line_callback)
+        
+        # KEY Button (for silence/missions)
+        self.button_listener = roslibpy.Topic(self.ros, "/button", "std_msgs/Bool")
+        self.button_listener.subscribe(self._button_callback)
 
-        logger.info("Subscribed to: /imu/data, /battery_state, /odom, /scan")
+        logger.info(f"Subscribed using Auto-Discovery: IMU={imu_topic}, Bat={bat_topic}")
 
     # ─── Callbacks ───────────────────────────────────────────────────────────
 
@@ -259,14 +303,67 @@ class ROS2Bridge:
             "num_points": len(ranges),
         }
 
+    def _sonar_callback(self, message):
+        """Cache Ultrasound sonar range (m)."""
+        self.state["ir_proximity"] = round(message.get("range", 0.0), 3)
+
+    def _line_callback(self, message):
+        """Cache line follower IR array [left, mid, right] (0=white/void, 1=line/black)."""
+        self.state["line_sensors"] = message.get("data", [0, 0, 0])
+
+    def _button_callback(self, message):
+        """Cache physical button state (True=Pressed)."""
+        # Logic: If pressed, we might trigger a 'Silence Alarm' event immediately
+        is_pressed = message.get("data", False)
+        self.state["button_pressed"] = is_pressed
+        if is_pressed:
+            logger.info("Boomy: Physical button pressed!")
+
     # ─── Connection management ───────────────────────────────────────────────
 
     async def disconnect(self):
         """Gracefully shut down the connection."""
+        self.connected = False
         if self.ros:
             logger.info("Closing ROSBridge connection...")
-            self.ros.terminate()
-            self.connected = False
+            try:
+                self.ros.terminate()
+            except Exception:
+                pass
+            self.ros = None
+
+    async def monitor_connection(self, interval: float = 5.0, on_reconnect=None):
+        """Background task to ensure the ROSBridge connection stays alive."""
+        logger.info(f"Starting connection watchdog (interval={interval}s)")
+        self.on_reconnect_callback = on_reconnect
+        
+        while True:
+            try:
+                # Check real status from roslibpy instance
+                current_status = self.ros.is_connected if self.ros else False
+                
+                if not current_status:
+                    if self.connected:
+                        logger.warning("ROSBridge connection lost. Attempting reconnection...")
+                        self.connected = False
+                    
+                    # Try to reconnect
+                    if await self.connect(timeout_sec=3.0):
+                        # Trigger reconnection callback if provided
+                        if self.on_reconnect_callback:
+                            if asyncio.iscoroutinefunction(self.on_reconnect_callback):
+                                await self.on_reconnect_callback()
+                            else:
+                                self.on_reconnect_callback()
+                else:
+                    # Sync internal flag
+                    if not self.connected:
+                        logger.info("ROSBridge connection restored manually/autonomously.")
+                    self.connected = True
+            except Exception as e:
+                logger.debug(f"Watchdog iteration error: {e}")
+            
+            await asyncio.sleep(interval)
 
     # ─── Publish helpers ─────────────────────────────────────────────────────
 
@@ -325,4 +422,7 @@ class ROS2Bridge:
                 "nearest_m": scan.get("nearest_m"),
                 "obstacles": scan.get("obstacles"),  # per-sector nearest (m)
             },
+            "sonar_m": self.state.get("ir_proximity"),
+            "line_sensors": self.state.get("line_sensors"),
+            "button_pressed": self.state.get("button_pressed", False),
         }

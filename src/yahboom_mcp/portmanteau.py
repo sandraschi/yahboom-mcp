@@ -1,5 +1,11 @@
-from fastmcp import Context
+from __future__ import annotations
+
 import logging
+from typing import Annotated
+
+from fastmcp import Context
+from pydantic import Field
+
 from .state import _state
 
 logger = logging.getLogger("yahboom-mcp.portmanteau")
@@ -7,35 +13,27 @@ logger = logging.getLogger("yahboom-mcp.portmanteau")
 
 async def yahboom_tool(
     ctx: Context | None = None,
-    operation: str = "health_check",
-    param1: str | float | None = None,
-    param2: str | float | None = None,
-    payload: dict | None = None,
+    operation: Annotated[
+        str,
+        Field(description="Operation: health_check, forward, backward, turn_left, turn_right, strafe_left, strafe_right, stop, read_imu, read_battery, read_encoders, start_recording, stop_recording, list_trajectories, config_show."),
+    ] = "health_check",
+    param1: Annotated[
+        str | float | None,
+        Field(description="First parameter: duration, speed, or basename depending on operation."),
+    ] = None,
+    param2: Annotated[
+        str | float | None,
+        Field(description="Second parameter when required by operation."),
+    ] = None,
+    payload: Annotated[
+        dict | None,
+        Field(description="Optional key-value payload for future use."),
+    ] = None,
 ) -> dict:
-    """Unified control tool for Yahboom Raspbot v2 (ROS 2 Humble).
-
-    Single entry point for motion, sensors, diagnostics, and trajectory recording.
-    All operations return a dict with "success" (bool), and on failure "error" (str)
-    and "correlation_id". Optional fields vary by operation (e.g. "message", "trajectories").
-
-    Supported operations:
-
-    - Motion: forward, backward, turn_left, turn_right, strafe_left, strafe_right, stop.
-      Use param1 (and optionally param2) for duration or speed as documented per op.
-    - Sensors: read_imu, read_battery, read_encoders.
-    - Diagnostics: health_check, config_show.
-    - Trajectory: start_recording, stop_recording (param1 = basename), list_trajectories.
-
-    Args:
-        ctx: FastMCP context (optional); used for correlation_id and logging.
-        operation: One of the operations listed above (case-insensitive).
-        param1: First parameter (duration, speed, basename, etc. as required by operation).
-        param2: Second parameter when needed by operation.
-        payload: Optional extra key-value payload for future use.
+    """Unified control tool for Yahboom Raspbot v2 (ROS 2 Humble). Motion, sensors, diagnostics, trajectory.
 
     Returns:
-        dict: {"success": bool, ...}. On success may include "message", "trajectories",
-        or operation-specific data. On failure includes "error" and "correlation_id".
+        dict: success (bool); on failure error (str), correlation_id (str). On success may include message, trajectories, or operation-specific keys (e.g. result, battery, heading).
     """
     correlation_id = ctx.correlation_id if ctx else "manual-execution"
     logger.info(
@@ -58,10 +56,26 @@ async def yahboom_tool(
             from .operations import motion
 
             return await motion.execute(ctx, op_lower, param1, param2, payload)
-        elif op_lower in ["read_imu", "read_encoders", "read_battery"]:
+        elif op_lower in ["read_imu", "read_encoders", "read_battery", "read_all", "read_lidar"]:
             from .operations import sensors
 
             return await sensors.execute(ctx, op_lower, param1, param2, payload)
+        elif op_lower in ["say", "play"]:
+            from .operations import voice
+
+            return await voice.execute(ctx, op_lower, param1, param2, payload)
+        elif op_lower in ["display", "clear_display"]:
+            from .operations import display
+
+            sub_op = "write" if op_lower == "display" else "clear"
+            return await display.execute(ctx, sub_op, param1, param2, payload)
+        elif op_lower in ["led", "led_off"]:
+            from .operations import lightstrip
+
+            sub_op = "set" if op_lower == "led" else "off"
+            # LED expects 3 params (r, g, b) inside execute.
+            # We handle the mapping from param1/2/3 here if needed, but lightstrip.execute can also handle it.
+            return await lightstrip.execute(ctx, sub_op, param1, param2, payload.get("b") if payload else 0)
         elif op_lower in ["start_recording", "stop_recording", "list_trajectories"]:
             # Trajectory operations from global state
             manager = _state.get("trajectory_manager")

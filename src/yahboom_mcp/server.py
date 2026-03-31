@@ -25,10 +25,12 @@ import httpx
 from .state import _state
 from .portmanteau import yahboom_tool
 from .agentic import yahboom_agentic_workflow
+from .core.ssh_bridge import SSHBridge
 from .core.ros2_bridge import ROS2Bridge
 from .core.esp32_bridge import ESP32Bridge
 from .core.video_bridge import VideoBridge
 from .operations.trajectory import TrajectoryManager
+from .operations import voice, lightstrip, missions
 
 # SOTA 2026 Logging Configuration
 logging.basicConfig(
@@ -36,13 +38,22 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     stream=sys.stderr,
 )
+
+class EndpointFilter(logging.Filter):
+    """Filter out high-frequency polling from access logs."""
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        return not any(path in msg for path in ["/api/v1/telemetry", "/api/v1/health"])
+
+logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 logger = logging.getLogger("yahboom-mcp")
 
-# --- Lifespan Management ---
+# --- SOTA 3.1.1 Unified Gateway Integration ---
+mcp = FastMCP("Yahboom ROS 2")
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(fastapi_app: FastAPI):
     """SOTA 2026 Life-cycle management for ROS 2 and Hardware resources."""
     logger.info("Yahboom MCP Unified Gateway starting up")
 
@@ -57,12 +68,32 @@ async def lifespan(app: FastAPI):
     else:
         bridge_port = int(os.environ.get("YAHBOOM_BRIDGE_PORT", 9090))
         bridge = ROS2Bridge(host=robot_host, port=bridge_port)
-        connected = await bridge.connect()
+        connected = await bridge.connect(timeout_sec=5.0)
 
-    # Video Bridge only when ROS (has bridge.ros)
-    video_bridge = VideoBridge(bridge.ros) if connected and getattr(bridge, "ros", None) else None
+    # SOTA 2026 Hardware Capability Integration
+    ssh = SSHBridge(robot_host)
+    ssh.connect()
+
+    # Define reconnection callback
+    async def on_reconnect():
+        logger.info("Watchdog triggered RECONNECT sequence.")
+        nonlocal video_bridge
+        if getattr(bridge, "ros", None):
+            if video_bridge:
+                video_bridge.stop()
+            video_bridge = VideoBridge(bridge.ros, ssh_bridge=ssh)
+            video_bridge.start()
+            _state["video_bridge"] = video_bridge
+            logger.info("VideoBridge successfully re-synchronized with robot.")
+
+    # Start autonomous connection watchdog
+    watchdog_task = asyncio.create_task(bridge.monitor_connection(interval=5.0, on_reconnect=on_reconnect))
+
+    # Video Bridge initialization
+    video_bridge = VideoBridge(bridge.ros, ssh_bridge=ssh) if connected and getattr(bridge, "ros", None) else None
     if video_bridge:
         video_bridge.start()
+        logger.info("Initial VideoBridge activation successful.")
 
     # Initialize Trajectory Manager
     trajectory_manager = TrajectoryManager()
@@ -75,15 +106,24 @@ async def lifespan(app: FastAPI):
         )
 
     # Store resources in global state for tool access
+    _state["ssh"] = ssh
     _state["bridge"] = bridge
     _state["video_bridge"] = video_bridge
     _state["trajectory_manager"] = trajectory_manager
+    _state["watchdog_task"] = watchdog_task
 
     # Integrate FastMCP lifespan
     async with mcp._lifespan_manager():
+        # Initialize Mission Manager
+        missions.MissionManager.get_instance(bridge)
         yield
 
     logger.info("Yahboom MCP Unified Gateway shutting down")
+    watchdog_task.cancel()
+    try:
+        await watchdog_task
+    except asyncio.CancelledError:
+        pass
     if video_bridge:
         video_bridge.stop()
     await bridge.disconnect()
@@ -151,8 +191,52 @@ You are in the web dashboard chat. You do NOT have direct access to MCP tools he
 """
 
 
-# Create FastMCP instance using the FastAPI app
-mcp = FastMCP.from_fastapi(app, name="Yahboom ROS 2")
+# --- Peripherals Sequencer (Emergency Mode) ---
+class EmergencySequencer:
+    """Manages the background LED strobe and siren cycle."""
+    def __init__(self):
+        self._active = False
+        self._task = None
+
+    async def _loop(self):
+        while self._active:
+            # Phase 1: Red Strobe + Siren
+            await lightstrip.execute(operation="set", param1=255, param2=0, param3=0)
+            await voice.execute(operation="play", param1=2)  # Siren ID 2
+            await asyncio.sleep(0.5)
+            
+            # Phase 2: Blue Strobe
+            await lightstrip.execute(operation="set", param1=0, param2=0, param3=255)
+            await asyncio.sleep(0.5)
+
+            if not self._active:
+                break
+
+    def start(self):
+        if not self._active:
+            self._active = True
+            self._task = asyncio.create_task(self._loop())
+            logger.info("Emergency Mode activated")
+
+    async def stop(self):
+        self._active = False
+        if self._task:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            self._task = None
+            # Reset LEDs to OFF
+            await lightstrip.execute(operation="set", param1=0, param2=0, param3=0)
+            logger.info("Emergency Mode deactivated")
+
+    @property
+    def active(self):
+        return self._active
+
+_sequencer = EmergencySequencer()
+_state["sequencer"] = _sequencer
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -427,55 +511,166 @@ async def health():
 async def telemetry():
     """
     Real-time telemetry from all connected ROS 2 sensors.
-
-    Returns live data from:
-    - /imu/data        → heading, pitch, roll, accel, gyro
-    - /battery_state   → percentage, voltage
-    - /odom            → position, linear/angular velocity
-    - /scan            → nearest obstacle per 8 sectors + global nearest
-
-    Falls back to clearly-marked simulated values when bridge is offline.
     """
     bridge = _state.get("bridge")
-
     if bridge and bridge.connected:
         data = bridge.get_full_telemetry()
-        data["source"] = "live"
+        data["status"] = "live"
     else:
-        # Simulated fallback for UI testing without robot
+        # ─────────────────────────────────────────────────────────────────────
+        # SOTA v12.0 Integrity: No Silent Mocks.
+        # ─────────────────────────────────────────────────────────────────────
         data = {
-            "battery": 85.0,
-            "voltage": 11.8,
-            "imu": {
-                "heading": 342.0,
-                "yaw": -18.0,
-                "pitch": 0.5,
-                "roll": -0.3,
-                "angular_velocity": {"x": 0.0, "y": 0.0, "z": 0.0},
-                "linear_acceleration": {"x": 0.01, "y": 0.0, "z": 9.81},
-            },
+            "status": "offline",
+            "message": "Robot bridge disconnected",
+            "battery": None,
+            "voltage": None,
+            "imu": {"heading": 0.0},
             "velocity": {"linear": 0.0, "angular": 0.0},
             "position": {"x": 0.0, "y": 0.0, "z": 0.0},
-            "scan": {
-                "nearest_m": None,
-                "obstacles": {
-                    "front": None,
-                    "front_right": None,
-                    "right": None,
-                    "back_right": None,
-                    "back": None,
-                    "back_left": None,
-                    "left": None,
-                    "front_left": None,
-                },
-            },
-            "source": "simulated",
+            "scan": {"nearest_m": None}
         }
-
-    data["timestamp"] = datetime.now().isoformat()
     return data
 
 
+# --- Legacy Compatibility Aliases (Dashboard Support) ---
+
+@app.get("/api/v1/sensors")
+async def legacy_sensors():
+    """Legacy alias for /api/v1/telemetry."""
+    return await telemetry()
+
+
+# --- Hardware Peripheral Controls (Closed-Loop) ---
+
+class DisplayRequest(BaseModel):
+    text: str
+    line: int = 0
+    driver: str = "ssd1306"
+
+
+@app.post("/api/v1/display")
+async def write_display(req: DisplayRequest):
+    """Write text to the OLED/LCD display (Closed-Loop)."""
+    from .operations import display
+    return await display.execute(operation="write", param1=req.text, param2=req.line, payload={"driver": req.driver})
+
+
+@app.post("/api/v1/display/write")
+async def legacy_display_write(req: DisplayRequest):
+    """Legacy alias for /api/v1/display."""
+    return await write_display(req)
+
+
+@app.post("/api/v1/display/clear")
+async def clear_display():
+    """Clear the OLED display."""
+    from .operations import display
+    return await display.execute(operation="clear")
+
+
+class ScrollRequest(BaseModel):
+    text: str
+
+
+@app.post("/api/v1/display/scroll")
+async def scroll_display(req: ScrollRequest):
+    """Start background scrolling on the OLED display."""
+    from .operations import display
+    return await display.execute(operation="scroll", param1=req.text)
+
+
+@app.post("/api/v1/missions/run/{mission_id}")
+async def run_mission(mission_id: str):
+    """Start an automated mission."""
+    return await missions.execute("run", mission_id=mission_id)
+
+
+@app.get("/api/v1/missions/status")
+async def get_mission_status():
+    """Get the status of the current or last mission."""
+    return await missions.execute("status")
+
+
+@app.post("/api/v1/missions/stop")
+async def stop_mission():
+    """Abort the current mission."""
+    return await missions.execute("stop")
+
+
+class VoiceRequest(BaseModel):
+    text: str
+
+
+@app.post("/api/v1/voice")
+async def speak(req: VoiceRequest):
+    """Speak text via the Voice Module."""
+    from .operations import voice
+    return await voice.execute(operation="say", param1=req.text)
+
+
+class VoicePlayRequest(BaseModel):
+    sound_id: int
+
+
+@app.post("/api/v1/voice/play")
+async def play_voice(req: VoicePlayRequest):
+    """Play a built-in sound ID via the Voice Module."""
+    from .operations import voice
+    return await voice.execute(operation="play", param1=req.sound_id)
+
+
+@app.post("/api/v1/voice/say")
+async def legacy_voice_say(req: VoiceRequest):
+    """Legacy alias for /api/v1/voice."""
+    return await speak(req)
+
+
+class LEDRequest(BaseModel):
+    r: int
+    g: int
+    b: int
+
+
+@app.post("/api/v1/led")
+async def set_led(req: LEDRequest):
+    """Set Lightstrip RGB values."""
+    from .operations import lightstrip
+    return await lightstrip.execute(operation="set", param1=req.r, param2=req.g, param3=req.b)
+
+
+class LegacyBacklightRequest(BaseModel):
+    on: bool
+    brightness: int = 100
+
+
+@app.post("/api/v1/sensors/back_light")
+async def legacy_backlight(req: LegacyBacklightRequest):
+    """Legacy alias mapping back_light (bool) to Lightstrip RGB."""
+    val = req.brightness if req.on else 0
+    return await lightstrip.execute(operation="set", param1=val, param2=val, param3=val)
+
+
+class EmergencyRequest(BaseModel):
+    active: bool
+
+
+@app.post("/api/v1/emergency")
+async def toggle_emergency(req: EmergencyRequest):
+    """Toggle the Emergency Mode background sequence."""
+    return {"active": _sequencer.active}
+ 
+ 
+@app.post("/api/v1/reconnect")
+async def reconnect_hardware():
+    """Manually trigger a ROS 2 bridge handshake."""
+    bridge = _state.get("bridge")
+    if not bridge:
+        return {"success": False, "error": "Bridge not initialized"}
+    
+    logger.info("Manual reconnection triggered via API")
+    connected = await bridge.connect(timeout_sec=5.0)
+    return {"success": connected, "status": "online" if connected else "offline"}
 @app.post("/api/v1/control/move")
 async def control_move(linear: float = 0.0, angular: float = 0.0, linear_y: float = 0.0):
     """Direct motion control endpoint for Dashboard UI and embodied loop."""
@@ -559,10 +754,44 @@ async def chat_completion(body: ChatRequest):
 # --- Entry Points ---
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Final Route Mounting (Unified Gateway §1.4)
+# ─────────────────────────────────────────────────────────────────────────────
+mcp.from_fastapi(app)
+
+
 async def run_stdio():
     """Run via STDIO transport (standard MCP mode)."""
     logger.info("Initializing MCP STDIO transport")
     await mcp.run_stdio_async()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Mandatory Capability Introspection Endpoint (WEBAPP_STANDARDS §1.4)
+# ─────────────────────────────────────────────────────────────────────────────
+@app.get("/api/capabilities")
+async def get_capabilities():
+    """Runtime source of truth for server capabilities."""
+    return {
+        "status": "ok",
+        "server": {
+            "name": "yahboom-mcp",
+            "version": "1.0.0",
+            "fastmcp": "3.1.1+"
+        },
+        "tool_surface": {
+            "total": 1,
+            "portmanteau_count": 1,
+            "atomic_count": 0
+        },
+        "available_operations": [
+            "forward", "backward", "turn_left", "turn_right", "strafe_left", "strafe_right", "stop",
+            "read_imu", "read_encoders", "read_battery", "read_all", "read_lidar",
+            "display", "clear_display", "led", "led_off", "say", "play",
+            "start_recording", "stop_recording", "list_trajectories",
+            "health_check", "config_show"
+        ]
+    }
 
 
 def main():

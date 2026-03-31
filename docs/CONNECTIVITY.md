@@ -44,8 +44,18 @@ uv run yahboom-mcp
 uv run yahboom-mcp --robot-ip 192.168.1.100
 ```
 
-## 4. Troubleshooting
+## 4. ROSBridge at boot (no more typing start commands)
+
+The Raspbot v2 image already has ROS 2 and rosbridge installed. Run **once** on the robot to make ROSBridge start automatically when the Pi boots:
+
+1. Copy the script to the Pi: `scp scripts/robot/install-rosbridge-at-boot.sh pi@<robot-ip>:~/`
+2. On the Pi: `sudo bash ~/install-rosbridge-at-boot.sh`
+3. Reboot (or leave it). After that, power on the robot and ROSBridge is already running.
+
+See [ROSBridge at boot](ROSBRIDGE_AT_BOOT.md) for details.
+
+## 5. Troubleshooting
 
 - **Ping Check**: Ensure you can `ping [robot-ip]` from your PC.
-- **Port Check**: The robot must be running the `rosbridge_suite`. If the connection fails, ensure the ROS 2 environment on the Pi is active and `rosbridge_websocket` is running.
+- **Port Check**: The robot must be running the `rosbridge_suite`. If the connection fails, run the one-time install above or start manually: `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`.
 - **Firewall**: Ensure your PC's firewall isn't blocking outgoing connections to port 9090.

@@ -5,7 +5,7 @@ import {
     Activity, Battery, Compass,
     ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
     Monitor, Zap, Shield, Rocket, WifiOff, AlertTriangle, Link2,
-    Keyboard, Navigation, Square
+    Keyboard, Navigation, Square, CameraOff, Loader2
 } from 'lucide-react'
 
 // --- Types ---
@@ -55,6 +55,7 @@ const Dashboard = () => {
     const [connState, setConnState] = useState<ConnState>('loading')
     const [keysHeld, setKeysHeld] = useState<KeysHeld>({ w: false, a: false, s: false, d: false })
     const [wasdActive, setWasdActive] = useState(false)  // user has enabled keyboard mode
+    const [imageError, setImageError] = useState(false);
     const moveRef = useRef<(l: number, a: number) => void>(() => { })
 
     // --- Telemetry polling (via api client / Vite proxy to backend) ---
@@ -149,7 +150,7 @@ const Dashboard = () => {
             loading: {
                 icon: <Activity className="w-6 h-6 animate-spin" />,
                 title: 'Connecting to backend…',
-                sub: 'Waiting for response from http://localhost:10792',
+                sub: 'Waiting for response from http://localhost:10892',
                 color: 'from-slate-900/95 to-slate-800/95',
                 border: 'border-slate-600/40',
                 pulse: 'bg-slate-400',
@@ -157,7 +158,7 @@ const Dashboard = () => {
             server_down: {
                 icon: <WifiOff className="w-6 h-6" />,
                 title: 'MCP Server Offline',
-                sub: 'Cannot reach http://localhost:10792 — run start.ps1 to launch the backend.',
+                sub: 'Cannot reach http://localhost:10892 — run start.ps1 to launch the backend.',
                 color: 'from-red-950/95 to-slate-900/95',
                 border: 'border-red-500/40',
                 pulse: 'bg-red-500',
@@ -165,7 +166,7 @@ const Dashboard = () => {
             bot_offline: {
                 icon: <AlertTriangle className="w-6 h-6" />,
                 title: 'Robot Not Connected',
-                sub: 'Backend is running but no ROS 2 bridge detected. Power on the Yahboom G1 and ensure ROSBridge is running on the robot.',
+                sub: 'Backend is running but no ROS 2 bridge detected. Power on the Yahboom Raspbot v2 and ensure ROSBridge is running on the robot.',
                 color: 'from-amber-950/95 to-slate-900/95',
                 border: 'border-amber-500/40',
                 pulse: 'bg-amber-500',
@@ -197,6 +198,8 @@ const Dashboard = () => {
                 {connState === 'bot_offline' && (
                     <button
                         onClick={() => window.location.href = '/onboarding'}
+                        title="Configure robot connection"
+                        aria-label="Setup connection"
                         className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/40 rounded-xl text-amber-300 text-xs font-bold uppercase tracking-widest transition-all"
                     >
                         <Link2 size={14} /> Setup
@@ -217,7 +220,7 @@ const Dashboard = () => {
                     <Monitor className="text-indigo-400 w-8 h-8" />
                     <div>
                         <h1 className="text-3xl font-bold text-white tracking-tight">Mission Control</h1>
-                        <p className="text-slate-400 text-sm">Industrial hardware interface for Yahboom G1 Substrate.</p>
+                        <p className="text-slate-400 text-sm">Industrial hardware interface for Boomy.</p>
                     </div>
                 </div>
                 <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${connState === 'connected' ? 'bg-green-500/10  border-green-500/20  text-green-400' :
@@ -346,8 +349,30 @@ const Dashboard = () => {
                 <div className="lg:col-span-8 flex flex-col gap-8">
 
                     {/* Camera feed with HUD overlay */}
-                    <div className="bg-[#0f0f12]/80 border border-white/5 rounded-[40px] aspect-video relative overflow-hidden group shadow-2xl">
-                        <img src="http://localhost:10792/stream" alt="Robot Feed" className="w-full h-full object-cover" />
+                    <div className="relative aspect-video rounded-3xl overflow-hidden bg-black/40 border border-white/5 shadow-2xl">
+                        {!imageError ? (
+                            <img 
+                                src="http://localhost:10892/stream" 
+                                alt="Robot Feed" 
+                                className="w-full h-full object-cover" 
+                                onError={() => setImageError(true)}
+                                onLoad={() => setImageError(false)}
+                            />
+                        ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/80 text-slate-500 gap-4">
+                                <CameraOff size={48} className="text-slate-700 animate-pulse" />
+                                <div className="text-center">
+                                    <p className="text-sm font-bold uppercase tracking-widest text-slate-400">Video Stream Offline</p>
+                                    <p className="text-xs">Check ROSBridge connection or robot IP</p>
+                                </div>
+                                <button 
+                                    onClick={() => setImageError(false)}
+                                    className="mt-2 px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/40 rounded-xl text-indigo-400 text-xs font-bold uppercase tracking-widest transition-all"
+                                >
+                                    Retry Feed
+                                </button>
+                            </div>
+                        )}
 
                         {/* Vignette */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
@@ -389,8 +414,8 @@ const Dashboard = () => {
                             <div className="px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-xl border border-white/10 text-xs font-mono text-white/80">
                                 {new Date().toLocaleTimeString()}
                             </div>
-                            <div className="px-3 py-1.5 bg-indigo-600/60 backdrop-blur-md rounded-xl border border-indigo-500/40 text-xs font-bold text-white uppercase tracking-widest">
-                                G1 Primary Sensor
+                             <div className="px-3 py-1.5 bg-indigo-600/60 backdrop-blur-md rounded-xl border border-indigo-500/40 text-xs font-bold text-white uppercase tracking-widest">
+                                Boomy Primary Sensor
                             </div>
                         </div>
                     </div>
@@ -407,24 +432,34 @@ const Dashboard = () => {
                             <div className="grid grid-cols-3 gap-3 max-w-[180px] mx-auto">
                                 <div />
                                 <button onMouseDown={() => move(LINEAR_SPEED, 0)} onMouseUp={() => move(0, 0)}
+                                    title="Move Forward"
+                                    aria-label="Move Forward"
                                     className="aspect-square rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-indigo-600 hover:text-white transition-all active:scale-90">
                                     <ChevronUp />
                                 </button>
                                 <div />
                                 <button onMouseDown={() => move(0, ANGULAR_SPEED)} onMouseUp={() => move(0, 0)}
+                                    title="Turn Left"
+                                    aria-label="Turn Left"
                                     className="aspect-square rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-indigo-600 hover:text-white transition-all active:scale-90">
                                     <ChevronLeft />
                                 </button>
                                 <button onClick={() => move(0, 0)}
+                                    title="Emergency Stop"
+                                    aria-label="Stop Robot"
                                     className="aspect-square rounded-2xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-500 hover:bg-red-600 hover:text-white transition-all">
                                     <Square size={18} />
                                 </button>
                                 <button onMouseDown={() => move(0, -ANGULAR_SPEED)} onMouseUp={() => move(0, 0)}
+                                    title="Turn Right"
+                                    aria-label="Turn Right"
                                     className="aspect-square rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-indigo-600 hover:text-white transition-all active:scale-90">
                                     <ChevronRight />
                                 </button>
                                 <div />
                                 <button onMouseDown={() => move(-LINEAR_SPEED, 0)} onMouseUp={() => move(0, 0)}
+                                    title="Move Backward"
+                                    aria-label="Move Backward"
                                     className="aspect-square rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-indigo-600 hover:text-white transition-all active:scale-90">
                                     <ChevronDown />
                                 </button>

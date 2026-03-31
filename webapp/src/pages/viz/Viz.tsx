@@ -23,7 +23,7 @@ function useTelemetry() {
         let alive = true
         const poll = async () => {
             try {
-                const r = await fetch('http://localhost:10792/api/v1/telemetry', { signal: AbortSignal.timeout(1500) })
+                const r = await fetch('http://localhost:10892/api/v1/telemetry', { signal: AbortSignal.timeout(1500) })
                 if (!alive) return
                 const j = await r.json()
                 if (!j.error && j.battery !== undefined) {
@@ -50,7 +50,11 @@ function useTelemetry() {
 // ─────────────────────────────────────────────────────────────────────────────
 const WHEEL_RADIUS = 0.0325
 const WHEEL_X_OFF = 0.08
-const WHEEL_Y_HALF = 0.169 / 2 + (-0.01)  // 0.0745m
+const WHEEL_Y_HALF = 0.169 / 2 + (-0.01) // 0.0745m
+/** World Y of wheel axle so tire bottom sits on ground (y=0). URDF z offsets are Z-up; here Y is up. */
+const WHEEL_AXLE_Y = WHEEL_RADIUS
+/** base_link origin sits one wheel radius above wheel centers in URDF; keep that gap in Y-up space. */
+const BASE_LINK_Y = WHEEL_AXLE_Y + WHEEL_RADIUS
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STL mesh helper — loads one STL file and returns a mesh with material
@@ -140,7 +144,7 @@ function LidarMesh() {
         beamRef.current.rotation.y += delta * 5
     })
     return (
-        <group position={[0, 0.1, 0.0825]}>
+        <group position={[0, 0.1 + WHEEL_AXLE_Y, 0.0825]}>
             <StlPart
                 url="/assets/meshes/laser_link.STL"
                 rotation={[-Math.PI / 2, 0, 0]}
@@ -171,7 +175,7 @@ function LidarMesh() {
 // ─────────────────────────────────────────────────────────────────────────────
 function CameraMesh() {
     return (
-        <group position={[0.105, 0.1, 0.05]} rotation={[0, -0.5, 0]}>
+        <group position={[0.105, 0.1 + WHEEL_AXLE_Y, 0.05]} rotation={[0, -0.5, 0]}>
             <StlPart
                 url="/assets/meshes/camera_link.STL"
                 color="#111111"
@@ -208,22 +212,22 @@ function G1Robot({ yaw, linearVel }: { yaw: number; linearVel: number }) {
 
     const wheelSpin = linearVel * 20
 
-    // Wheel positions from URDF joint xyz (relative to base_link):
-    // x = x_reflect * 0.08, y = y_reflect * 0.0745, z = -wheel_radius = -0.0325
-    // base_link is at z = WHEEL_RADIUS above ground, so wheels sit at z=0
+    // Wheel positions from URDF (X,Y lateral; vertical was Z-up in URDF).
+    // In Three.js Y-up: wheel axle must be at y=WHEEL_RADIUS so the tire rests on the floor (y=0).
+    // base_link stays one radius above the wheel plane (URDF base above wheel centers).
     return (
         <group ref={rootRef}>
             {/* ── Base body ─────────────────────────────────── */}
             <StlPart
                 url="/assets/meshes/base_link_X3.STL"
-                position={[0, WHEEL_RADIUS, 0]}
+                position={[0, BASE_LINK_Y, 0]}
                 color="#1e3a5f"
                 metalness={0.5}
                 roughness={0.5}
             />
 
             {/* ── Indigo accent top-plate glow ──────────────── */}
-            <mesh position={[0, 0.14, 0]}>
+            <mesh position={[0, 0.14 + WHEEL_AXLE_Y, 0]}>
                 <boxGeometry args={[0.28, 0.003, 0.16]} />
                 <meshStandardMaterial color="#6366f1" emissive="#6366f1" emissiveIntensity={0.8} transparent opacity={0.6} />
             </mesh>
@@ -235,36 +239,36 @@ function G1Robot({ yaw, linearVel }: { yaw: number; linearVel: number }) {
             <CameraMesh />
 
             {/* ── Wheels (URDF joint positions) ─────────────── */}
-            {/* front_left:  x=+0.08, y=+0.0745, z=−0.0325 */}
+            {/* front_left:  x=+0.08, lateral y=+0.0745, axle height = WHEEL_AXLE_Y */}
             <WheelMesh
                 url="/assets/meshes/front_left_wheel_X3.STL"
-                position={[WHEEL_X_OFF, 0, WHEEL_Y_HALF]}
+                position={[WHEEL_X_OFF, WHEEL_AXLE_Y, WHEEL_Y_HALF]}
                 spin={wheelSpin}
             />
-            {/* front_right: x=+0.08, y=−0.0745, z=−0.0325 */}
+            {/* front_right */}
             <WheelMesh
                 url="/assets/meshes/front_right_wheel_X3.STL"
-                position={[WHEEL_X_OFF, 0, -WHEEL_Y_HALF]}
+                position={[WHEEL_X_OFF, WHEEL_AXLE_Y, -WHEEL_Y_HALF]}
                 spin={-wheelSpin}
                 flip
             />
-            {/* back_left:   x=−0.08, y=+0.0745, z=−0.0325 */}
+            {/* back_left */}
             <WheelMesh
                 url="/assets/meshes/back_left_wheel_X3.STL"
-                position={[-WHEEL_X_OFF, 0, WHEEL_Y_HALF]}
+                position={[-WHEEL_X_OFF, WHEEL_AXLE_Y, WHEEL_Y_HALF]}
                 spin={wheelSpin}
             />
-            {/* back_right:  x=−0.08, y=−0.0745, z=−0.0325 */}
+            {/* back_right */}
             <WheelMesh
                 url="/assets/meshes/back_right_wheel_X3.STL"
-                position={[-WHEEL_X_OFF, 0, -WHEEL_Y_HALF]}
+                position={[-WHEEL_X_OFF, WHEEL_AXLE_Y, -WHEEL_Y_HALF]}
                 spin={-wheelSpin}
                 flip
             />
 
             {/* ── Heading arrow ─────────────────────────────── */}
             <Line
-                points={[[0, 0.15, 0], [0, 0.15, 0.25]]}
+                points={[[0, 0.15 + WHEEL_AXLE_Y, 0], [0, 0.15 + WHEEL_AXLE_Y, 0.25]]}
                 color="#6366f1"
                 lineWidth={2}
             />
@@ -317,7 +321,7 @@ function AxisLabels() {
 function RobotFallback() {
     return (
         <group>
-            <mesh position={[0, 0.08, 0]}>
+            <mesh position={[0, 0.08 + WHEEL_AXLE_Y, 0]}>
                 <boxGeometry args={[0.28, 0.1, 0.18]} />
                 <meshStandardMaterial color="#1e3a5f" transparent opacity={0.4} wireframe />
             </mesh>

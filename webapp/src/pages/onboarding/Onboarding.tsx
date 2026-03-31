@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Rocket, Shield, Server, Info, CheckCircle2, AlertCircle } from 'lucide-react';
 
@@ -8,6 +8,51 @@ const RASPBOT_HOTSPOT = {
     ip: '192.168.1.11',
     port: '6000',
 };
+
+const SUBSTRATE_SCAN_SEC = 5;
+
+function Step2SubstrateLink({
+    config,
+    onSkip,
+}: {
+    config: { robotIp: string; port: string };
+    onSkip: () => void;
+}) {
+    const [countdown, setCountdown] = useState(SUBSTRATE_SCAN_SEC);
+
+    useEffect(() => {
+        const t = setInterval(() => {
+            setCountdown((c) => {
+                if (c <= 1) {
+                    clearInterval(t);
+                    onSkip();
+                    return 0;
+                }
+                return c - 1;
+            });
+        }, 1000);
+        return () => clearInterval(t);
+    }, [onSkip]);
+
+    return (
+        <div className="text-center py-12 space-y-8 relative z-10">
+            <div className="flex justify-center">
+                <div className="w-20 h-20 rounded-full border-4 border-indigo-500/30 border-t-indigo-500 animate-spin" />
+            </div>
+            <div>
+                <h2 className="text-xl font-bold text-white mb-2">Establishing Substrate Link...</h2>
+                <p className="text-slate-400 text-sm font-medium">Scanning for ROS 2 nodes on {config.robotIp}.</p>
+                <p className="text-slate-500 text-xs mt-2">Auto-skip in {countdown}s, or skip now.</p>
+            </div>
+            <button
+                onClick={onSkip}
+                className="px-8 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-all"
+            >
+                Skip Scan (continue without robot)
+            </button>
+        </div>
+    );
+}
 
 const Onboarding: React.FC = () => {
     const [step, setStep] = useState(1);
@@ -121,21 +166,10 @@ const Onboarding: React.FC = () => {
                 )}
 
                 {step === 2 && (
-                    <div className="text-center py-12 space-y-8 relative z-10">
-                        <div className="flex justify-center">
-                            <div className="w-20 h-20 rounded-full border-4 border-indigo-500/30 border-t-indigo-500 animate-spin" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-white mb-2">Establishing Substrate Link...</h2>
-                            <p className="text-slate-400 text-sm font-medium">Scanning for ROS 2 nodes on {config.robotIp}.</p>
-                        </div>
-                        <button
-                            onClick={() => setStep(3)}
-                            className="px-8 py-3 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all text-sm font-bold"
-                        >
-                            Skip Scan (Debug Mode)
-                        </button>
-                    </div>
+                    <Step2SubstrateLink
+                        config={config}
+                        onSkip={() => setStep(3)}
+                    />
                 )}
 
                 {step === 3 && (

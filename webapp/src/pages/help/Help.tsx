@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
     HelpCircle, Terminal, Cpu, Wifi, Wrench, AlertTriangle,
     ChevronDown, ExternalLink, Copy, Check, BookOpen, Zap,
-    Activity, Radio, Play
+    Activity, Radio, Play, Package
 } from 'lucide-react'
 
 // ── tiny code block with copy ─────────────────────────────────────────────────
@@ -76,6 +76,7 @@ const ToolRow = ({ call, desc, example }: { call: string; desc: string; example?
 
 // ── tabs ───────────────────────────────────────────────────────────────────────
 const TABS = [
+    { id: 'hardware', label: 'Yahboom & Raspbot', icon: Package },
     { id: 'quickstart', label: 'Quick Start', icon: Play },
     { id: 'tools', label: 'MCP Tools', icon: Cpu },
     { id: 'api', label: 'REST API', icon: Terminal },
@@ -83,20 +84,75 @@ const TABS = [
     { id: 'trouble', label: 'Troubleshooting', icon: AlertTriangle },
 ]
 
+const TabHardware = () => (
+    <div className="space-y-6">
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5">
+            <h3 className="text-sm font-bold text-amber-300 mb-2">Yahboom</h3>
+            <p className="text-[13px] text-slate-400 leading-relaxed mb-2">
+                Yahboom builds ROS-based educational and research robots, expansion boards, and kits. Product lines include the <strong className="text-slate-300">Raspbot</strong> (Raspberry Pi + ROS 2), <strong className="text-slate-300">G1</strong> (humanoid/other), and the <strong className="text-slate-300">ROSMASTER</strong> expansion board used on many of their wheeled bots. This dashboard targets the <strong className="text-amber-200">Raspbot v2</strong>.
+            </p>
+            <a href="https://www.yahboom.net" target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-amber-400 hover:text-amber-300 inline-flex items-center gap-1">
+                yahboom.net <ExternalLink size={10} />
+            </a>
+        </div>
+
+        <div className="space-y-3">
+            <h3 className="text-sm font-bold text-slate-200">Raspbot v2 — at a glance</h3>
+            <ul className="text-[13px] text-slate-400 space-y-2 list-disc list-inside">
+                <li><strong className="text-slate-300">SBC:</strong> Raspberry Pi 5 (recommended) or Pi 4</li>
+                <li><strong className="text-slate-300">OS image:</strong> Yahboom Raspbot image with ROS 2 Humble (and usually rosbridge_suite) pre-installed</li>
+                <li><strong className="text-slate-300">Chassis:</strong> Mecanum wheels; motion via <code className="text-indigo-400">/cmd_vel</code> (Twist)</li>
+                <li><strong className="text-slate-300">Low-level control:</strong> ROSMASTER expansion board (STM32F103) — motors, encoders, 9-axis IMU, UART to Pi</li>
+                <li><strong className="text-slate-300">Sensors (typical):</strong> IMU (heading/pitch/roll), wheel encoders (odometry), optional USB/CSI camera, optional LIDAR (e.g. MS200) on <code className="text-indigo-400">/scan</code></li>
+                <li><strong className="text-slate-300">Network:</strong> WiFi (AP or STA); default robot IP often 192.168.0.250 (Ethernet) or 192.168.1.x (WiFi)</li>
+                <li><strong className="text-slate-300">ROSBridge:</strong> WebSocket on port 9090; this dashboard connects from your PC to that port</li>
+            </ul>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="border border-white/10 rounded-2xl p-4 bg-white/5">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">ROSMASTER board (STM32)</h4>
+                <p className="text-[12px] text-slate-400 leading-relaxed">
+                    STM32F103RCT6 (ARM Cortex-M3, 72 MHz). Runs firmware/RTOS only — no Linux. Handles motor PID, encoders, IMU, servos, UART to Pi. Camera and LIDAR run on the Pi, not on the STM32.
+                </p>
+            </div>
+            <div className="border border-white/10 rounded-2xl p-4 bg-white/5">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Pi tiers</h4>
+                <p className="text-[12px] text-slate-400 leading-relaxed">
+                    <strong className="text-slate-300">Full Pi (Pi 5):</strong> ROS 2 + rosbridge on robot, camera, optional LIDAR. <strong className="text-slate-300">Minimal Pi:</strong> camera/stream only. <strong className="text-slate-300">Pi-less:</strong> chassis + ESP32; PC does all compute (no camera/LIDAR on bot).
+                </p>
+            </div>
+        </div>
+
+        <div className="space-y-2">
+            <h3 className="text-sm font-bold text-slate-200">MS200 LIDAR addon (optional)</h3>
+            <p className="text-[13px] text-slate-400">
+                Yahboom MS200 TOF LIDAR — 360°, ~0.03–12 m, USB/serial. ~$139 USD. ROS 2 driver publishes <code className="text-indigo-400">/scan</code>; dashboard Lidar Map and telemetry use it. See <strong className="text-slate-300">Lidar addon</strong> page and <a href="https://www.yahboom.net/study/MS200" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">yahboom.net/study/MS200</a>.
+            </p>
+        </div>
+
+        <div className="text-[12px] text-slate-500">
+            More: <strong className="text-slate-400">docs/HARDWARE_AND_ROS2.md</strong> (Pi tiers, ROS 2 interaction, LIDAR), <strong className="text-slate-400">docs/CONNECTIVITY.md</strong> (WiFi, robot IP, ROSBridge at boot).
+        </div>
+    </div>
+)
+
 const TabQuickStart = () => (
     <div className="space-y-5">
         <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-5">
             <h3 className="text-sm font-bold text-indigo-300 mb-1">Prerequisites</h3>
             <ul className="text-[13px] text-slate-400 space-y-1 list-disc list-inside">
-                <li>Yahboom G1 robot powered on and on same LAN</li>
-                <li>Raspberry Pi running ROS 2 Humble</li>
-                <li>ROSBridge WebSocket server started on the robot</li>
+                <li>Yahboom Raspbot v2 powered on and on same LAN (or PC on robot WiFi)</li>
+                <li>Raspberry Pi on robot running ROS 2 Humble (pre-installed on stock image)</li>
+                <li>ROSBridge WebSocket server on the robot (pre-installed; starts at boot if you ran the one-time script)</li>
                 <li>Python ≥ 3.11 + Node.js ≥ 18 (on workstation)</li>
             </ul>
         </div>
         <div className="space-y-3">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Step 1 — Start ROSBridge on the robot</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Step 1 — ROSBridge on the robot</p>
+            <p className="text-[12px] text-slate-500">Stock Raspbot image already has rosbridge. If it is not set to start at boot, run once on the Pi:</p>
             <Code>ros2 launch rosbridge_server rosbridge_websocket_launch.xml</Code>
+            <p className="text-[12px] text-slate-500">To start automatically at boot, use the one-time script in <strong className="text-slate-400">docs/ROSBRIDGE_AT_BOOT.md</strong>.</p>
         </div>
         <div className="space-y-3">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Step 2 — Configure robot IP (if needed)</p>
@@ -109,16 +165,16 @@ const TabQuickStart = () => (
         </div>
         <div className="space-y-3">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Alternative — manual launch</p>
-            <Code>uv run yahboom-mcp --mode dual --robot-ip 192.168.1.100 --port 10792</Code>
+            <Code>uv run yahboom-mcp --mode dual --robot-ip 192.168.1.100 --port 10892</Code>
         </div>
         <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-5">
             <h3 className="text-sm font-bold text-green-300 mb-1">Verify it's working</h3>
             <p className="text-[13px] text-slate-400 mb-2">Open the health endpoint — <code className="text-green-400">connected: true</code> means the bot is linked.</p>
-            <Code>curl http://localhost:10792/api/v1/health</Code>
+            <Code>curl http://localhost:10892/api/v1/health</Code>
         </div>
         <div className="grid grid-cols-2 gap-4">
             {[
-                { label: 'MCP Server', url: 'http://localhost:10792/docs', icon: Terminal },
+                { label: 'MCP Server', url: 'http://localhost:10892/docs', icon: Terminal },
                 { label: 'Dashboard', url: 'http://localhost:10793/', icon: Activity },
             ].map(l => (
                 <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer"
@@ -139,7 +195,7 @@ const TabTools = () => (
     <div className="space-y-6">
         <div className="bg-[#0f0f12]/60 border border-white/5 rounded-2xl p-5">
             <p className="text-sm text-slate-400 leading-relaxed">
-                All MCP tools are available via AI clients pointed at <code className="text-indigo-400">http://localhost:10792/sse</code>.
+                All MCP tools are available via AI clients pointed at <code className="text-indigo-400">http://localhost:10892/sse</code>.
                 The main tool is <span className="text-white font-bold">yahboom()</span> — a portmanteau with an <code className="text-indigo-400">action</code> parameter that routes to sub-operations.
             </p>
         </div>
@@ -166,7 +222,7 @@ yahboom_help(category="motion", topic="mecanum")  # full detail' />
             <Code>{`{
   "mcpServers": {
     "yahboom": {
-      "url": "http://localhost:10792/sse",
+      "url": "http://localhost:10892/sse",
       "transport": "sse"
     }
   }
@@ -183,7 +239,7 @@ const TabApi = () => (
     <div className="space-y-6">
         <div className="space-y-2">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Base URL</p>
-            <Code>http://localhost:10792</Code>
+            <Code>http://localhost:10892</Code>
         </div>
         <div className="space-y-3">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Endpoints</p>
@@ -205,14 +261,14 @@ const TabApi = () => (
         </div>
         <div className="space-y-3">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Example — move via curl</p>
-            <Code>curl -X POST "http://localhost:10792/api/v1/control/move?linear=0.2&angular=0.0"</Code>
+            <Code>curl -X POST "http://localhost:10892/api/v1/control/move?linear=0.2&angular=0.0"</Code>
         </div>
-        <a href="http://localhost:10792/docs" target="_blank" rel="noopener noreferrer"
+        <a href="http://localhost:10892/docs" target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-indigo-500/40 hover:bg-indigo-500/10 transition-all group">
             <Wrench size={16} className="text-indigo-400" />
             <div>
                 <div className="text-sm font-bold text-slate-200 group-hover:text-white">Open Swagger UI</div>
-                <div className="text-[11px] text-slate-500">http://localhost:10792/docs</div>
+                <div className="text-[11px] text-slate-500">http://localhost:10892/docs</div>
             </div>
             <ExternalLink size={12} className="text-slate-600 ml-auto" />
         </a>
@@ -222,7 +278,7 @@ const TabApi = () => (
 const TabConnect = () => (
     <div className="space-y-5">
         <Accordion title="What's needed on the robot side?" icon={Cpu} color="indigo">
-            <p>Yahboom G1 (Raspberry Pi 5) running ROS 2 Humble. ROSBridge must be running:</p>
+            <p>Yahboom Raspbot v2 (Raspberry Pi 5 or 4) with stock image: ROS 2 Humble and rosbridge_suite are pre-installed. ROSBridge must be running (at boot or manually):</p>
             <Code>ros2 launch rosbridge_server rosbridge_websocket_launch.xml</Code>
             <p>Default port: <strong className="text-slate-300">9090</strong>. Robot and workstation must be on the same subnet.</p>
         </Accordion>
@@ -243,7 +299,7 @@ const TabConnect = () => (
         </Accordion>
         <Accordion title="How do AI clients connect?" icon={Radio} color="indigo">
             <p>Point your <code className="text-indigo-400">mcp_config.json</code> to the SSE endpoint:</p>
-            <Code>{`"yahboom": { "url": "http://localhost:10792/sse", "transport": "sse" }`}</Code>
+            <Code>{`"yahboom": { "url": "http://localhost:10892/sse", "transport": "sse" }`}</Code>
             <p>Works with Claude Desktop, Cursor, Antigravity, and any FastMCP 3.0-compatible client.</p>
         </Accordion>
     </div>
@@ -258,9 +314,9 @@ const TabTrouble = () => (
                 fix: ['1. Confirm robot is powered on', '2. SSH to Pi and run rosbridge: ros2 launch rosbridge_server rosbridge_websocket_launch.xml', '3. Ping the robot IP from your workstation', '4. Check firewall rules for port 9090'],
             },
             {
-                icon: Zap, color: 'red', title: '"Server Down" banner / cannot reach port 10792',
+                icon: Zap, color: 'red', title: '"Server Down" banner / cannot reach port 10892',
                 body: 'Python backend has not started or crashed.',
-                fix: ['Run .\\start.ps1 (or start.bat)', 'Check terminal for Python tracebacks', 'Test: curl http://localhost:10792/api/v1/health', 'Port conflict: netstat -ano | Select-String 10792 — kill the PID'],
+                fix: ['Run .\\start.ps1 (or start.bat)', 'Check terminal for Python tracebacks', 'Test: curl http://localhost:10892/api/v1/health', 'Port conflict: netstat -ano | Select-String 10892 — kill the PID'],
             },
             {
                 icon: Terminal, color: 'red', title: 'npm Win32 error during start',
@@ -290,9 +346,10 @@ const TabTrouble = () => (
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 const Help = () => {
-    const [tab, setTab] = useState('quickstart')
+    const [tab, setTab] = useState('hardware')
 
     const content: Record<string, React.ReactNode> = {
+        hardware: <TabHardware />,
         quickstart: <TabQuickStart />,
         tools: <TabTools />,
         api: <TabApi />,

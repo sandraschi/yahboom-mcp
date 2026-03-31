@@ -41,7 +41,7 @@ The yahboom-mcp repository represents a **sophisticated, production-grade roboti
 
 ## 🤖 Hardware Integration: Grade A+
 
-### Yahboom G1 Platform
+### Yahboom Raspbot v2 Platform
 - **Mobility**: Mecanum wheels (360° omnidirectional movement)
 - **Compute**: Raspberry Pi 5 (16GB RAM) - powerful edge AI platform
 - **Sensors**: 9-axis IMU, wheel encoders, battery monitoring, camera, lidar
@@ -162,7 +162,7 @@ uv run yahboom-mcp --robot-ip 192.168.1.100
 3. **Safety Systems**: Collision avoidance across fleet
 
 ### Long Term (Phase 6)
-1. **Unitree G1 Support**: Advanced humanoid integration
+1. **Humanoid Support**: Advanced humanoid integration (Future)
 2. **Cloud Orchestration**: Multi-site fleet management
 3. **Edge Optimization**: Reduce Pi dependency for cost savings
 
