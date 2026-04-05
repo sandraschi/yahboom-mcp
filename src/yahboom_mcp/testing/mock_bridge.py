@@ -22,6 +22,14 @@ class MockROS2Bridge:
         self.connected = False
         self.cmd_vel_topic: object | None = None
         self.cmd_vel_history: list[dict[str, Any]] = []
+        self.servo_history:   list[dict[str, Any]] = []
+
+        # Fake lightstrip topic — records published messages
+        class _FakeTopic:
+            def __init__(self): self.published = []
+            def publish(self, msg): self.published.append(msg)
+
+        self.rgblight_topic = _FakeTopic()
 
         self.state: dict[str, Any] = {
             "imu": {
@@ -60,15 +68,46 @@ class MockROS2Bridge:
             "last_update": 0.0,
         }
 
-    async def connect(self) -> bool:
+    async def connect(self, timeout: float = 10.0) -> bool:
         self.connected = True
         self.cmd_vel_topic = object()
-        logger.info("MockROS2Bridge: connected (no network)")
+        # Mock pre-flight node check success
+        logger.info("MockROS2Bridge: connected (no network) with pre-flight success")
         return True
 
-    async def disconnect(self) -> None:
+    async def get_all_topics(self) -> list[list[str]]:
+        """Mock return for the 74+ topics discovered on the real robot."""
+        if not self.connected:
+            return []
+
+        # Sample of the 74 topics for testing
+        return [
+            ["/cmd_vel", "geometry_msgs/msg/Twist"],
+            ["/scan", "sensor_msgs/msg/LaserScan"],
+            ["/imu/data", "sensor_msgs/msg/Imu"],
+            ["/odom", "nav_msgs/msg/Odometry"],
+            ["/battery_state", "sensor_msgs/msg/BatteryState"],
+            ["/joint_states", "sensor_msgs/msg/JointState"],
+            ["/tf", "tf2_msgs/msg/TFMessage"],
+            ["/tf_static", "tf2_msgs/msg/TFMessage"],
+            ["/camera/image_raw", "sensor_msgs/msg/Image"],
+        ] + [[f"/mock_topic_{i}", "std_msgs/msg/Header"] for i in range(65)]
+
+    async def publish_servo(self, servo_id: int, angle: int) -> bool:
+        if not self.connected:
+            return False
+        angle = max(0, min(180, angle))
+        self.servo_history.append({"id": servo_id, "angle": angle})
+        return True
+
+    async def move(self, linear: float = 0.0, angular: float = 0.0, linear_y: float = 0.0) -> bool:
+        return await self.publish_velocity(linear_x=linear, angular_z=angular, linear_y=linear_y)
+
+    async def disconnect(self):
+        """Mock graceful shutdown."""
         self.connected = False
         self.cmd_vel_topic = None
+        logger.info("MockROS2Bridge: disconnected")
 
     async def publish_velocity(
         self, linear_x: float, angular_z: float, linear_y: float = 0.0
@@ -81,6 +120,11 @@ class MockROS2Bridge:
             "angular": {"x": 0.0, "y": 0.0, "z": angular_z},
         }
         self.cmd_vel_history.append(twist)
+        return True
+
+    async def resync_metadata(self) -> bool:
+        """Mock re-sync."""
+        logger.info("MockROS2Bridge: resync_metadata")
         return True
 
     async def get_sensor_data(self, key: str) -> dict[str, Any]:

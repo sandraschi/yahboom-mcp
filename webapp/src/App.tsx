@@ -34,9 +34,9 @@ function App() {
         <ErrorBoundary>
             <AppLayout>
                 <Routes>
-                    <Route path="/" element={<Navigate to="/mission-control" replace />} />
-                    <Route path="/mission-control" element={<MissionControl />} />
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/mission-control" element={<MissionControl />} />
                     <Route path="/onboarding" element={<Onboarding />} />
                     <Route path="/analytics" element={<Analytics />} />
                     <Route path="/chat" element={<Chat />} />

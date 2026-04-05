@@ -2,10 +2,11 @@ import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 import time
 
+
 def debug_camera_logs():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] STARTING CAM DEBUG on {ip}...")
     if not ssh.connect():
         print("[-] SSH CONNECTION FAILED")
@@ -30,11 +31,12 @@ def debug_camera_logs():
     )
     # We use a timeout to capture first few seconds of logs
     docker_cmd = f"docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && timeout 5s {launch_cmd}'"
-    
+
     out, err, _ = ssh.execute(docker_cmd)
     print("-" * 50)
     print(f"OUTPUT:\n{out}")
     print(f"ERRORS:\n{err}")
+
 
 if __name__ == "__main__":
     debug_camera_logs()

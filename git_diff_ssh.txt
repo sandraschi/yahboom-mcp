@@ -1,0 +1,120 @@
+diff --git a/src/yahboom_mcp/core/ssh_bridge.py b/src/yahboom_mcp/core/ssh_bridge.py
+index 9160ee4..154c687 100644
+--- a/src/yahboom_mcp/core/ssh_bridge.py
++++ b/src/yahboom_mcp/core/ssh_bridge.py
+@@ -1,15 +1,17 @@
+ import paramiko
+ import logging
+ import threading
++import os
+ from typing import Tuple
+ 
+ logger = logging.getLogger("yahboom-mcp.ssh-bridge")
+ 
++
+ class SSHBridge:
+-    def __init__(self, host: str = "192.168.0.250", user: str = "pi", password: str = "yahboom"):
++    def __init__(self, host: str, user: str = "pi", password: str | None = None):
+         self.host = host
+         self.user = user
+-        self.password = password
++        self.password = password or os.getenv("YAHBOOM_PASSWORD")
+         self.client = None
+         self.connected = False
+         self.lock = threading.Lock()
+@@ -21,12 +23,12 @@ class SSHBridge:
+             self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+             # Ensure password is used if provided
+             self.client.connect(
+-                self.host, 
+-                username=self.user, 
+-                password=self.password, 
++                self.host,
++                username=self.user,
++                password=self.password,
+                 look_for_keys=True,
+                 allow_agent=False,
+-                timeout=5
++                timeout=15,
+             )
+             self.connected = True
+             logger.info(f"SSH connected to {self.host} as {self.user}")
+@@ -35,13 +37,24 @@ class SSHBridge:
+             logger.error(f"SSH connection failed to {self.host}: {e}")
+             return False
+ 
+-    def execute(self, command: str) -> Tuple[str, str, int]:
+-        """Execute a standard command and return (stdout, stderr, exit_code)."""
++    async def execute(self, command: str) -> Tuple[str, str, int]:
++        """Execute a standard command asynchronously and return (stdout, stderr, exit_code)."""
++        import asyncio
++        return await asyncio.to_thread(self._execute_sync, command)
++
++    def _execute_sync(self, command: str) -> Tuple[str, str, int]:
++        """Synchronous implementation."""
+         with self.lock:
+-            if not self.client:
++            if not self.client or not self.connected:
++                if self.client:
++                    try:
++                        self.client.close()
++                    except Exception:
++                        pass
++                    self.client = None
+                 if not self.connect():
+                     return "", "SSH Not Connected", -1
+-            
++
+             try:
+                 stdin, stdout, stderr = self.client.exec_command(command)
+                 out = stdout.read().decode().strip()
+@@ -52,30 +65,41 @@ class SSHBridge:
+                 logger.error(f"SSH execution failed: {e}")
+                 return "", str(e), -1
+ 
+-    def sudo_execute(self, command: str) -> Tuple[str, str, int]:
+-        """Execute a command with sudo, providing the password via stdin."""
++    async def sudo_execute(self, command: str) -> Tuple[str, str, int]:
++        """Execute a command with sudo asynchronously, providing the password via stdin."""
++        import asyncio
++        return await asyncio.to_thread(self._sudo_execute_sync, command)
++
++    def _sudo_execute_sync(self, command: str) -> Tuple[str, str, int]:
++        """Synchronous implementation."""
+         with self.lock:
+-            if not self.client:
++            if not self.client or not self.connected:
++                if self.client:
++                    try:
++                        self.client.close()
++                    except Exception:
++                        pass
++                    self.client = None
+                 if not self.connect():
+                     return "", "SSH Not Connected", -1
+-    
++
+             try:
+                 # Use -S to read password from stdin
+                 sudo_cmd = f"sudo -S {command}"
+                 stdin, stdout, stderr = self.client.exec_command(sudo_cmd)
+-                
++
+                 # Write password to stdin
+                 stdin.write(f"{self.password}\n")
+                 stdin.flush()
+-                
++
+                 out = stdout.read().decode().strip()
+                 err = stderr.read().decode().strip()
+                 code = stdout.channel.recv_exit_status()
+-                
++
+                 # Simple cleanup of sudo prefix in stderr if it appears as a prompt
+                 if "password for" in err.lower() and "\n" in err:
+                     err = err.split("\n", 1)[1].strip()
+-    
++
+                 return out, err, code
+             except Exception as e:
+                 logger.error(f"SSH sudo execution failed: {e}")

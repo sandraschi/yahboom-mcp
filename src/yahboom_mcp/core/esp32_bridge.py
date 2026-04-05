@@ -109,7 +109,9 @@ class ESP32Bridge:
                 "heading": _parse_float(vals[0]),
                 "pitch": _parse_float(vals[1]),
                 "roll": _parse_float(vals[2]),
-                "yaw": _parse_float(vals[3]) if len(vals) > 3 else _parse_float(vals[0]),
+                "yaw": _parse_float(vals[3])
+                if len(vals) > 3
+                else _parse_float(vals[0]),
                 "orientation": {},
                 "angular_velocity": {"x": 0.0, "y": 0.0, "z": 0.0},
                 "linear_acceleration": {"x": 0.0, "y": 0.0, "z": 0.0},
@@ -120,7 +122,9 @@ class ESP32Bridge:
             if pct >= 0:
                 self.state["battery"] = {
                     "percentage": round(pct, 1),
-                    "voltage": round(_parse_float(vals[1]), 2) if len(vals) > 1 else None,
+                    "voltage": round(_parse_float(vals[1]), 2)
+                    if len(vals) > 1
+                    else None,
                     "power_supply_status": None,
                 }
         elif tag == "ODOM" and len(vals) >= 5:

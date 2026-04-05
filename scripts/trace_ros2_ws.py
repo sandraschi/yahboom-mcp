@@ -1,10 +1,11 @@
 import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 def trace_ros2_ws():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] Connecting to {ip}...")
     if not ssh.connect():
         print("[-] FAILED")
@@ -13,7 +14,7 @@ def trace_ros2_ws():
     print("[*] Searching for 'setup.bash' in /home/pi/ to find ROS 2 workspaces...")
     out, err, code = ssh.execute("find /home/pi/ -name 'setup.bash' -maxdepth 4")
     if out:
-        paths = out.strip().split('\n')
+        paths = out.strip().split("\n")
         print(f"[*] Found {len(paths)} workspaces:")
         for p in paths:
             print(f"  - {p}")
@@ -24,10 +25,13 @@ def trace_ros2_ws():
             if pkg_out:
                 print(f"      -> FOUND: {pkg_out.strip()}")
                 # List launch files
-                l_out, _, _ = ssh.execute(f"find {base}/src -name '*launch*.py' | grep -i camera")
+                l_out, _, _ = ssh.execute(
+                    f"find {base}/src -name '*launch*.py' | grep -i camera"
+                )
                 print(f"      -> LAUNCH FILES: {l_out}")
     else:
         print("[FAIL] No ROS 2 workspaces found.")
+
 
 if __name__ == "__main__":
     trace_ros2_ws()

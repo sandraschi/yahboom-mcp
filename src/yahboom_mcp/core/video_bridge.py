@@ -7,15 +7,35 @@ import cv2
 import numpy as np
 import roslibpy
 
+
+import time
+
 logger = logging.getLogger("yahboom-mcp.core.video_bridge")
+
 
 class VideoBridge:
     """
-    Bridge for receiving ROS 2 camera images and providing them via HTTP/MJPEG.
-    Supports both compressed and raw image formats.
+    Bridge for receiving camera images and providing them via HTTP/MJPEG.
+
+    Two capture modes (tried in order):
+      1. ROS topic  — subscribes to /image_raw/compressed via rosbridge.
+      2. Direct cv2 — opens the camera device directly over SSH-forwarded
+                      video or a local /dev/video0 equivalent.
+                      Activated automatically if ROS topic yields no frames
+                      after FALLBACK_TIMEOUT_S seconds.
+
+    Set YAHBOOM_CAMERA_DIRECT=1 to force direct mode and skip the ROS attempt.
+    Set YAHBOOM_CAMERA_DEVICE to override the device index/URL (default: 0).
     """
 
-    def __init__(self, ros_client: roslibpy.Ros, topic_name: str = "/image_raw/compressed", ssh_bridge=None):
+    FALLBACK_TIMEOUT_S = 10  # seconds with no frames before switching to direct
+
+    def __init__(
+        self,
+        ros_client: roslibpy.Ros,
+        topic_name: str = "/image_raw/compressed",
+        ssh_bridge=None,
+    ):
         self.ros = ros_client
         self.topic_name = topic_name
         self.topic: Optional[roslibpy.Topic] = None
@@ -25,81 +45,139 @@ class VideoBridge:
         self.frame_count = 0
         self.ssh = ssh_bridge
 
+        # Direct capture state
+        self._direct_cap: Optional[cv2.VideoCapture] = None
+        self._direct_thread: Optional[threading.Thread] = None
+        self._direct_active = False
+        self._ros_start_time: Optional[float] = None
+
+        import os
+        self._force_direct = os.environ.get("YAHBOOM_CAMERA_DIRECT", "0") == "1"
+        self._device = int(os.environ.get("YAHBOOM_CAMERA_DEVICE", "0"))
+        
+        # SOTA 2026: Remote Stream Fallback Removed
+        # The fallback logic using port 10895 belonged to dreame-mcp and was erroneously
+        # failing because no robot webserver exists. We rely fully on ROS topic or direct /dev/video0.
+
     def start(self):
-        """Start subscribing and auto-launch the camera node inside Docker if needed."""
+        """Start camera. Uses ROS topic unless forced to direct mode."""
         if self.active:
             return
 
-        logger.info("Starting VideoBridge with Auto-Activation...")
-        
-        # 1. Trigger camera node launch inside yahboom_ros2 Docker container
-        if self.ssh:
-            # Direct ros2 run for Microdia USB Webcam at 720p (1280x720)
-            # Optimization: Use 'mjpeg' pixel format for native 30Hz support
-            launch_cmd = (
-                "ros2 run usb_cam usb_cam_node_exe "
-                "--ros-args "
-                "-p video_device:=/dev/video0 "
-                "-p image_width:=1280 "
-                "-p image_height:=720 "
-                "-p pixel_format:=mjpeg "
-                "-p io_method:=mmap "
-                "-p framerate:=30.0 "
-                "-p camera_name:=raspbot_cam"
-            )
-            docker_cmd = f"docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && {launch_cmd}' &"
-            
-            # Kill any existing camera node first to prevent device busy errors
-            self.ssh.execute("docker exec yahboom_ros2 pkill -f usb_cam_node_exe || true")
-            
-            self.ssh.execute(docker_cmd)
-            logger.info("Executed 720p hardware-verified camera node activation.")
+        self.active = True
 
-        # 2. Subscribe to the standard Yahboom compressed topic
-        self.topic_name = "/image_raw/compressed" 
+        if self._force_direct:
+            logger.info("VideoBridge: forced direct capture mode (YAHBOOM_CAMERA_DIRECT=1)")
+            self._start_direct()
+        else:
+            logger.info("VideoBridge: starting ROS topic subscription with direct fallback")
+            self._start_ros_topic()
+            # Start a watchdog that switches to direct if no ROS frames arrive
+            threading.Thread(target=self._ros_fallback_watchdog, daemon=True).start()
+
+    def _start_ros_topic(self):
+        """Subscribe to the ROS compressed image topic."""
+        import time
+        self._ros_start_time = time.time()
         topic_type = "sensor_msgs/CompressedImage"
+        try:
+            self.ros.get_topics(lambda topics: None)
+        except Exception:
+            pass
 
         self.topic = roslibpy.Topic(self.ros, self.topic_name, topic_type)
         self.topic.subscribe(self._image_callback)
-        self.active = True
-        
-        logger.info(f"Subscribed to {self.topic_name}. Stream active.")
+        logger.info(f"VideoBridge: subscribed to {self.topic_name}")
+
+    def _ros_fallback_watchdog(self):
+        """After FALLBACK_TIMEOUT_S with no frames, try the direct stream fallback."""
+        time.sleep(self.FALLBACK_TIMEOUT_S)
+        if self.frame_count == 0 and self.active:
+            logger.warning(
+                f"VideoBridge: no frames from {self.topic_name} after "
+                f"{self.FALLBACK_TIMEOUT_S}s — trying direct USB camera mode..."
+            )
+            self._start_direct()
+
+
+
+    def _start_direct(self):
+        """Open the camera device directly via cv2 in a background thread."""
+        if self._direct_active:
+            return
+        self._direct_active = True
+        self._direct_thread = threading.Thread(
+            target=self._direct_capture_loop, daemon=True
+        )
+        self._direct_thread.start()
+        logger.info(f"VideoBridge: direct capture started on device {self._device}")
+
+    def _direct_capture_loop(self):
+        """Background thread: continuously read frames from cv2.VideoCapture."""
+        cap = cv2.VideoCapture(self._device)
+        if not cap.isOpened():
+            logger.error(
+                f"VideoBridge: cannot open camera device {self._device}. "
+                "Check /dev/video0 exists and is accessible."
+            )
+            self._direct_active = False
+            return
+
+        self._direct_cap = cap
+        logger.info(f"VideoBridge: direct capture opened device {self._device}")
+
+        while self._direct_active and self.active:
+            ret, frame = cap.read()
+            if ret and frame is not None:
+                with self.frame_lock:
+                    self.last_frame = frame
+                    self.frame_count += 1
+            else:
+                import time
+                time.sleep(0.05)
+
+        cap.release()
+        self._direct_cap = None
+        logger.info("VideoBridge: direct capture stopped")
 
     def _image_callback(self, message):
-        """Decode incoming ROS 2 sensor_msgs/Image (or CompressedImage)."""
+        """Decode incoming ROS 2 sensor_msgs/CompressedImage or raw Image."""
         try:
-            # Detect data field
             data = message.get("data")
             if not data:
                 return
 
-            # Decode from base64 if it's a string (common in roslibpy/rosbridge)
             if isinstance(data, str):
                 image_bytes = base64.b64decode(data)
             else:
                 image_bytes = bytes(data)
 
-            # 1. Attempt Compressed Decoding (JPEG/PNG)
+            # Attempt compressed decode (JPEG/PNG)
             nparr = np.frombuffer(image_bytes, np.uint8)
             frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-            # 2. Fallback: Raw Image Handing (sensor_msgs/Image)
+            # Fallback: raw image fields
             if frame is None:
                 width = message.get("width")
                 height = message.get("height")
                 encoding = message.get("encoding", "rgb8").lower()
-                
+
                 if width and height:
                     if encoding in ("rgb8", "bgr8"):
-                        frame = np.frombuffer(image_bytes, dtype=np.uint8).reshape((height, width, 3))
+                        frame = np.frombuffer(image_bytes, dtype=np.uint8).reshape(
+                            (height, width, 3)
+                        )
                         if encoding == "rgb8":
                             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                     elif encoding == "mono8":
-                        frame = np.frombuffer(image_bytes, dtype=np.uint8).reshape((height, width))
+                        frame = np.frombuffer(image_bytes, dtype=np.uint8).reshape(
+                            (height, width)
+                        )
                         frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
                     elif encoding == "yuv422":
-                        # Common on some Yahboom/Raspberry Pi cameras
-                        frame = np.frombuffer(image_bytes, dtype=np.uint8).reshape((height, width, 2))
+                        frame = np.frombuffer(image_bytes, dtype=np.uint8).reshape(
+                            (height, width, 2)
+                        )
                         frame = cv2.cvtColor(frame, cv2.COLOR_YUV2BGR_YUYV)
 
             if frame is not None:
@@ -108,17 +186,19 @@ class VideoBridge:
                     self.frame_count += 1
             else:
                 if self.frame_count == 0:
-                    logger.warning(f"Could not decode frame from {self.topic_name}. Encoding: {message.get('encoding')}")
+                    logger.warning(
+                        f"VideoBridge: cannot decode ROS frame from {self.topic_name}. "
+                        f"Encoding: {message.get('encoding')}"
+                    )
 
         except Exception as e:
-            logger.error(f"Error decoding image frame: {e}")
+            logger.error(f"VideoBridge: error decoding image frame: {e}")
 
     def get_latest_frame_jpeg(self) -> Optional[bytes]:
-        """Return the latest frame encoded as JPEG."""
+        """Return the latest frame encoded as JPEG bytes."""
         with self.frame_lock:
             if self.last_frame is None:
                 return None
-
             ret, buffer = cv2.imencode(
                 ".jpg", self.last_frame, [cv2.IMWRITE_JPEG_QUALITY, 85]
             )
@@ -127,20 +207,32 @@ class VideoBridge:
         return None
 
     def stop(self):
-        """Stop subscription."""
-        if self.topic:
-            self.topic.unsubscribe()
+        """Stop all capture (ROS and direct)."""
         self.active = False
+        self._direct_active = False
+
+        if self.topic:
+            try:
+                self.topic.unsubscribe()
+            except Exception:
+                pass
+
+        if self._direct_cap:
+            try:
+                self._direct_cap.release()
+            except Exception:
+                pass
+
         logger.info("VideoBridge stopped")
 
     async def mjpeg_generator(self):
-        """Generator for MJPEG streaming."""
+        """Async generator for MJPEG streaming (~20 FPS)."""
         while self.active:
             frame = self.get_latest_frame_jpeg()
             if frame:
                 yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
             else:
-                # If no frame yet, wait a bit
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.05)
                 continue
-            await asyncio.sleep(0.1)  # Target ~10 FPS
+            await asyncio.sleep(0.05)
+

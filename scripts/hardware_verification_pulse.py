@@ -1,11 +1,11 @@
 import asyncio
 import os
-import sys
 from yahboom_mcp.portmanteau import yahboom_tool
 from yahboom_mcp.state import _state
 from yahboom_mcp.core.ros2_bridge import ROS2Bridge
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 from yahboom_mcp.core.video_bridge import VideoBridge
+
 
 async def verification_pulse():
     """
@@ -13,18 +13,18 @@ async def verification_pulse():
     This script proves that the 'Closed-Loop' verification is working.
     """
     print("[INFO] Starting Hardware Reality Pulse...")
-    
+
     # 1. Initialize State (Manual injection for standalone script)
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     port = int(os.environ.get("YAHBOOM_BRIDGE_PORT", "9090"))
-    
+
     ros = ROS2Bridge(ip, port)
     ssh = SSHBridge(ip)
-    
+
     _state["bridge"] = ros
     _state["ssh"] = ssh
     _state["video_bridge"] = VideoBridge(ros.ros)
-    
+
     print(f"[*] Connecting to {ip}...")
     if not await ros.connect():
         print("[ERROR] FATAL: ROS 2 Bridge failed to connect. Is the robot online?")
@@ -52,7 +52,9 @@ async def verification_pulse():
     heartbeat = "REALITY_CHECK"
     res = await yahboom_tool(operation="display", param1=heartbeat, param2=0)
     if res.get("success"):
-        print(f"  - OLED '{heartbeat}' -> {res.get('status')} (I2C Acknowledge confirmed)")
+        print(
+            f"  - OLED '{heartbeat}' -> {res.get('status')} (I2C Acknowledge confirmed)"
+        )
     else:
         print(f"  - OLED FAILED: {res.get('log')}")
 
@@ -67,6 +69,7 @@ async def verification_pulse():
 
     print("\n[DONE] Pulse Complete. All hardware loops verified.")
     await ros.disconnect()
+
 
 if __name__ == "__main__":
     # Ensure we run in an async loop

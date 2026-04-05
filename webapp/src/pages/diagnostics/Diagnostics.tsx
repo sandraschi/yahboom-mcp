@@ -1,376 +1,269 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-    Shield, 
     Activity, 
     Terminal as TerminalIcon, 
     AlertCircle, 
-    CheckCircle2, 
     RefreshCw,
-    Wifi,
-    Cpu,
-    Zap,
     Search,
     ChevronRight,
     Play,
-    Camera,
-    Mic
+    ListFilter,
+    HardDrive,
+    Trash2,
+    Power
 } from 'lucide-react';
 import { api, DiagStackResponse } from '../../lib/api';
 
+interface RosTopic {
+    name: string;
+    type: string;
+}
+
 const Diagnostics: React.FC = () => {
     const [stack, setStack] = useState<DiagStackResponse | null>(null);
-    const [logs, setLogs] = useState<string[]>([]);
-    const [command, setCommand] = useState('');
+    const [topics, setTopics] = useState<RosTopic[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
     const [shellOutput, setShellOutput] = useState<string[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [command, setCommand] = useState('');
     const [executing, setExecuting] = useState(false);
     const logEndRef = useRef<HTMLDivElement>(null);
-    const shellEndRef = useRef<HTMLDivElement>(null);
 
-    const fetchStack = async () => {
+    const fetchData = async () => {
         try {
-            const data = await api.getDiagStack();
-            setStack(data);
+            const [stackData, topicData] = await Promise.all([
+                api.getDiagStack(),
+                api.getRosTopics()
+            ]);
+            setStack(stackData);
+            if (topicData.success) {
+                const formattedTopics = topicData.topics.map((t: any) => ({
+                    name: Array.isArray(t) ? t[0] : t.name,
+                    type: Array.isArray(t) ? t[1] : t.type
+                }));
+                setTopics(formattedTopics);
+            }
         } catch (error) {
-            console.error('Failed to fetch diagnostic stack:', error);
+            console.error('Diagnostic fetch failed:', error);
         }
     };
 
-    const fetchLogs = async () => {
+    const handleRestartBringup = async () => {
+        if (!confirm('This will force a native ROS 2 bringup via SSH. Continue?')) return;
+        setExecuting(true);
         try {
-            const data = await api.getDiagLogs();
-            if (data.logs) {
-                // Split string logs into lines for the viewer
-                setLogs(data.logs.trim().split('\n'));
+            const res = await api.postRestartRos();
+            setShellOutput(prev => [...prev, `[SYSTEM] ${res.message}`]);
+            setTimeout(fetchData, 8000); 
+        } catch (error) {
+            setShellOutput(prev => [...prev, 'Error triggering native bringup.']);
+        } finally {
+            setExecuting(false);
+        }
+    };
+
+    const handleResyncRos = async () => {
+        setExecuting(true);
+        try {
+            const res = await api.postResyncRos();
+            if (res.success) {
+                setShellOutput(prev => [...prev, '[SYSTEM] Sensory re-synchronization successful.']);
+                fetchData();
+            } else {
+                setShellOutput(prev => [...prev, '[SYSTEM] Re-sync failed. Check bridge logs.']);
             }
         } catch (error) {
-            console.error('Failed to fetch kernel logs:', error);
+            setShellOutput(prev => [...prev, 'Error during sensory re-sync.']);
+        } finally {
+            setExecuting(false);
         }
     };
 
     const handleExecute = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!command.trim() || executing) return;
-
         setExecuting(true);
-        const timestamp = new Date().toLocaleTimeString();
-        setShellOutput(prev => [...prev, `[${timestamp}] $ ${command}`]);
-
         try {
-            const result = await api.postExecCommand(command);
-            if (result.stdout) setShellOutput(prev => [...prev, result.stdout]);
-            if (result.stderr) setShellOutput(prev => [...prev, `Error: ${result.stderr}`]);
-            if (result.error) setShellOutput(prev => [...prev, `System Error: ${result.error}`]);
+            const res = await api.postExecCommand(command);
+            setShellOutput(prev => [...prev, `$ ${command}`, res.stdout || res.stderr || 'No output']);
             setCommand('');
-        } catch (error) {
-            setShellOutput(prev => [...prev, 'Failed to reach backend diagnostic bridge.']);
         } finally {
             setExecuting(false);
         }
     };
 
     useEffect(() => {
-        const init = async () => {
-            setLoading(true);
-            await Promise.all([fetchStack(), fetchLogs()]);
-            setLoading(false);
-        };
-        init();
-
-        const interval = setInterval(() => {
-            fetchStack();
-            fetchLogs();
-        }, 5000);
-
+        fetchData();
+        const interval = setInterval(fetchData, 5000);
         return () => clearInterval(interval);
     }, []);
 
-    useEffect(() => {
-        logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [logs]);
-
-    useEffect(() => {
-        shellEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [shellOutput]);
-
-    if (loading && !stack) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <div className="flex flex-col items-center gap-4">
-                    <RefreshCw className="w-12 h-12 text-blue-500 animate-spin" />
-                    <p className="text-gray-400 font-medium font-mono">Initializing Boomy Insight Bridge...</p>
-                </div>
-            </div>
-        );
-    }
+    const filteredTopics = topics.filter(t => 
+        t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        t.type.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                        <Shield className="w-8 h-8 text-blue-500" />
-                        Diagnostics
+                        <Activity className="w-8 h-8 text-blue-500" />
+                        ROS 2 Insight Hub
                     </h1>
-                    <p className="text-gray-400 mt-1">Hardware-level telemetry and remote recovery tools</p>
+                    <p className="text-gray-400 mt-1 font-mono text-sm">Empirical Hardware Verification @ 192.168.0.250</p>
                 </div>
                 <div className="flex gap-3">
                     <button 
-                        onClick={() => { fetchStack(); fetchLogs(); }}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors border border-gray-700"
+                        onClick={handleResyncRos}
+                        disabled={executing}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-lg transition-all border border-blue-500/30 font-bold text-sm"
                     >
-                        <RefreshCw className="w-4 h-4" />
-                        Refresh
+                        <RefreshCw className={`w-4 h-4 ${executing ? 'animate-spin' : ''}`} />
+                        System Re-Sync
+                    </button>
+                    <button 
+                        onClick={handleRestartBringup}
+                        disabled={executing}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600/10 hover:bg-red-600/20 text-red-500 rounded-lg transition-all border border-red-500/30 font-bold text-sm"
+                    >
+                        <Power className="w-4 h-4" />
+                        Hard Reset
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column: Health & Stack */}
-                <div className="space-y-6">
-                    {/* System Health */}
-                    <div className="bg-gray-900/50 backdrop-blur-md border border-gray-800 rounded-xl overflow-hidden">
-                        <div className="p-4 border-b border-gray-800 flex items-center gap-2 bg-gray-800/30">
-                            <Activity className="w-5 h-5 text-green-500" />
-                            <h2 className="font-semibold text-white">System Health</h2>
-                        </div>
-                        <div className="p-4 space-y-4">
-                            <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg border border-gray-800">
-                                <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-full ${stack?.i2c_bus_state === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                                        <Zap className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-400">I2C Control Bus</p>
-                                        <p className="font-mono font-medium text-white uppercase">{stack?.i2c_bus_state || 'unknown'}</p>
-                                    </div>
-                                </div>
-                                {stack?.i2c_bus_state === 'active' ? (
-                                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                                ) : (
-                                    <AlertCircle className="w-5 h-5 text-red-500" />
-                                )}
-                            </div>
-
-                            <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg border border-gray-800">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-full bg-blue-500/10 text-blue-500">
-                                        <Wifi className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-400">Network Interface</p>
-                                        <p className="font-mono font-medium text-white">Ethernet (Cabled)</p>
-                                    </div>
-                                </div>
-                                <div className="px-2 py-1 bg-blue-500/10 text-blue-500 text-xs rounded border border-blue-500/20">
-                                    STABLE
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg border border-gray-800">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-full bg-purple-500/10 text-purple-500">
-                                        <Cpu className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-400">Host Hardware</p>
-                                        <p className="font-mono font-medium text-white">Raspberry Pi 5</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg border border-gray-800">
-                                <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-full ${stack?.voice_module_state === 'active' ? 'bg-indigo-500/10 text-indigo-500' : 'bg-gray-500/10 text-gray-500'}`}>
-                                        <Mic className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-400">AI Voice Module</p>
-                                        <p className="font-mono font-medium text-white uppercase">{stack?.voice_module_state || 'unknown'}</p>
-                                    </div>
-                                </div>
-                                {stack?.voice_module_state === 'active' ? (
-                                    <CheckCircle2 className="w-5 h-5 text-indigo-500" />
-                                ) : (
-                                    <AlertCircle className="w-5 h-5 text-gray-500" />
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Live Vision Card */}
-                    <div className="bg-gray-900/50 backdrop-blur-md border border-gray-800 rounded-xl overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Topic Explorer (Main Panel) */}
+                <div className="lg:col-span-8 space-y-6">
+                    <div className="bg-gray-900/50 backdrop-blur-md border border-gray-800 rounded-xl overflow-hidden flex flex-col h-[600px]">
                         <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-800/30">
-                            <div className="flex items-center gap-2">
-                                <Camera className="w-5 h-5 text-blue-500" />
-                                <h2 className="font-semibold text-white">Live Vision</h2>
+                            <div className="flex items-center gap-2 text-white font-semibold">
+                                <ListFilter className="w-5 h-5 text-green-500" />
+                                Native Topic Explorer
                             </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                                <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider">Live</span>
-                            </div>
-                        </div>
-                        <div className="aspect-video bg-black relative flex items-center justify-center group">
-                            {/* MJPEG Stream from Backend */}
-                            <img 
-                                src="/api/v1/snapshot" /* Default to snapshot first, then stream once confirmed */
-                                alt="Robot Vision"
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=800';
-                                }}
-                            />
-                            {/* Overlay for "Open Full Stream" or similar if needed */}
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                                <a 
-                                    href="/stream" 
-                                    target="_blank" 
-                                    rel="noreferrer"
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
-                                >
-                                    Open Direct Stream
-                                </a>
+                            <div className="relative w-64">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                <input 
+                                    type="text"
+                                    placeholder="Filter topics..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full bg-black/40 border border-gray-700 rounded-lg py-1.5 pl-10 pr-4 text-sm text-white focus:ring-1 focus:ring-blue-500 transition-all font-mono"
+                                />
                             </div>
                         </div>
-                        <div className="p-3 bg-black/40 border-t border-gray-800 flex items-center justify-between">
-                            <span className="text-xs text-gray-500 font-mono">USB PTZ / CSI Camera</span>
-                            <span className="text-[10px] text-blue-400 font-mono">15 FPS / MJPEG</span>
-                        </div>
-                    </div>
-
-                    {/* ROS Nodes */}
-                    <div className="bg-gray-900/50 backdrop-blur-md border border-gray-800 rounded-xl overflow-hidden">
-                        <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-800/30">
-                            <div className="flex items-center gap-2">
-                                <Search className="w-5 h-5 text-blue-500" />
-                                <h2 className="font-semibold text-white">Active Nodes</h2>
-                            </div>
-                            <span className="text-xs font-mono text-gray-500 bg-black/40 px-2 py-1 rounded">
-                                ROS 2 HUMBLE
-                            </span>
-                        </div>
-                        <div className="p-2 max-h-[300px] overflow-y-auto custom-scrollbar">
-                            {stack?.ros_nodes && stack.ros_nodes.length > 0 ? (
-                                <ul className="space-y-1">
-                                    {stack.ros_nodes.map((node, i) => (
-                                        <li key={i} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg transition-colors group">
-                                            <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-blue-500" />
-                                            <span className="font-mono text-sm text-gray-300">{node}</span>
-                                        </li>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            <table className="w-full text-left font-mono text-xs">
+                                <thead className="bg-black/50 sticky top-0 text-gray-400 uppercase tracking-wider">
+                                    <tr>
+                                        <th className="px-4 py-3">Topic Path</th>
+                                        <th className="px-4 py-3">Message Type</th>
+                                        <th className="px-4 py-3 w-20 text-center">Pulse</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-800/50">
+                                    {filteredTopics.map((topic, i) => (
+                                        <tr key={i} className="hover:bg-blue-500/5 group transition-colors">
+                                            <td className="px-4 py-3 text-blue-400 font-bold truncate">{topic.name}</td>
+                                            <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{topic.type}</td>
+                                            <td className="px-4 py-3 text-center">
+                                                <div className="w-2 h-2 rounded-full bg-green-500/50 animate-pulse mx-auto shadow-[0_0_8px_rgba(34,197,94,0.4)]" />
+                                            </td>
+                                        </tr>
                                     ))}
-                                </ul>
-                            ) : (
-                                <div className="p-8 text-center">
-                                    <AlertCircle className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                                    <p className="text-gray-500 italic text-sm">No ROS nodes detected</p>
-                                    <p className="text-xs text-gray-700 mt-1">Check yahboom_base.service</p>
-                                </div>
-                            )}
+                                    {filteredTopics.length === 0 && (
+                                        <tr>
+                                            <td colSpan={3} className="px-4 py-20 text-center text-gray-600 italic">
+                                                No matching topics found in current ROS 2 context.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="p-3 bg-black/40 border-t border-gray-800 flex justify-between text-[10px] text-gray-500 font-mono">
+                            <span>TOTAL: {topics.length} TOPICS DISCOVERED</span>
+                            <span className="text-blue-500">ROS 2 FOXY / HUMBLE COMPATIBLE</span>
                         </div>
                     </div>
-                </div>
 
-                {/* Right Column: Logs & Shell */}
-                <div className="lg:col-span-2 space-y-6">
-                    {/* Kernel Logs */}
-                    <div className="bg-gray-900/50 backdrop-blur-md border border-gray-800 rounded-xl overflow-hidden flex flex-col h-[400px]">
-                        <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-800/30">
-                            <div className="flex items-center gap-2">
-                                <Activity className="w-5 h-5 text-orange-500" />
-                                <h2 className="font-semibold text-white">Kernel Logs (dmesg)</h2>
+                    <div className="bg-black border border-gray-800 rounded-xl overflow-hidden flex flex-col h-[280px]">
+                        <div className="p-3 border-b border-gray-800 flex items-center justify-between bg-gray-900/50">
+                            <div className="flex items-center gap-2 text-xs text-gray-400 font-mono">
+                                <TerminalIcon className="w-4 h-4" />
+                                SSH DIAGNOSTIC SHELL
                             </div>
-                            <button 
-                                onClick={() => setLogs([])}
-                                className="text-xs text-gray-500 hover:text-white transition-colors"
-                            >
-                                Clear View
-                            </button>
+                            <button onClick={() => setShellOutput([])} className="text-[10px] text-gray-600 hover:text-white transition-colors uppercase">Clear</button>
                         </div>
-                        <div className="flex-1 p-4 font-mono text-xs overflow-y-auto bg-black/40 custom-scrollbar">
-                            {logs.map((log, i) => {
-                                const isI2CError = log.toLowerCase().includes('i2c') || log.toLowerCase().includes('timeout');
-                                return (
-                                    <div key={i} className={`py-0.5 ${isI2CError ? 'text-red-400 bg-red-500/5 px-2 -mx-2 rounded' : 'text-gray-400'}`}>
-                                        <span className="text-gray-600 mr-2 select-none">[{i+1}]</span>
-                                        {log}
-                                    </div>
-                                );
-                            })}
+                        <div className="flex-1 p-4 font-mono text-[11px] overflow-y-auto custom-scrollbar text-green-500/90 leading-tight">
+                            {shellOutput.map((l, i) => <div key={i}>{l}</div>)}
                             <div ref={logEndRef} />
                         </div>
-                    </div>
-
-                    {/* Remote Shell */}
-                    <div className="bg-gray-900/50 backdrop-blur-md border border-gray-800 rounded-xl overflow-hidden flex flex-col h-[400px]">
-                        <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-800/30">
-                            <div className="flex items-center gap-2">
-                                <TerminalIcon className="w-5 h-5 text-blue-500" />
-                                <h2 className="font-semibold text-white">Remote Diagnostic Shell</h2>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <div className="text-[10px] font-mono text-gray-500">
-                                    PI@BOOMY: SSH-OVER-BRIDGE
-                                </div>
-                                <button 
-                                    onClick={() => setShellOutput([])}
-                                    className="text-xs text-gray-500 hover:text-white transition-colors"
-                                >
-                                    Clear
-                                </button>
-                            </div>
-                        </div>
-                        <div className="flex-1 p-4 font-mono text-xs overflow-y-auto bg-black/60 custom-scrollbar text-green-400">
-                            {shellOutput.length === 0 && (
-                                <p className="text-gray-600 italic">Bridge initialized. Enter command to execute on Boomy...</p>
-                            )}
-                            {shellOutput.map((line, i) => (
-                                <div key={i} className="whitespace-pre-wrap leading-relaxed py-0.5">
-                                    {line}
-                                </div>
-                            ))}
-                            {executing && (
-                                <div className="flex items-center gap-2 text-blue-400 animate-pulse mt-1">
-                                    <RefreshCw className="w-3 h-3 animate-spin" />
-                                    Executing...
-                                </div>
-                            )}
-                            <div ref={shellEndRef} />
-                        </div>
-                        <form onSubmit={handleExecute} className="p-4 bg-gray-900 border-t border-gray-800 flex items-center gap-2">
-                            <span className="text-blue-500 font-mono font-bold font-sm">$</span>
+                        <form onSubmit={handleExecute} className="p-2 bg-gray-900 flex gap-2">
+                            <span className="text-blue-500 font-mono pl-2">$</span>
                             <input 
                                 type="text"
                                 value={command}
                                 onChange={(e) => setCommand(e.target.value)}
-                                placeholder="e.g. i2cdetect -y 1"
-                                className="flex-1 bg-transparent border-none text-white font-mono text-sm focus:ring-0 placeholder:text-gray-700"
-                                disabled={executing}
+                                className="flex-1 bg-transparent border-none text-white focus:ring-0 font-mono text-sm"
+                                placeholder="Execute raw command..."
                             />
-                            <button 
-                                type="submit"
-                                disabled={!command.trim() || executing}
-                                className="p-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 text-white rounded-lg transition-colors"
-                            >
-                                {executing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                            </button>
                         </form>
                     </div>
                 </div>
-            </div>
 
-            {/* Warning/Info Footer */}
-            <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl flex items-start gap-4">
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                    <AlertCircle className="w-6 h-6 text-blue-500" />
-                </div>
-                <div>
-                    <h3 className="text-sm font-semibold text-white">Diagnostic Insights</h3>
-                    <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-                        Currently monitoring Boomy via Ethernet bridge at <code className="text-blue-400">192.168.0.250</code>. 
-                        If I2C timeouts persist after power-cycling, use the diagnostic shell to check <code className="text-gray-300">i2cdetect -y 1</code>.
-                        The baudrate patch (100kHz) requires the Pi 5 to reboot to apply kernel-level DTBO changes.
-                    </p>
+                {/* Right Column */}
+                <div className="lg:col-span-4 space-y-6">
+                    <div className="bg-gray-900/50 backdrop-blur-md border border-gray-800 rounded-xl overflow-hidden">
+                        <div className="p-4 border-b border-gray-800 flex items-center gap-2 bg-gray-800/30">
+                            <HardDrive className="w-5 h-5 text-blue-500" />
+                            <h2 className="font-semibold text-white">Active Nodes</h2>
+                        </div>
+                        <div className="p-4 space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
+                            {stack?.ros_nodes && stack.ros_nodes.length > 0 ? (
+                                stack.ros_nodes.map((node, i) => (
+                                    <div key={i} className="flex items-center justify-between p-2.5 bg-black/40 rounded-lg border border-gray-800/50 group hover:border-blue-500/30 transition-all">
+                                        <div className="flex items-center gap-3">
+                                            <ChevronRight className="w-3 h-3 text-gray-700" />
+                                            <span className="text-xs text-gray-300 font-mono truncate max-w-[200px]">{node}</span>
+                                        </div>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]" />
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-10 text-center">
+                                    <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+                                    <p className="text-red-400 font-mono text-xs">CRITICAL: No Active Nodes</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="bg-gray-900/50 backdrop-blur-md border border-gray-800 rounded-xl overflow-hidden">
+                        <div className="p-4 border-b border-gray-800 flex items-center gap-2 bg-gray-800/30">
+                            <Activity className="w-5 h-5 text-orange-500" />
+                            <h2 className="font-semibold text-white">System Actions</h2>
+                        </div>
+                        <div className="p-4 grid grid-cols-1 gap-3">
+                            <button 
+                                onClick={handleRestartBringup}
+                                className="flex items-center gap-3 p-3 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-lg border border-blue-500/20 transition-all text-sm group"
+                            >
+                                <Play className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                <div className="text-left">
+                                    <div className="font-bold">Sync Native Topics</div>
+                                    <div className="text-[10px] opacity-70">Force Yahboom car bringup</div>
+                                </div>
+                            </button>
+                            <button className="flex items-center gap-3 p-3 bg-purple-600/10 hover:bg-purple-600/20 text-purple-400 rounded-lg border border-purple-500/20 transition-all text-sm group">
+                                <Trash2 className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                                <div className="text-left">
+                                    <div className="font-bold">Purge ROS Logs</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

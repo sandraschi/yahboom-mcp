@@ -1,10 +1,11 @@
 import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 def find_ws_driver():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] DEEP SEARCH FOR CAMERA DRIVER on {ip}...")
     if not ssh.connect():
         print("[-] SSH CONNECTION FAILED")
@@ -25,13 +26,14 @@ def find_ws_driver():
     out, _, _ = ssh.execute(cmd)
     print("INSTALLED CAMERA PACKAGES:")
     print(out)
-    
+
     # 3. Check for specific Yahboom bringup
     print("[*] Checking for yahboomcar_bringup...")
     cmd = "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && ros2 pkg list | grep bringup'"
     out, _, _ = ssh.execute(cmd)
     print("BRINGUP PACKAGES:")
     print(out)
+
 
 if __name__ == "__main__":
     find_ws_driver()

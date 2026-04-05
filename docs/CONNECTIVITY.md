@@ -1,61 +1,164 @@
-# Yahboom G1 Connectivity Guide
+# Yahboom Raspbot v2 — Connectivity Guide
 
-This guide explains how to connect your Yahboom G1 robot to your WiFi network and how to configure the MCP server to control it.
+**Updated:** 2026-04-04
+**Status:** WiFi is the primary operational interface. Ethernet is for initial setup / recovery only.
 
-## 1. WiFi Setup (First Time)
+---
 
-By default, the Yahboom G1 Raspberry Pi is configured to start a WiFi Access Point if it cannot find a known network.
+## Network Architecture
 
-1.  **Power on the robot.** Wait about 60-90 seconds for the system to boot.
-2.  **Connect to the Robot AP**: On your PC or phone, look for a WiFi network named `Yahboom_XXXX` or `ROS-XXXX`.
-3.  **Default Password**: Usually `12345678` or no password.
-4.  **Configure STA Mode**:
-    - Open a browser and go to `http://192.168.1.1` (or the gateway IP of the robot AP).
-    - Use the Yahboom web interface to enter your home WiFi credentials (SSID and Password).
-    - Save and Reboot the robot.
+The Pi 5 has two network interfaces. They must **not** both be active as default routes simultaneously
+or they fight over routing and the MCP server may connect to the wrong interface or lose the connection
+mid-session.
 
-## 2. Finding the Robot IP
+| Interface | IP | Role |
+|---|---|---|
+| `wlan0` | DHCP from home router (assign static lease) | **Primary — daily operation** |
+| `eth0` | `192.168.0.250` (static) | **Fallback — initial setup, recovery only** |
 
-Once the robot is on your home WiFi, you need its IP address.
+**Correct NetworkManager setup on the Pi:**
 
-- **Option A (Router)**: Check your router's client list for a device named `raspberrypi` or starting with `Yahboom`.
-- **Option B (OLED)**: If your G1 has an OLED screen, the IP address is usually displayed there after it connects to WiFi.
-- **Option C (Scan)**: Use a tool like Advanced IP Scanner or `nmap` to find the Pi on your network.
+```bash
+# Check current routes
+ip route show
 
-## 3. Connecting the MCP Server
+# Give WiFi higher priority (lower metric = preferred)
+nmcli connection modify "YourWiFiSSID" ipv4.route-metric 100
+nmcli connection modify "Wired connection 1" ipv4.route-metric 200
+nmcli connection up "YourWiFiSSID"
 
-The MCP server runs on your PC and connects to the robot over the network via ROSBridge (Port 9090).
-
-### Using the Startup Script (Recommended)
-Pass the robot's IP address directly to the startup script:
-```powershell
-./start.ps1 -RobotIP "192.168.1.100"
+# Verify: default route should now point to wlan0
+ip route show default
+# Expected: default via <router_ip> dev wlan0 proto dhcp metric 100
 ```
 
-### Using Environment Variables
-You can set the `YAHBOOM_IP` variable before running the server:
+Once set, the metric persists across reboots. When you need Ethernet for recovery, plug in the cable —
+it will be reachable at `192.168.0.250` but won't hijack the default route.
+
+**Assign a static DHCP lease for WiFi:**
+
+On your router, find the Raspbot Pi 5 MAC address (`ip link show wlan0` on the Pi) and assign it a
+fixed IP — e.g. `192.168.0.105`. This avoids hunting for a changing DHCP IP each session.
+
+---
+
+## MCP Server Configuration
+
+Set the robot IP via environment variable before starting the server:
+
 ```powershell
-$env:YAHBOOM_IP = "192.168.1.100"
-uv run yahboom-mcp
+# Windows (PowerShell) — WiFi IP, primary
+$env:YAHBOOM_IP = "192.168.0.105"
+
+# Ethernet fallback (recovery only) — still reachable as FALLBACK, not primary
+$env:YAHBOOM_FALLBACK_IP = "192.168.0.250"
+
+uv run python -m yahboom_mcp.server --mode dual --port 10792
 ```
 
-### Using CLI Arguments
-```powershell
-uv run yahboom-mcp --robot-ip 192.168.1.100
+The `ROS2Bridge` tries `YAHBOOM_IP` first, then `YAHBOOM_FALLBACK_IP` if the primary fails.
+
+```bash
+# Or permanently in your environment / .env file:
+YAHBOOM_IP=192.168.0.105
+YAHBOOM_FALLBACK_IP=192.168.0.250
+YAHBOOM_BRIDGE_PORT=9090
 ```
 
-## 4. ROSBridge at boot (no more typing start commands)
+---
 
-The Raspbot v2 image already has ROS 2 and rosbridge installed. Run **once** on the robot to make ROSBridge start automatically when the Pi boots:
+## Finding the Robot's WiFi IP
 
-1. Copy the script to the Pi: `scp scripts/robot/install-rosbridge-at-boot.sh pi@<robot-ip>:~/`
-2. On the Pi: `sudo bash ~/install-rosbridge-at-boot.sh`
-3. Reboot (or leave it). After that, power on the robot and ROSBridge is already running.
+If you haven't assigned a static DHCP lease yet:
 
-See [ROSBridge at boot](ROSBRIDGE_AT_BOOT.md) for details.
+- **Router DHCP table:** Look for device named `raspberrypi`.
+- **OLED display:** If the screen is working, it shows the current IP on boot.
+- **nmap scan:** `nmap -sn 192.168.0.0/24` — look for the Pi's MAC prefix.
+- **SSH via Ethernet first:** `ssh pi@192.168.0.250` → `ip addr show wlan0` → note the `inet` address.
 
-## 5. Troubleshooting
+---
 
-- **Ping Check**: Ensure you can `ping [robot-ip]` from your PC.
-- **Port Check**: The robot must be running the `rosbridge_suite`. If the connection fails, run the one-time install above or start manually: `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`.
-- **Firewall**: Ensure your PC's firewall isn't blocking outgoing connections to port 9090.
+## ROSBridge at Boot
+
+ROSBridge must be running on the Pi before the MCP server can connect.
+
+**One-time setup (run on the Pi):**
+
+```bash
+# Install rosbridge (if not already in yahboomcar image)
+sudo apt install ros-humble-rosbridge-suite
+
+# Create systemd service so it starts automatically
+cat > ~/.config/systemd/user/rosbridge.service << 'EOF'
+[Unit]
+Description=ROS 2 ROSBridge WebSocket
+After=network.target
+
+[Service]
+ExecStart=/bin/bash -c 'source /opt/ros/humble/setup.bash && source ~/yahboomcar_ws/install/setup.bash && ros2 launch rosbridge_server rosbridge_websocket_launch.xml'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+
+systemctl --user enable rosbridge
+systemctl --user start rosbridge
+```
+
+**Or start manually for a single session:**
+
+```bash
+source /opt/ros/humble/setup.bash
+source ~/yahboomcar_ws/install/setup.bash
+ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+```
+
+**If running inside Docker (yahboom_ros2 container):**
+
+```bash
+docker exec yahboom_ros2 bash -c \
+  'source /opt/ros/humble/setup.bash && source /root/yahboomcar_ws/install/setup.bash && \
+   ros2 launch rosbridge_server rosbridge_websocket_launch.xml &'
+```
+
+---
+
+## Verifying the Connection
+
+```bash
+# From Windows/PC — check ROSBridge port is open on the Pi
+Test-NetConnection -ComputerName 192.168.0.105 -Port 9090
+
+# From the Pi — check topics are publishing
+ros2 topic list
+ros2 topic echo /imu/data --once
+ros2 topic echo /battery_state --once
+
+# From the MCP server health endpoint (once server is running)
+curl http://localhost:10792/api/v1/health
+# Expected: { "status": "ok", "connected": true, ... }
+```
+
+---
+
+## Troubleshooting
+
+**Ping works but ROSBridge won't connect:**
+- Check `ros2 topic list` on the Pi — if empty, bringup isn't running.
+- Check firewall: `sudo ufw status` on the Pi. Port 9090 must be open.
+- Check the docker container is running: `docker ps | grep yahboom_ros2`.
+
+**Server connects then drops repeatedly:**
+- Likely the eth/wifi route fight. Fix with the NetworkManager metric commands above.
+- Check `ip route show` on the Pi during a drop — if `eth0` becomes default, that's the cause.
+
+**Connected on Ethernet, WiFi not working:**
+- On the Pi: `nmcli connection show` — confirm the WiFi profile exists and is "activated".
+- `nmcli device wifi list` — check SSID is visible.
+- `nmcli connection up "YourWiFiSSID"` to force it up.
+
+**IP changed after router restart:**
+- Assign a static DHCP lease on the router for the Pi's wlan0 MAC.
+- Or set a static IP directly on the Pi: `nmcli connection modify "YourWiFiSSID" ipv4.addresses "192.168.0.105/24" ipv4.method manual`.

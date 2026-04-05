@@ -1,10 +1,11 @@
 import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 def discover_camera_v5():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] ULTIMATE CAMERA DISCOVERY v5 on {ip}...")
     if not ssh.connect():
         print("[-] SSH CONNECTION FAILED")
@@ -39,6 +40,7 @@ def discover_camera_v5():
     out_vis, _, _ = ssh.execute(cmd)
     print("VISUAL LAUNCHES:")
     print(out_vis)
+
 
 if __name__ == "__main__":
     discover_camera_v5()

@@ -1,10 +1,11 @@
 import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 def discover_camera_v7():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] ULTIMATE CAMERA DISCOVERY v7 on {ip}...")
     if not ssh.connect():
         print("[-] SSH CONNECTION FAILED")
@@ -37,6 +38,7 @@ def discover_camera_v7():
     out_net, _, _ = ssh.execute(cmd)
     print("ACTIVE HOST PORTS:")
     print(out_net)
+
 
 if __name__ == "__main__":
     discover_camera_v7()

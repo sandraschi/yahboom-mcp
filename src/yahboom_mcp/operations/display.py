@@ -4,6 +4,34 @@ import time
 
 logger = logging.getLogger("yahboom-mcp.operations.display")
 
+# Common OLED I2C addresses on the Raspbot v2
+_OLED_ADDRS = ["0x3c", "0x3d"]
+
+
+def _build_luma_script(
+    driver: str, address: str, width: int, height: int, body: str
+) -> str:
+    """Generate a self-contained Python script for luma-based display ops."""
+    return f"""
+import sys
+try:
+    from luma.core.interface.serial import i2c
+    from luma.core.render import canvas
+    from luma.oled.device import {driver}
+    from PIL import ImageFont
+
+    serial = i2c(port=1, address={address})
+    device = {driver}(serial, width={width}, height={height})
+    font = ImageFont.load_default()
+
+    {body}
+    print("VERIFIED")
+except Exception as e:
+    print(f"ERROR: {{e}}", file=sys.stderr)
+    sys.exit(1)
+"""
+
+
 async def execute(
     ctx: Context | None = None,
     operation: str = "",
@@ -12,179 +40,171 @@ async def execute(
     payload: dict | None = None,
 ) -> dict:
     """
-    Execute OLED/LCD Display operations via SSH I2C Bridge.
-    Supported Ops:
-    Supported Ops:
-      write         → Write text (param1: text, param2: line_num, payload.driver: ssd1306|sh1106|st7789|ili9486)
-      clear         → Clear the display
-      all           → Show high-density system dashboard (IP/CPU/RAM/Temp)
-      get_status    → Returns active/detected status (0x3c/0x3d/SPI)
+    OLED display operations via SSH.
+
+    Operations:
+      write       → Write text line (param1=text, param2=line_num 0-3)
+      clear       → Blank the display
+      status      → Write IP+CPU+RAM to display (quick system status)
+      get_status  → Probe I2C bus, return detected addresses and driver
+      scroll      → Background scrolling marquee (param1=text)
+
+    Driver auto-detected from I2C probe (ssd1306 default).
+    Override with payload={"driver": "sh1106", "address": "0x3d"}.
     """
     correlation_id = ctx.correlation_id if ctx else "manual-execution"
     logger.info(f"Display: {operation}", extra={"correlation_id": correlation_id})
 
     from ..state import _state
-    ssh = _state.get("ssh_bridge")
+    ssh = _state.get("ssh")
 
     if not ssh or not ssh.connected:
         return {
             "success": False,
             "operation": operation,
-            "error": "SSH bridge not connected",
-            "status": "offline"
+            "error": "SSH bridge not connected — display unreachable",
+            "status": "offline",
+            "correlation_id": correlation_id,
         }
 
-    if operation == "write":
-        text = str(param1) if param1 else ""
-        line = int(param2) if param2 else 0
-        driver_type = payload.get("driver", "ssd1306") if payload else "ssd1306"
-        
-        import base64
-        script = f"""
+    driver  = (payload or {}).get("driver", "ssd1306")
+    address = (payload or {}).get("address", "0x3c")
+    width   = int((payload or {}).get("width",  128))
+    height  = int((payload or {}).get("height",  64))
+
+    result: dict = {}
+
+    # ── get_status: probe I2C bus ────────────────────────────────────────────
+    if operation == "get_status":
+        i2c_out, _, _ = await ssh.execute("i2cdetect -y 1 2>/dev/null || echo 'i2c_error'")
+        detected = [a.replace("0x", "") for a in _OLED_ADDRS if a.replace("0x", "") in i2c_out]
+        active = len(detected) > 0
+
+        # Quick luma ping if addresses found
+        driver_ok = False
+        if active:
+            probe_addr = f"0x{detected[0]}"
+            probe_script = _build_luma_script(
+                driver, probe_addr, width, height,
+                "with canvas(device) as draw: draw.text((0,0), 'OK', fill='white', font=font)"
+            )
+            out, _, code = await ssh.execute(
+                f"python3 -c {__import__('shlex').quote(probe_script)}"
+            )
+            driver_ok = "VERIFIED" in out
+
+        result = {
+            "success": True,
+            "active": active,
+            "detected_addresses": detected,
+            "driver_responding": driver_ok,
+            "driver": driver,
+            "note": (
+                "Display found and responding" if driver_ok
+                else ("Display found at I2C but driver not responding — check luma.oled install" if active
+                      else "No OLED detected on I2C bus 1 — check wiring and address (0x3c/0x3d)")
+            ),
+        }
+
+    # ── clear ────────────────────────────────────────────────────────────────
+    elif operation == "clear":
+        # Kill any running scroll loop
+        await ssh.execute("pkill -f 'display_scroll_loop' 2>/dev/null || true")
+        body = "with canvas(device) as draw: pass  # blank frame"
+        script = _build_luma_script(driver, address, width, height, body)
+        out, err, _ = await ssh.execute(f"python3 -c {__import__('shlex').quote(script)}")
+        ok = "VERIFIED" in out
+        result = {
+            "success": ok,
+            "status": "cleared" if ok else "failed",
+            "log": err if not ok else "",
+        }
+
+    # ── write ────────────────────────────────────────────────────────────────
+    elif operation == "write":
+        text = str(param1) if param1 is not None else ""
+        line = int(param2) if param2 is not None else 0
+        y    = line * 14   # ~14px per line at default font
+        # Escape braces and quotes for embedding in the script body
+        safe_text = text.replace("\\", "\\\\").replace('"', '\\"').replace("'", "\\'")
+        body = f'with canvas(device) as draw: draw.text((0, {y}), "{safe_text}", fill="white", font=font)'
+        script = _build_luma_script(driver, address, width, height, body)
+        out, err, _ = await ssh.execute(f"python3 -c {__import__('shlex').quote(script)}")
+        ok = "VERIFIED" in out
+        result = {
+            "success": ok,
+            "status": "written" if ok else "failed",
+            "text": text,
+            "line": line,
+            "log": err if not ok else "",
+        }
+
+    # ── status dashboard ─────────────────────────────────────────────────────
+    elif operation == "status":
+        body = """
+import psutil, subprocess
+cpu  = psutil.cpu_percent(interval=0.2)
+ram  = psutil.virtual_memory().percent
 try:
-    from luma.core.render import canvas
-    from PIL import ImageFont
-    
-    if "{driver_type}" == "ili9486":
-        from luma.core.interface.serial import spi
-        from luma.lcd.device import ili9486
-        serial = spi(port=0, device=0, gpio_DC=24, gpio_RST=25)
-        device = ili9486(serial, width=480, height=320)
-        font_size = 32
-    else:
-        from luma.core.interface.serial import i2c
-        from luma.oled.device import {driver_type}
-        serial = i2c(port=1, address=0x3c)
-        device = {driver_type}(serial)
-        font_size = 12
-
-    with canvas(device) as draw:
-        font = ImageFont.load_default()
-        draw.text((0, {line}*font_size), "{text}", fill="white", font=font)
-    print("VERIFIED")
-except Exception as e:
-    print(f"ERROR: {{e}}")
-"""
-        encoded_script = base64.b64encode(script.encode()).decode()
-        shell_cmd = f"python3 -c \"import base64; exec(base64.b64decode('{encoded_script}').decode())\""
-        out, err, code = ssh.execute(shell_cmd)
-        verified = "VERIFIED" in out
-        result = {"success": verified, "status": "applied" if verified else "failed", "log": out if "ERROR" in out else ""}
-
-    elif operation == "scroll":
-        text = str(param1) if param1 else "YAHBOOM ROS 2 BRIDGE ACTIVE"
-        import base64
-        # Background scrolling script using nohup to prevent blocking
-        script = f"""
-import Adafruit_SSD1306
-import time
-from PIL import Image, ImageDraw, ImageFont
-disp = Adafruit_SSD1306.SSD1306_128_64(rst=None, i2c_bus=1)
-disp.begin()
-width, height = disp.width, disp.height
-image = Image.new('1', (width, height))
-draw = ImageDraw.Draw(image)
-font = ImageFont.load_default()
-text = "{text}"
-w, h = draw.textsize(text, font=font)
-x = width
-while True:
-    draw.rectangle((0,0,width,height), outline=0, fill=0)
-    draw.text((x, 32), text, font=font, fill=255)
-    disp.image(image)
-    disp.display()
-    x -= 4
-    if x < -w: x = width
-    time.sleep(0.05)
-"""
-        encoded_script = base64.b64encode(script.encode()).decode()
-        # Kill any existing scroll processes first
-        ssh.execute("pkill -f 'import base64; exec(base64.b64decode' || true")
-        # Run in background via nohup
-        bg_cmd = f"nohup python3 -c \"import base64; exec(base64.b64decode('{encoded_script}').decode())\" > /dev/null 2>&1 &"
-        ssh.execute(bg_cmd)
-        result = {"success": True, "status": "scrolling"}
-
-    elif operation == "all":
-        driver_type = payload.get("driver", "ssd1306") if payload else "ssd1306"
-        import base64
-        # High-density dashboard script
-        script = f"""
-import psutil, subprocess, time
-from luma.core.render import canvas
-from PIL import ImageFont
-
-if "{driver_type}" == "ili9486":
-    from luma.core.interface.serial import spi
-    from luma.lcd.device import ili9486
-    serial = spi(port=0, device=0, gpio_DC=24, gpio_RST=25)
-    device = ili9486(serial, width=480, height=320)
-    hi_res = True
-else:
-    from luma.core.interface.serial import i2c
-    from luma.oled.device import {driver_type}
-    serial = i2c(port=1, address=0x3c)
-    device = {driver_type}(serial)
-    hi_res = False
+    temp = float(open('/sys/class/thermal/thermal_zone0/temp').read()) / 1000
+except Exception:
+    temp = 0.0
+try:
+    ip = subprocess.check_output(['hostname', '-I'], text=True).split()[0]
+except Exception:
+    ip = '?.?.?.?'
 
 with canvas(device) as draw:
-    f_title = ImageFont.load_default() # Scaling later
-    cpu = psutil.cpu_percent()
-    ram = psutil.virtual_memory().percent
-    temp = 0
-    try: temp = float(open('/sys/class/thermal/thermal_zone0/temp').read())/1000
-    except: pass
-    ip = subprocess.check_output(['hostname', '-I']).decode().split()[0]
-    
-    if hi_res:
-        draw.text((20, 10), "BOOMY SYSTEM HUB", fill="white")
-        draw.rectangle((20, 50, 460, 310), outline="white", fill="black")
-        draw.text((40, 70), f"CPU: {{cpu}}%", fill="white")
-        draw.rectangle((150, 75, 150 + (cpu*2), 90), fill="white")
-        draw.text((40, 110), f"RAM: {{ram}}%", fill="white")
-        draw.rectangle((150, 115, 150 + (ram*2), 130), fill="white")
-        draw.text((40, 150), f"TEMP: {{temp}}C", fill="white")
-        draw.text((40, 190), f"IP: {{ip}}", fill="white")
-        # Avatar placeholder
-        draw.ellipse((300, 180, 420, 300), outline="white")
-        draw.text((320, 220), "FACE", fill="white")
-    else:
-        draw.text((0, 0), f"IP: {{ip}}", fill="white")
-        draw.text((0, 15), f"CPU: {{cpu}}%", fill="white")
-        draw.text((0, 30), f"RAM: {{ram}}%", fill="white")
-        draw.text((0, 45), f"TEMP: {{temp}}C", fill="white")
-    
-    print("VERIFIED")
+    draw.text((0,  0), f"IP: {ip}",       fill='white', font=font)
+    draw.text((0, 14), f"CPU: {cpu:.0f}%", fill='white', font=font)
+    draw.text((0, 28), f"RAM: {ram:.0f}%", fill='white', font=font)
+    draw.text((0, 42), f"TEMP: {temp:.1f}C", fill='white', font=font)
 """
-        encoded_script = base64.b64encode(script.encode()).decode()
-        ssh.execute(f"python3 -c \"import base64; exec(base64.b64decode('{encoded_script}').decode())\"")
-        result = {"success": True}
+        script = _build_luma_script(driver, address, width, height, body)
+        out, err, _ = await ssh.execute(f"python3 -c {__import__('shlex').quote(script)}")
+        ok = "VERIFIED" in out
+        result = {"success": ok, "status": "displayed" if ok else "failed", "log": err if not ok else ""}
 
-    elif operation == "clear":
-        # Kill scrolling if active
-        ssh.execute("pkill -f 'import base64; exec(base64.b64decode' || true")
-        py_cmd = "import Adafruit_SSD1306; disp = Adafruit_SSD1306.SSD1306_128_64(rst=None, i2c_bus=1); disp.begin(); disp.clear(); disp.display()"
-        ssh.execute(f"python3 -c \"{py_cmd}\"")
-        result = {"success": True}
+    # ── scroll (background marquee) ──────────────────────────────────────────
+    elif operation == "scroll":
+        text = str(param1) if param1 else "BOOMY PATROL ACTIVE"
+        safe_text = text.replace("'", "\\'")
+        # Kill previous scroll
+        await ssh.execute("pkill -f 'display_scroll_loop' 2>/dev/null || true")
+        import shlex
+        scroll_script = f"""
+# display_scroll_loop
+import time, sys
+try:
+    from luma.core.interface.serial import i2c
+    from luma.core.render import canvas
+    from luma.oled.device import {driver}
+    from PIL import ImageFont, ImageDraw, Image
 
-    elif operation == "get_status":
-        # Check I2C bus 1 for common OLED/LCD addresses
-        i2c_out, _, _ = ssh.execute("i2cdetect -y 1")
-        oled_active = "3c" in i2c_out
-        result = {
-            "active": oled_active, 
-            "addr_map": {
-                "ssd1306": "3c" if oled_active else None,
-                "sh1106": "3c" if oled_active else None,
-                "st7789": "SPI"  # LCD hats are often SPI based
-            }
-        }
+    serial = i2c(port=1, address={address})
+    device = {driver}(serial, width={width}, height={height})
+    font = ImageFont.load_default()
+    text = '{safe_text}'
+    x = {width}
+    while True:
+        with canvas(device) as draw:
+            draw.text((x, 25), text, fill='white', font=font)
+        x -= 3
+        if x < -len(text) * 6:
+            x = {width}
+        time.sleep(0.04)
+except Exception as e:
+    print(f'SCROLL ERROR: {{e}}', file=sys.stderr)
+"""
+        bg_cmd = f"nohup python3 -c {shlex.quote(scroll_script)} >/dev/null 2>&1 &"
+        await ssh.execute(bg_cmd)
+        result = {"success": True, "status": "scrolling", "text": text}
 
     else:
-        result = {"error": f"Unknown display operation: {operation}"}
+        result = {"success": False, "error": f"Unknown display operation: {operation}"}
 
     return {
-        "success": result.get("success", False) if "error" not in result else False,
+        "success": result.get("success", False),
         "operation": operation,
         "status": result.get("status", "unknown"),
         "log": result.get("log", ""),

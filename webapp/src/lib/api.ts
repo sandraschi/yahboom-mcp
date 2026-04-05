@@ -1,6 +1,6 @@
 /**
  * Yahboom webapp API client. Uses relative URLs so Vite proxy (/api -> backend) works.
- * Backend: http://localhost:10792 (start.ps1).
+ * Backend: http://localhost:10892 (start.ps1).
  */
 
 const API_BASE = '';
@@ -20,9 +20,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export interface Health {
     status: string;
-    connected: boolean;
-    service?: string;
-    timestamp?: string;
+    robot_connection: {
+        ros: 'connected' | 'disconnected';
+        video: 'active' | 'inactive';
+        ssh: 'connected' | 'disconnected';
+        ip: string;
+    };
+    uptime: number;
 }
 
 export interface ImuData {
@@ -189,9 +193,9 @@ export const api = {
             body: JSON.stringify({ text }),
         }),
     postVoicePlay: (sound_id: number) =>
-        request<{ success: boolean }>('/api/v1/voice/play', {
+        request<{ success: boolean }>('/api/v1/control/voice', {
             method: 'POST',
-            body: JSON.stringify({ sound_id }),
+            body: JSON.stringify({ operation: 'play', id: sound_id }),
         }),
     /** OLED Display */
     postDisplayWrite: (text: string, line: number = 1) =>
@@ -238,4 +242,46 @@ export const api = {
     postMissionStop: () => request<{ success: boolean }>('/api/v1/missions/stop', { 
         method: 'POST' 
     }),
+    postStopAll: () => request<{ success: boolean; actions: string[] }>('/api/v1/stop_all', { 
+        method: 'POST' 
+    }),
+    /** ROS 2 Diagnostics */
+    getRosTopics: () => request<{ success: boolean; topics: any[] }>('/api/v1/diagnostics/ros/topics'),
+    postResyncRos: () => request<{ success: boolean }>('/api/v1/diagnostics/ros/resync', { 
+        method: 'POST' 
+    }),
+    postRestartRos: () => request<{ success: boolean; message: string }>('/api/v1/diagnostics/ros/restart', { 
+        method: 'POST' 
+    }),
+    /** Peripheral status probes */
+    getVoiceStatus: () =>
+        request<{ success: boolean; result: { detected: boolean; device: string | null; note: string } }>(
+            '/api/v1/control/voice/status'
+        ),
+    getDisplayStatus: () =>
+        request<{ success: boolean; result: { active: boolean; driver_responding: boolean; note: string } }>(
+            '/api/v1/control/display/status'
+        ),
+    /** Lightstrip patterns */
+    postLightstripPattern: (pattern: 'patrol' | 'rainbow' | 'breathe' | 'fire') =>
+        request<{ success: boolean }>('/api/v1/control/lightstrip', {
+            method: 'POST',
+            body: JSON.stringify({ operation: 'pattern', pattern }),
+        }),
+    postLightstripOff: () =>
+        request<{ success: boolean }>('/api/v1/control/lightstrip', {
+            method: 'POST',
+            body: JSON.stringify({ operation: 'off' }),
+        }),
+
+    postVoice: (operation: 'say' | 'play' | 'volume', text?: string, volume?: number, id?: number) =>
+        request<{ success: boolean }>('/api/v1/control/voice', {
+            method: 'POST',
+            body: JSON.stringify({ operation, text, volume, id }),
+        }),
+    postTool: (operation: string, param1?: any, param2?: any, param3?: any, payload?: any) =>
+        request<any>('/api/v1/control/tool', {
+            method: 'POST',
+            body: JSON.stringify({ operation, param1, param2, param3, payload }),
+        }),
 };

@@ -100,12 +100,14 @@ class ROS2Bridge:
     /odom              nav_msgs/Odometry         → state["odom"]
     /scan              sensor_msgs/LaserScan     → state["scan"]
     /sonar             sensor_msgs/Range         → state["ir_proximity"]
-    /infrared_line     std_msgs/Int32MultiArray  → state["line_sensors"]
+    /line_sensor       std_msgs/Int32MultiArray  → state["line_sensors"]
+    /image_raw/compressed sensor_msgs/CompressedImage → last_image
     """
 
-    def __init__(self, host: str = "localhost", port: int = 9090):
+    def __init__(self, host: str = "localhost", port: int = 9090, fallback_host: Optional[str] = None):
         self.host = host
         self.port = port
+        self.fallback_host = fallback_host
         self.ros: Optional[roslibpy.Ros] = None
         self.connected = False
         self.state: Dict[str, Any] = {
@@ -115,6 +117,7 @@ class ROS2Bridge:
             "scan": {},
             "ir_proximity": None,  # Optional: list of distances (m) when topic configured
             "line_sensors": None,  # Optional: list of line-follower readings when topic configured
+            "last_image": None,  # Base64 or bytes of the latest frame
             "last_update": 0,
         }
         self.on_reconnect_callback = None
@@ -128,69 +131,162 @@ class ROS2Bridge:
         self.sonar_listener: Optional[roslibpy.Topic] = None
         self.line_status_listener: Optional[roslibpy.Topic] = None
         self.button_listener: Optional[roslibpy.Topic] = None
+        self.image_listener: Optional[roslibpy.Topic] = None
 
-    async def connect(self, timeout_sec: float = 5.0):
-        """Establish connection to the ROSBridge server (non-blocking)."""
-        try:
-            logger.info(f"Connecting to ROSBridge at {self.host}:{self.port}...")
-            self.ros = roslibpy.Ros(host=self.host, port=self.port)
-            self.ros.on_ready(lambda: logger.info("ROSBridge connection ready"))
+    async def connect(self, timeout: float = 15.0) -> bool:
+        """Establish connection to the ROSBridge server (non-blocking).
+        Supports Dual-Interface handshake: tries primary host, then fallback host.
+        """
+        if self.ros and self.ros.is_connected:
+            return True
+
+        hosts_to_try = [self.host]
+        if self.fallback_host and self.fallback_host != self.host:
+            hosts_to_try.append(self.fallback_host)
+
+        for current_host in hosts_to_try:
+            logger.info(f"Attempting ROSBridge handshake at {current_host}:{self.port}...")
             
-            # Start the background worker thread (non-blocking in roslibpy)
-            self.ros.run()
-
-            # Poll for connection status to avoid blocking the whole server startup
-            start_time = asyncio.get_event_loop().time()
-            while (not self.ros or not self.ros.is_connected):
-                if (asyncio.get_event_loop().time() - start_time) > timeout_sec:
-                    logger.warning(f"Connection timeout to ROSBridge at {self.host}:{self.port}")
-                    break
-                await asyncio.sleep(0.2)
-
-            is_now_connected = self.ros.is_connected if self.ros else False
+            # Pre-Flight: Ensure ROS 2 is running on this specific target
+            # Temporarily update host for the check
+            original_host = self.host
+            self.host = current_host
             
-            if is_now_connected and not self.connected:
-                # Transitioning from Offline -> Online
-                await self._setup_topics()
-                self.connected = True
-                logger.info("ROS 2 Bridge successfully connected and topics initialized")
-            elif not is_now_connected:
-                self.connected = False
-                logger.error("ROSBridge did not connect within timeout (Check Robot IP)")
+            # Synchronize SSH bridge target
+            ssh_target = getattr(self, "ssh", getattr(self, "ssh_bridge", None))
+            if ssh_target:
+                ssh_target.host = current_host
+                # Force an SSH reconnect to the new IP
+                ssh_target.connected = False 
+            
+            try:
+                await self._ensure_ros_running()
                 
-            return self.connected
+                self.ros = roslibpy.Ros(host=current_host, port=self.port)
+                self.ros.on_ready(lambda: logger.info(f"ROSBridge connection ready at {current_host}"))
+                self.ros.run()
+
+                # Poll for connection status
+                start_time = asyncio.get_event_loop().time()
+                while not self.ros.is_connected:
+                    if (asyncio.get_event_loop().time() - start_time) > (timeout / len(hosts_to_try)):
+                        break
+                    await asyncio.sleep(0.2)
+                
+                if self.ros.is_connected:
+                    logger.info("ROSBridge connected to %s", current_host)
+                    self.host = current_host  # Permanently switch to successful host
+                    self.connected = True
+                    await self._setup_topics()
+                    return True
+                else:
+                    logger.warning(f"Connection timeout to ROSBridge at {current_host}:{self.port}")
+                    if self.ros:
+                        self.ros.terminate()
+            except Exception as e:
+                logger.error(f"Handshake failed for {current_host}: {e}")
+                self.host = original_host # Revert if failed
+            
+        self.connected = False
+        return False
+
+    async def _ensure_ros_running(self):
+        """Verify ROS 2 nodes via SSH and trigger bringup if missing."""
+        if (
+            not hasattr(self, "ssh_bridge")
+            or not self.ssh_bridge
+            or not self.ssh_bridge.connected
+        ):
+            # Fallback check for 'ssh' attribute if named differently
+            ssh = getattr(self, "ssh", None)
+            if not ssh or not ssh.connected:
+                logger.warning("SSH not connected - skipping ROS 2 health check.")
+                return
+            target_ssh = ssh
+        else:
+            target_ssh = self.ssh_bridge
+
+        # Check for core bringup node (yahboomcar_bringup) inside container
+        out, _, _ = await target_ssh.execute(
+            "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && source /home/pi/yahboomcar_ws/install/setup.bash && ros2 node list'"
+        )
+
+        # If no nodes, or no 'yahboom' related nodes, start bringup
+        if not out or "yahboom" not in out.lower():
+            logger.info("ROS 2 nodes missing on robot. Triggering remote bringup...")
+            # Use setsid to ensure the process survives SSH disconnect, wrapped in docker exec
+            launch_cmd = (
+                'docker exec yahboom_ros2 bash -c "'
+                "source /opt/ros/humble/setup.bash && "
+                "source /home/pi/yahboomcar_ws/install/setup.bash && "
+                'setsid ros2 launch yahboomcar_bringup yahboomcar_bringup_launch.py > /dev/null 2>&1 &"'
+            )
+            await target_ssh.execute(launch_cmd)
+            # Give it time to initialize hardware before trying to connect bridge
+            await asyncio.sleep(8)
+            logger.info("Remote bringup triggered.")
+
+    async def get_all_topics(self) -> list[dict[str, str]]:
+        """
+        Fetch full list of active topics and types from the bridge.
+        Returns a list of {"name": "/topic", "type": "type_name"}.
+        """
+        if not self.ros or not self.ros.is_connected:
+            return []
+
+        try:
+            # SOTA ROS 2 Introspection via rosapi Service
+            service = roslibpy.Service(
+                self.ros, "/rosapi/topics_and_types", "rosapi/TopicsAndTypes"
+            )
+            request = roslibpy.ServiceRequest()
+
+            future = asyncio.Future()
+            service.call(
+                request,
+                lambda response: future.set_result(response),
+                lambda err: future.set_exception(Exception(err)),
+            )
+
+            result = await asyncio.wait_for(future, timeout=5.0)
+
+            # Map result (topics, types) to list of dicts
+            enriched = []
+            if "topics" in result and "types" in result:
+                for name, t_type in zip(result["topics"], result["types"]):
+                    enriched.append({"name": name, "type": t_type})
+
+            return enriched
         except Exception as e:
-            logger.error(f"Critical failure in ROSBridge connection: {e}")
-            self.connected = False
-            return False
+            logger.error(f"Failed to fetch detailed topic list: {e}")
+            # Fallback to simple topics if service fails
+            try:
+                future_names = asyncio.Future()
+                self.ros.get_topics(lambda names: future_names.set_result(names))
+                names = await asyncio.wait_for(future_names, timeout=2.0)
+                return [{"name": n, "type": "unknown"} for n in names]
+            except Exception:
+                return []
 
     async def _setup_topics(self):
-        """Initialize publishers and subscribers with SOTA v12.0 Auto-Discovery."""
-        if not self.ros:
+        """Initialize publishers and subscribers with Verified Humble Registry."""
+        if not self.ros or not self.ros.is_connected:
             return
 
-        # 1. Fetch available topics to map Yahboom-native names
-        try:
-            future = asyncio.Future()
-            self.ros.get_topics(lambda topics: future.set_result(topics))
-            available_topics = await asyncio.wait_for(future, timeout=2.0)
-            logger.info(f"Auto-Discovery: Found {len(available_topics)} topics on robot.")
-        except Exception as e:
-            logger.warning(f"Auto-Discovery failed ({e}), using defaults")
-            available_topics = []
-
-        # 2. Map Topics (Preference for Yahboom-native names)
+        # 1. Map Topics (Hardcoded for Pi 5 Humble Registry - Resolved Sensory Blindness)
         # Velocity
         self.cmd_vel_topic = roslibpy.Topic(self.ros, "/cmd_vel", "geometry_msgs/Twist")
 
-        # IMU (/imu vs /imu/data)
-        imu_topic = "/imu" if "/imu" in available_topics else "/imu/data"
+        # IMU
+        imu_topic = "/imu/data"
         self.imu_listener = roslibpy.Topic(self.ros, imu_topic, "sensor_msgs/Imu")
         self.imu_listener.subscribe(self._imu_callback)
 
-        # Battery (/battery vs /battery_state)
-        bat_topic = "/battery" if "/battery" in available_topics else "/battery_state"
-        self.battery_listener = roslibpy.Topic(self.ros, bat_topic, "sensor_msgs/BatteryState")
+        # Battery
+        bat_topic = "/battery_state"
+        self.battery_listener = roslibpy.Topic(
+            self.ros, bat_topic, "sensor_msgs/BatteryState"
+        )
         self.battery_listener.subscribe(self._battery_callback)
 
         # Odometry
@@ -200,21 +296,64 @@ class ROS2Bridge:
         # LIDAR Scan
         self.scan_listener = roslibpy.Topic(self.ros, "/scan", "sensor_msgs/LaserScan")
         self.scan_listener.subscribe(self._scan_callback)
-        
-        # Sonar (Ultrasound Range)
-        sonar_topic = "/sonar" if "/sonar" in available_topics else "/ultrasound"
+
+        # Sonar (Verified /ultrasonic for Humble)
+        sonar_topic = "/ultrasonic"
         self.sonar_listener = roslibpy.Topic(self.ros, sonar_topic, "sensor_msgs/Range")
         self.sonar_listener.subscribe(self._sonar_callback)
-        
-        # Line Follower (IR Array)
-        self.line_status_listener = roslibpy.Topic(self.ros, "/infrared_line", "std_msgs/Int32MultiArray")
+
+        # Line Follower (Verified /line_sensor for Humble)
+        line_topic = "/line_sensor"
+        self.line_status_listener = roslibpy.Topic(
+            self.ros, line_topic, "std_msgs/Int32MultiArray"
+        )
         self.line_status_listener.subscribe(self._line_callback)
-        
-        # KEY Button (for silence/missions)
+
+        # RGB Lightstrip
+        rgblight_topic = "/rgblight"
+        self.rgblight_topic = roslibpy.Topic(
+            self.ros, rgblight_topic, "std_msgs/Int32MultiArray"
+        )
+
+        # Camera (Compressed)
+        image_topic = "/image_raw/compressed"
+        self.image_topic = roslibpy.Topic(
+            self.ros, image_topic, "sensor_msgs/CompressedImage"
+        )
+        self.image_topic.subscribe(self._image_callback)
+
+        # KEY Button
         self.button_listener = roslibpy.Topic(self.ros, "/button", "std_msgs/Bool")
         self.button_listener.subscribe(self._button_callback)
 
-        logger.info(f"Subscribed using Auto-Discovery: IMU={imu_topic}, Bat={bat_topic}")
+        # Servo Control (Verified yahboomcar_msgs for Humble)
+        self.servo_topic = roslibpy.Topic(
+            self.ros, "/servo", "yahboomcar_msgs/msg/ServoControl"
+        )
+
+        logger.info(
+            f"Subscribed using Verified Humble Registry: IMU={imu_topic}, Bat={bat_topic}, Vision={image_topic}, Line={line_topic}"
+        )
+
+    async def resync_metadata(self):
+        """Force a re-discovery of topics and re-subscribe to telemetry."""
+        logger.info("Triggering Total Synchronization: Metadata re-discovery...")
+        # Unsubscribe if listeners exist
+        if hasattr(self, "imu_listener") and self.imu_listener:
+            self.imu_listener.unsubscribe()
+        if hasattr(self, "battery_listener") and self.battery_listener:
+            self.battery_listener.unsubscribe()
+        if hasattr(self, "odom_listener") and self.odom_listener:
+            self.odom_listener.unsubscribe()
+        if hasattr(self, "scan_listener") and self.scan_listener:
+            self.scan_listener.unsubscribe()
+        if hasattr(self, "sonar_listener") and self.sonar_listener:
+            self.sonar_listener.unsubscribe()
+        if hasattr(self, "image_topic") and self.image_topic:
+            self.image_topic.unsubscribe()
+
+        await self._setup_topics()
+        return True
 
     # ─── Callbacks ───────────────────────────────────────────────────────────
 
@@ -247,10 +386,9 @@ class ROS2Bridge:
                 "z": round(linear_acceleration.get("z", 0.0), 4),
             },
         }
-        try:
-            self.state["last_update"] = asyncio.get_event_loop().time()
-        except RuntimeError:
-            pass
+        import time
+
+        self.state["last_update"] = time.time()
 
     def _battery_callback(self, message):
         """Cache battery state."""
@@ -319,6 +457,11 @@ class ROS2Bridge:
         if is_pressed:
             logger.info("Boomy: Physical button pressed!")
 
+    def _image_callback(self, message):
+        """Cache latest raw frame for the vision bridge."""
+        # data is Base64 encoded string from rosbridge
+        self.state["last_image"] = message.get("data")
+
     # ─── Connection management ───────────────────────────────────────────────
 
     async def disconnect(self):
@@ -332,23 +475,25 @@ class ROS2Bridge:
                 pass
             self.ros = None
 
-    async def monitor_connection(self, interval: float = 5.0, on_reconnect=None):
+    async def monitor_connection(self, interval: float = 10.0, on_reconnect=None):
         """Background task to ensure the ROSBridge connection stays alive."""
         logger.info(f"Starting connection watchdog (interval={interval}s)")
         self.on_reconnect_callback = on_reconnect
-        
+
         while True:
             try:
                 # Check real status from roslibpy instance
                 current_status = self.ros.is_connected if self.ros else False
-                
+
                 if not current_status:
                     if self.connected:
-                        logger.warning("ROSBridge connection lost. Attempting reconnection...")
+                        logger.warning(
+                            "ROSBridge connection lost. Attempting reconnection..."
+                        )
                         self.connected = False
-                    
+
                     # Try to reconnect
-                    if await self.connect(timeout_sec=3.0):
+                    if await self.connect(timeout=3.0):
                         # Trigger reconnection callback if provided
                         if self.on_reconnect_callback:
                             if asyncio.iscoroutinefunction(self.on_reconnect_callback):
@@ -358,14 +503,24 @@ class ROS2Bridge:
                 else:
                     # Sync internal flag
                     if not self.connected:
-                        logger.info("ROSBridge connection restored manually/autonomously.")
+                        logger.info(
+                            "ROSBridge connection restored manually/autonomously."
+                        )
                     self.connected = True
             except Exception as e:
                 logger.debug(f"Watchdog iteration error: {e}")
-            
+
             await asyncio.sleep(interval)
 
     # ─── Publish helpers ─────────────────────────────────────────────────────
+
+    async def move(
+        self, linear: float = 0.0, angular: float = 0.0, linear_y: float = 0.0
+    ):
+        """SOTA Proxy method for publish_velocity, providing a standard 'move' interface."""
+        return await self.publish_velocity(
+            linear_x=linear, angular_z=angular, linear_y=linear_y
+        )
 
     async def publish_velocity(
         self, linear_x: float, angular_z: float, linear_y: float = 0.0
@@ -381,6 +536,17 @@ class ROS2Bridge:
         }
         self.cmd_vel_topic.publish(roslibpy.Message(twist))
         logger.info(f"Published cmd_vel: x={linear_x}, y={linear_y}, z={angular_z}")
+        return True
+
+    async def publish_servo(self, servo_id: int, angle: int):
+        """Send angle command to a specific servo channel."""
+        if not self.connected or not self.servo_topic:
+            logger.warning("Cannot publish servo: Not connected")
+            return False
+
+        msg = {"id": servo_id, "angle": int(angle)}
+        self.servo_topic.publish(roslibpy.Message(msg))
+        logger.info(f"Published servo: id={servo_id}, angle={angle}")
         return True
 
     # ─── Data access ─────────────────────────────────────────────────────────

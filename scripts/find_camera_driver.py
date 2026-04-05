@@ -1,10 +1,11 @@
 import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 def find_driver():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] SEARCHING FOR CAMERA DRIVER on {ip}...")
     if not ssh.connect():
         print("[-] SSH CONNECTION FAILED")
@@ -24,12 +25,13 @@ def find_driver():
     cmd = "docker exec yahboom_ros2 find /home/pi/software/ -name '*libcamera*'"
     out, _, _ = ssh.execute(cmd)
     print(out)
-    
+
     # 3. Check /dev/video* devices
     print("[*] Checking /dev/video* devices in container...")
     cmd = "docker exec yahboom_ros2 ls -l /dev/video*"
     out, _, _ = ssh.execute(cmd)
     print(out)
+
 
 if __name__ == "__main__":
     find_driver()

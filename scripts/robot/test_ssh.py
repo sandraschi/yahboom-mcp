@@ -1,6 +1,7 @@
 import paramiko
 import sys
 
+
 def test_ssh(host, user, password, command="hostname"):
     try:
         ssh = paramiko.SSHClient()
@@ -14,6 +15,7 @@ def test_ssh(host, user, password, command="hostname"):
     except Exception as e:
         print(f"ERROR: {e}")
         return False
+
 
 if __name__ == "__main__":
     host = "192.168.0.250"

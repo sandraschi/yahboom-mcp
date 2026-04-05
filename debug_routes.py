@@ -1,6 +1,7 @@
 from fastmcp import FastMCP
 from fastapi import FastAPI
-import uvicorn
+import starlette.applications
+from starlette.applications import Starlette
 
 app = FastAPI()
 
@@ -11,8 +12,6 @@ async def health():
 
 
 mcp = FastMCP.from_fastapi(app)
-
-import starlette.applications
 
 print(f"Is mcp a Starlette app? {isinstance(mcp, starlette.applications.Starlette)}")
 print(f"mcp type: {type(mcp)}")
@@ -45,9 +44,7 @@ except Exception as e:
 
 # Try to see if there's an internal starlette app
 try:
-    from starlette.applications import Starlette
-
     if isinstance(mcp, Starlette):
         print("FastMCP instance is itself a Starlette app")
-except:
+except Exception:
     pass

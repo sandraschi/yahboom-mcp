@@ -1,10 +1,11 @@
 import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 def discover_camera_fix():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] DEEP CAMERA SEARCH on {ip}...")
     if not ssh.connect():
         print("[-] SSH CONNECTION FAILED")
@@ -32,6 +33,7 @@ def discover_camera_fix():
     out, _, _ = ssh.execute(cmd)
     print("CAMERA PACKAGES:")
     print(out)
+
 
 if __name__ == "__main__":
     discover_camera_fix()

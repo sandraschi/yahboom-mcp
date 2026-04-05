@@ -1,10 +1,11 @@
 import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 def diag_host():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] HOST DIAGNOSTIC: Hardware Discovery on {ip}...")
     if not ssh.connect():
         print("[-] SSH CONNECTION FAILED")
@@ -31,6 +32,7 @@ def diag_host():
     out, _, _ = ssh.execute(cmd)
     print("HOST CAMERA SCRIPTS:")
     print(out)
+
 
 if __name__ == "__main__":
     diag_host()

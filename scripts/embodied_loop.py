@@ -14,10 +14,8 @@ Usage:
 import argparse
 import asyncio
 import base64
-import json
 import logging
 import os
-import re
 import sys
 
 try:
@@ -78,9 +76,14 @@ def build_observation_text(telemetry: dict) -> str:
     if nearest is not None:
         parts.append(f"Nearest obstacle: {nearest:.2f} m")
     else:
-        parts.append("Obstacles: front=%s left=%s right=%s" % (
-            scan.get("front"), scan.get("left"), scan.get("right"),
-        ))
+        parts.append(
+            "Obstacles: front=%s left=%s right=%s"
+            % (
+                scan.get("front"),
+                scan.get("left"),
+                scan.get("right"),
+            )
+        )
     return "\n".join(parts)
 
 
@@ -126,11 +129,13 @@ async def ollama_chat(
     """Call Ollama /api/chat. If image_b64, use vision message format."""
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     if image_b64:
-        messages.append({
-            "role": "user",
-            "content": user_content,
-            "images": [image_b64],
-        })
+        messages.append(
+            {
+                "role": "user",
+                "content": user_content,
+                "images": [image_b64],
+            }
+        )
     else:
         messages.append({"role": "user", "content": user_content})
 
@@ -148,7 +153,9 @@ async def ollama_chat(
         return "STOP"
 
 
-async def send_move(client: httpx.AsyncClient, linear: float, angular: float, linear_y: float = 0.0) -> bool:
+async def send_move(
+    client: httpx.AsyncClient, linear: float, angular: float, linear_y: float = 0.0
+) -> bool:
     """Send velocity command to yahboom-mcp."""
     try:
         r = await client.post(
@@ -189,13 +196,20 @@ async def run_loop(
                 jpeg = await get_snapshot(client)
                 if jpeg:
                     image_b64 = base64.b64encode(jpeg).decode("ascii")
-                    user_content = (user_content or "What action?") + "\n\n(Refer to the image from the robot's camera.)"
+                    user_content = (
+                        user_content or "What action?"
+                    ) + "\n\n(Refer to the image from the robot's camera.)"
 
             reply = await ollama_chat(client, model, user_content, image_b64)
             action = parse_action(reply)
             cmd = ACTION_TO_CMD.get(action, ACTION_TO_CMD["STOP"])
 
-            logger.info("Step %s: action=%s (raw: %s)", step + 1, action, reply[:50] if reply else "")
+            logger.info(
+                "Step %s: action=%s (raw: %s)",
+                step + 1,
+                action,
+                reply[:50] if reply else "",
+            )
             await send_move(
                 client,
                 cmd["linear"],
@@ -206,16 +220,38 @@ async def run_loop(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Embodied AI loop: observe -> LLM -> act")
-    parser.add_argument("--model", default=os.environ.get("OLLAMA_MODEL", "llava"), help="Ollama model (vision: llava)")
-    parser.add_argument("--instruction", default=None, help="Optional high-level instruction (e.g. 'go forward')")
+    parser = argparse.ArgumentParser(
+        description="Embodied AI loop: observe -> LLM -> act"
+    )
+    parser.add_argument(
+        "--model",
+        default=os.environ.get("OLLAMA_MODEL", "llava"),
+        help="Ollama model (vision: llava)",
+    )
+    parser.add_argument(
+        "--instruction",
+        default=None,
+        help="Optional high-level instruction (e.g. 'go forward')",
+    )
     parser.add_argument("--max-steps", type=int, default=60, help="Max control steps")
-    parser.add_argument("--interval", type=float, default=1.0, help="Seconds between steps")
-    parser.add_argument("--use-vision", action="store_true", help="Use camera snapshot (requires vision model)")
+    parser.add_argument(
+        "--interval", type=float, default=1.0, help="Seconds between steps"
+    )
+    parser.add_argument(
+        "--use-vision",
+        action="store_true",
+        help="Use camera snapshot (requires vision model)",
+    )
     args = parser.parse_args()
 
-    logger.info("Base URL: %s | Ollama: %s | model: %s", BASE_URL, OLLAMA_URL, args.model)
-    asyncio.run(run_loop(args.model, args.instruction, args.max_steps, args.interval, args.use_vision))
+    logger.info(
+        "Base URL: %s | Ollama: %s | model: %s", BASE_URL, OLLAMA_URL, args.model
+    )
+    asyncio.run(
+        run_loop(
+            args.model, args.instruction, args.max_steps, args.interval, args.use_vision
+        )
+    )
 
 
 if __name__ == "__main__":

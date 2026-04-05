@@ -51,7 +51,7 @@ async def execute(
             v_bridge = _state.get("video_bridge")
             result["camera"] = {
                 "active": v_bridge.active if v_bridge else False,
-                "frame_count": v_bridge.frame_count if v_bridge else 0
+                "frame_count": v_bridge.frame_count if v_bridge else 0,
             }
         else:
             result = {
@@ -73,7 +73,7 @@ async def execute(
         result = {
             "status": "robot_offline",
             "message": "Connection to ROS 2 bridge or SSH bridge is currently down.",
-            "data": None
+            "data": None,
         }
         status = "offline"
         logger.warning(

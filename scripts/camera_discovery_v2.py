@@ -1,10 +1,11 @@
 import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 def discover_camera_v2():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] DEEP CAMERA SEARCH on {ip}...")
     if not ssh.connect():
         print("[-] SSH CONNECTION FAILED")
@@ -21,7 +22,9 @@ def discover_camera_v2():
 
     # 2. Check for yahboomcar_visual package
     print("[*] Checking for yahboomcar_visual package...")
-    cmd = "docker exec yahboom_ros2 ls /root/yahboomcar_ws/src/yahboomcar_visual/launch/"
+    cmd = (
+        "docker exec yahboom_ros2 ls /root/yahboomcar_ws/src/yahboomcar_visual/launch/"
+    )
     out, _, _ = ssh.execute(cmd)
     print("VISUAL LAUNCH FILES:")
     print(out)
@@ -32,6 +35,7 @@ def discover_camera_v2():
     out, _, _ = ssh.execute(cmd)
     print("CAMERA PACKAGES:")
     print(out)
+
 
 if __name__ == "__main__":
     discover_camera_v2()

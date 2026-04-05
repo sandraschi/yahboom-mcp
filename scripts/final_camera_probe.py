@@ -1,10 +1,11 @@
 import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 def final_camera_probe():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] FINAL HARDWARE-VERIFIED PROBE on {ip}...")
     if not ssh.connect():
         print("[-] SSH CONNECTION FAILED")
@@ -37,6 +38,7 @@ def final_camera_probe():
     out, _, _ = ssh.execute(cmd)
     print("-" * 50)
     print(f"TOPIC_INFO:\n{out}")
+
 
 if __name__ == "__main__":
     final_camera_probe()

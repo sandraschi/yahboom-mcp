@@ -1,10 +1,11 @@
 import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 def deploy_diagnostic():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] Connecting to {ip}...")
     if not ssh.connect():
         print("[-] FAILED")
@@ -69,7 +70,7 @@ if __name__ == '__main__':
 """
     # Write to /tmp/diag.py
     ssh.execute(f"cat << 'EOF' > /tmp/diag.py\n{diag_script}\nEOF")
-    
+
     # 2. Run the diagnostic script
     print("[*] Executing diagnostic on robot...")
     out, err, code = ssh.execute("python3 /tmp/diag.py")
@@ -78,6 +79,7 @@ if __name__ == '__main__':
     if err:
         print(f"STDERR: {err}")
     print("-" * 40)
+
 
 if __name__ == "__main__":
     deploy_diagnostic()

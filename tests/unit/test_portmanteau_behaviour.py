@@ -35,7 +35,7 @@ async def test_read_battery_live(mock_bridge) -> None:
 
 @pytest.mark.mock
 @pytest.mark.asyncio
-async def test_read_battery_offline_when_disconnected(clear_bridge) -> None:
+async def test_read_battery_offline_when_disconnected(disconnected_bridge) -> None:
     """Verify that we return 'offline' status, not mock data, when bridge is missing."""
     r = await yahboom_tool(operation="read_battery")
     assert r["success"] is True

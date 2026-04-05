@@ -16,7 +16,9 @@ except ImportError:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Check Yahboom MCP server health and telemetry")
+    p = argparse.ArgumentParser(
+        description="Check Yahboom MCP server health and telemetry"
+    )
     p.add_argument("--base", default="http://localhost:10792", help="API base URL")
     args = p.parse_args()
     base = args.base.rstrip("/")

@@ -23,15 +23,23 @@ async def execute(
 
     bridge = _state.get("bridge")
 
-    linear_x = param1 if operation in ["forward", "backward"] else 0.0
-    linear_y = param1 if operation in ["strafe_left", "strafe_right"] else 0.0
-    angular_z = param1 if "turn" in operation else 0.0
+    # Input cleaning: cast parameters to float
+    try:
+        val1 = float(param1) if param1 is not None else 0.2  # Default speed
+    except (ValueError, TypeError):
+        val1 = 0.2
 
-    # Adjust signs for direction
+    linear_x = val1 if operation in ["forward", "backward"] else 0.0
+    linear_y = val1 if operation in ["strafe_left", "strafe_right"] else 0.0
+    angular_z = val1 if "turn" in operation else 0.0
+
+    # Adjust signs for direction (ROS 2 convention: Left/Forward/Counter-Clockwise are positive)
     if operation == "backward":
         linear_x = -linear_x
     if operation == "strafe_right":
         linear_y = -linear_y
+    if operation == "turn_right":
+        angular_z = -angular_z
 
     if bridge and bridge.connected:
         success = await bridge.publish_velocity(

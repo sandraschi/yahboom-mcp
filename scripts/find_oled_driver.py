@@ -1,10 +1,11 @@
 import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 def find_working_sample():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] Connecting to {ip}...")
     if not ssh.connect():
         print("[-] FAILED")
@@ -14,7 +15,7 @@ def find_working_sample():
     # This command finds files containing 'SSD1306' and prints their paths
     out, err, code = ssh.execute("grep -rl 'Adafruit_SSD1306' /home/pi/ 2>/dev/null")
     if out:
-        paths = out.strip().split('\n')
+        paths = out.strip().split("\n")
         print(f"[*] Found {len(paths)} scripts:")
         for p in paths[:5]:
             print(f"  - {p}")
@@ -27,6 +28,7 @@ def find_working_sample():
             break
     else:
         print("[FAIL] No SSD1306 scripts found.")
+
 
 if __name__ == "__main__":
     find_working_sample()

@@ -1,10 +1,11 @@
 import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 def discover_camera():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] SEARCHING FOR CAMERA DRIVER on {ip}...")
     if not ssh.connect():
         print("[-] SSH CONNECTION FAILED")
@@ -33,6 +34,7 @@ def discover_camera():
     out, _, _ = ssh.execute(cmd)
     print("HOST PROCESSES:")
     print(out)
+
 
 if __name__ == "__main__":
     discover_camera()

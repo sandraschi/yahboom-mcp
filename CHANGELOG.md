@@ -5,7 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0-alpha.2] - 2026-03-30
+## [2.1.0] - 2026-04-04
+
+### Fixed
+- **`monitor_connection` TypeError** — watchdog called `connect(timeout_sec=...)` but signature is `timeout=`. Auto-reconnect was silently broken.
+- **Network priority** — `server.py` lifespan now defaults `YAHBOOM_IP` to WiFi address; ethernet `192.168.0.250` demoted to `YAHBOOM_FALLBACK_IP`. README updated to match.
+- **`CONNECTIVITY.md`** — complete rewrite: correct robot name (Raspbot v2), WiFi-primary architecture, exact `nmcli` metric commands, static DHCP lease, full troubleshooting section.
+- **MissionControl UI** — fixed `Health` property access (`hData.connected` → `hData.robot_connection.ros`) and added `title` attributes to PTZ directional buttons for accessibility.
+
+### Added
+- **`video_bridge.py` direct capture fallback** — if no ROS frames arrive within 10 s, automatically switches to `cv2.VideoCapture` on the device. `YAHBOOM_CAMERA_DIRECT=1` forces direct mode. `YAHBOOM_CAMERA_DEVICE` overrides device index.
+- **`lightstrip.py` autochange patterns** — patrol car (red/blue flash), rainbow (hue wheel), breathe (sine-wave), fire (random flicker). `lightstrip.execute(operation="pattern", param1="patrol|rainbow|breathe|fire")`. One pattern task at a time, cancels cleanly on `off` or new pattern.
+- **`camera_ptz.py` servo improvements** — three-tier publish: bridge helper → direct roslibpy topic (`yahboomcar_msgs/msg/ServoControl`) → SSH/I2C fallback via `Rosmaster_Lib.set_pwm_servo()`. Angle clamped 0–180. SSH bridge passed through to all public functions.
+- **`display.py` rewrite** — dropped broken `Adafruit_SSD1306` references; luma-only with `shlex.quote` safe script injection. Operations: `write`, `clear`, `status`, `get_status` (I2C probe + luma ping), `scroll` (background marquee). Proper error propagation.
+- **`voice.py` rewrite** — USB device auto-detection by VID:PID (`1a86:7522/7523`, `10c4:ea60`) with fallback scan of `/dev/ttyUSB0`, `/dev/ttyUSB1`, `/dev/ttyACM0`. Fixed broken base64 shell encoding. Clean `_serial_cmd()` helper.
+- **`scripts/diagnose_sensors.sh`** — Pi-side sensor diagnostic: I2C bus, per-topic echo, Hz rate, camera device, dmesg errors.
+- **`scripts/start_camera.sh`** — Pi-side camera bringup: `usb_cam` → `v4l2_camera` with install hint.
+- **`scripts/fix_network_priority.sh`** — Pi-side NetworkManager metric fix + prints env vars for Windows.
+- **Test scaffold overhaul** — `tests/conftest.py` gains `mock_ssh` and `mock_bridge_with_servo` fixtures. `tests/unit/test_all.py`: 30 unit tests covering motion (all directions), lightstrip (set/off/patterns/disconnected), servo (move/set/reset/clamp/invalid), sensors, display (SSH mocked), voice (USB detection, say). `tests/e2e/test_patrol.py`: full hardware E2E test suite — connection, telemetry, lightstrip, servo sweep, display, voice, and the patrol square test (lights up, drives 4 sides, stops, green flash on success). Run with `YAHBOOM_E2E=1 YAHBOOM_IP=<ip> pytest tests/e2e/ -v -s`.
+- **`tests/unit/test_camera_sensors.py`** — 14 unit tests: `VideoBridge` frame injection, JPEG encoding, `_image_callback` (compressed + raw rgb8), `mjpeg_generator` frame yield, `/api/v1/snapshot` endpoint (200+JPEG with frame, 204 without), IMU quaternion math, battery 3S percentage formula, SSH camera capture path mock.
+- **`tests/e2e/test_patrol.py`** — camera + sensor E2E tests added: `test_e2e_camera_snapshot_http` (hits `/api/v1/snapshot`), `test_e2e_camera_snapshot_ssh` (cv2.VideoCapture on Pi host), `test_e2e_camera_snapshot_in_docker` (verifies `/dev/video0` mapped in container), `test_e2e_camera_vision_e2b` (E2B describes scene in German via LiteRT-LM API), `test_e2e_rosmaster_serial_direct` (Rosmaster_Lib direct read via SSH), `test_e2e_docker_serial_mapping`, `test_e2e_docker_i2c_mapping`, `test_e2e_oled_luma_installed`, `test_e2e_oled_write`. All use xfail gracefully when hardware not ready.
+- **`scripts/boomy_full_setup.sh`** — single script that does everything on the Pi: udev rules, pip installs, OLED probe+test, Rosmaster serial test, Docker device check, driver deploy, luma in container, boomy_config.json, final summary. Run once: `ssh pi@<ip> 'bash -s' < scripts/boomy_full_setup.sh` (after scp'ing the driver).
+- **`pyproject.toml`** — added `httpx[asyncio]` and `anyio` to dev deps for ASGI test client.
+
+ — complete rewrite after reading driver: sensors use UART `/dev/ttyUSB0` (not I2C), wheels use I2C — explains why wheels work and sensors don't. Root causes: (1) voice hat and sensor board may share `/dev/ttyUSB0`, (2) Docker may not have `/dev/ttyUSB*` mapped, (3) `except: pass` everywhere hides errors, (4) OLED was using deprecated `Adafruit_SSD1306` instead of `luma.oled`.
+- **`Mcnamu_driver_patched.py`** — complete rewrite: stable serial port via `_resolve_sensor_port()` (tries `/dev/ttyROSMASTER` → `/dev/ttyUSB0`), startup sanity check logging, `except: pass` replaced with `self.get_logger().warning(str(e))`, battery percentage formula validated for 3S LiPo, IMU covariance fields set correctly, clean shutdown.
+- **`scripts/setup_udev_devices.sh`** — creates `/etc/udev/rules.d/99-boomy.rules` with stable symlinks: `/dev/ttyROSMASTER` (CH340 sensor board), `/dev/ttyVOICE` (CP2102 voice hat). Prints next-step instructions.
+- **`scripts/deploy_driver_and_oled.sh`** — all-in-one Pi-side deploy: installs luma.oled, probes all I2C buses for OLED address, tests OLED display, writes `/home/pi/boomy_config.json`, tests Rosmaster serial inside Docker, copies patched driver, restarts container.
+- **`docs/DOCKING_STATION_DESIGN.md`** — docking station design: three approaches (passive guide rails, visual ArUco docking, SLAM-based), ArUco detection code with PD alignment controller, charging circuit options (TP5100 LiPo charger + pogo pins recommended), BOM ~€36, yahboom-mcp integration plan.
+
+ — new POST endpoint accepting `operation` (set/off/pattern/stop_pattern/get_status) and `pattern` field. Routes to `lightstrip.execute()`.
+- **Backend: `/api/v1/control/voice`** — new POST endpoint for say/play/volume/get_status. GET `/api/v1/control/voice/status` probes USB device.
+- **Backend: `/api/v1/control/display/status`** — GET probe endpoint for OLED I2C status.
+- **Webapp `Peripherals.tsx`** — complete rewrite: 4 lightstrip pattern buttons (patrol/rainbow/breathe/fire) with active indicator + toggle, static colour with brightness slider, status badges for display and voice (with refresh button), working sound library buttons with loading spinner, volume slider, disabled state when no voice module detected, `StatusBadge` component shows Wifi/WifiOff icon.
+- **`api.ts`** — added `getVoiceStatus`, `getDisplayStatus`, `postLightstripPattern`, `postLightstripOff`; fixed `postVoicePlay` to call `/api/v1/control/voice` with correct body.
+- **`MockROS2Bridge`** — added `rgblight_topic` stub (records published messages), `publish_servo()` with history, `move()` alias, `servo_history` list — all in `__init__`.
+- **Unit tests** — simplified lightstrip tests (no longer need `_inject_fake_topic`); `mock_bridge_with_servo` fixture simplified.
+
+
+
+
 
 ### Fixed
 - **Branding Purge**: Removed all incorrect "G1 MISSION" and "Unitree G1" hallucination references across the codebase.
@@ -65,4 +104,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FastMCP 3.0 Server**: Established core server with lifespan connectivity management.
 - **Portmanteau Tool**: Scaffolding for unified `yahboom` tool.
 - **Documentation**: SOTA Architecture doc in `mcp-central-docs`.
-- **Fleet Registry**: Registered project at port 10792.
+- **Fleet Registry**: Registered project at port 10892.

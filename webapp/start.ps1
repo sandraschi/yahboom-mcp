@@ -2,7 +2,7 @@
 # Author: Sandra Schipal (v1.2.0 - 2026-03-04)
 
 Param(
-    [string]$RobotIP = "192.168.0.250",
+    [string]$RobotIP = "192.168.1.11",
     [int]$BridgePort = 9090
 )
 
@@ -20,25 +20,38 @@ function Clear-Port {
     $conns = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
     if (-not $conns) { return $false }
 
-        foreach ($procId in $portPids) {
-            if ($procId -and $procId -ne 0) {
-                try {
-                    Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
-                    Write-Host "      -> PID $procId culled (port $Port)" -ForegroundColor Gray
-                }
-                catch { }
+    $portPids = $conns.OwningProcess | Select-Object -Unique
+    foreach ($procId in $portPids) {
+        if ($procId -and $procId -ne 0) {
+            try {
+                Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+                Write-Host "      -> PID $procId culled (port $Port)" -ForegroundColor Gray
             }
+            catch { }
         }
-        # Wait for the OS to release the socket
-        Start-Sleep -Seconds 1
-        return $true
     }
+    # Wait for the OS to release the socket
+    Start-Sleep -Seconds 1
+    return $true
+}
 
 Write-Host ""
 Write-Host "[YAHBOOM-MCP] Initializing SOTA 2026 Environment..." -ForegroundColor Cyan
 
-# 1. Port safety: cull zombies on BOTH ports
-Write-Host "[1/4] Port Safety Check..." -ForegroundColor Cyan
+# 1. Port safety: cull zombies on BOTH ports and kill any existing MCP server processes
+Write-Host "[1/4] Port Safety & Process Cleanup..." -ForegroundColor Cyan
+
+# Kill any existing uv/python processes running the yahboom_mcp server module (to clear ghost stdio instances)
+$mcpProcs = Get-CimInstance Win32_Process -Filter "Name = 'python.exe' OR Name = 'uv.exe'" -ErrorAction SilentlyContinue | Where-Object { 
+    $_.CommandLine -like "*yahboom_mcp.server*" 
+}
+if ($mcpProcs) {
+    Write-Host "      Found $($mcpProcs.Count) ghost MCP processes. Cleaning up..." -ForegroundColor Yellow
+    foreach ($p in $mcpProcs) {
+        Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+}
+
 foreach ($port in @($APP_PORT, $WEBAPP_PORT)) {
     Write-Host "      Port $port ..." -NoNewline
     $killed = Clear-Port -Port $port
@@ -91,6 +104,12 @@ Start-Sleep -Seconds 2
 Start-Process "http://localhost:$WEBAPP_PORT"
 
 try {
+
+# 4b. Launch background task to open browser once frontend is ready (Auto-opened by Antigravity)
+$frontendUrl = "http://127.0.0.1:$WEBAPP_PORT/"
+$pollAndOpen = "for (`$i = 0; `$i -lt 60; `$i++) { try { `$null = Invoke-WebRequest -Uri '$frontendUrl' -TimeoutSec 2 -UseBasicParsing -ErrorAction Stop; Start-Process '$frontendUrl'; exit } catch { Start-Sleep -Seconds 1 } }"
+Start-Process powershell -ArgumentList "-NoProfile", "-WindowStyle", "Hidden", "-Command", $pollAndOpen
+
     while ($true) { Start-Sleep -Seconds 1 }
 }
 finally {
@@ -100,3 +119,5 @@ finally {
     Stop-Process -Id $dashboardProc.Id -Force -ErrorAction SilentlyContinue
     Write-Host "[DONE] Cleanup complete." -ForegroundColor Green
 }
+
+

@@ -1,10 +1,11 @@
 import os
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 def discover_camera_v6():
     ip = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     ssh = SSHBridge(ip)
-    
+
     print(f"[*] ULTIMATE CAMERA DISCOVERY v6 on {ip}...")
     if not ssh.connect():
         print("[-] SSH CONNECTION FAILED")
@@ -31,6 +32,7 @@ def discover_camera_v6():
     cmd = "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && ros2 pkg list | grep yahboomcar'"
     out, _, _ = ssh.execute(cmd)
     print(f"YAHBOOM PACKAGES: {out}")
+
 
 if __name__ == "__main__":
     discover_camera_v6()

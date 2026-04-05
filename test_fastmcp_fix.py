@@ -1,7 +1,6 @@
 from fastmcp import FastMCP
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-import asyncio
 
 
 @asynccontextmanager

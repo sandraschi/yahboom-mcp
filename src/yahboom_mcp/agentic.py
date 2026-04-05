@@ -13,7 +13,6 @@ from typing import Annotated
 from fastmcp import Context
 from pydantic import Field
 
-from .state import _state
 from .portmanteau import yahboom_tool
 
 logger = logging.getLogger("yahboom-mcp.agentic")
@@ -67,7 +66,12 @@ async def _read_sensors(sensor_type: str = "all") -> str:
 
 
 async def yahboom_agentic_workflow(
-    goal: Annotated[str, Field(description="High-level goal in natural language, e.g. 'patrol in a square', 'check battery and report'.")],
+    goal: Annotated[
+        str,
+        Field(
+            description="High-level goal in natural language, e.g. 'patrol in a square', 'check battery and report'."
+        ),
+    ],
     ctx: Context,
 ) -> str:
     """
@@ -76,7 +80,6 @@ async def yahboom_agentic_workflow(
     Returns:
         str: Summary of steps executed and the outcome (or error message if the workflow failed).
     """
-    import json
 
     async def get_robot_health() -> str:
         return await _get_robot_health()
