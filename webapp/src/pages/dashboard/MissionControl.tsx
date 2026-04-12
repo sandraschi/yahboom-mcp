@@ -29,6 +29,8 @@ interface Telemetry {
     velocity: { linear: number; angular: number };
     position: { x: number; y: number; z: number } | null;
     scan: ScanData | null;
+    sonar_m?: number | null;
+    ir_proximity?: (number | null)[] | null;
     source: 'live' | 'simulated';
 }
 
@@ -172,7 +174,7 @@ export default function MissionControl() {
                                 </div>
                                 <div className="text-right space-y-1 text-slate-400 text-[10px] tracking-widest uppercase">
                                     <p>SOTA_CORE: v1.3.0</p>
-                                    <p>ROS_DOMAIN_ID: 0</p>
+                                    <p>ROS_DOMAIN_ID: 30</p>
                                     <p className="text-emerald-500/60 transition-all hover:text-emerald-400 cursor-pointer pointer-events-auto">
                                         SYSTEM_ENHANCED_MODE: ON
                                     </p>
@@ -201,6 +203,26 @@ export default function MissionControl() {
                                 <span className="text-[10px] text-slate-500 uppercase block mb-1">Battery</span>
                                 <span className="text-xl font-bold font-mono text-emerald-400">
                                     {connState === 'connected' ? (telemetry?.voltage?.toFixed(1) ?? '0.0') : '—'}V
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Sonar Proximity Widget */}
+                        <div className="mb-6 p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                                    <Zap className="w-4 h-4 text-indigo-400" />
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-slate-500 uppercase block leading-none mb-1">Sonar Proximity</span>
+                                    <span className="text-lg font-bold font-mono text-slate-200">
+                                        {connState === 'connected' ? ((telemetry?.sonar_m ?? 0) * 100).toFixed(1) : '—'} cm
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-[10px] text-emerald-400 uppercase tracking-widest block font-bold">
+                                    {connState === 'connected' && (telemetry?.sonar_m ?? 0) < 0.3 ? 'OBSTACLE' : 'CLEAR'}
                                 </span>
                             </div>
                         </div>
@@ -357,7 +379,7 @@ export default function MissionControl() {
                            </div>
                            <div>
                                <p className="text-sm font-bold text-white leading-none mb-1">Robot Offline</p>
-                               <p className="text-[10px] text-slate-400 font-mono tracking-tight">Handshake failed @ 192.168.0.250</p>
+                               <p className="text-[10px] text-slate-400 font-mono tracking-tight">Handshake failed @ 192.168.1.11</p>
                            </div>
                         </div>
                         <button

@@ -113,6 +113,20 @@ class SSHBridge:
                 logger.error(f"SSH sudo execution failed: {e}")
                 return "", str(e), -1
 
+    def put_file(self, local_path: str, remote_path: str):
+        """Upload a local file to the remote robot host via SFTP."""
+        with self.lock:
+            if not self.client or not self.connected:
+                if not self.connect():
+                    raise ConnectionError("SSH Not Connected")
+            
+            sftp = self.client.open_sftp()
+            try:
+                logger.info(f"SFTP: Uploading {local_path} to {remote_path}...")
+                sftp.put(local_path, remote_path)
+            finally:
+                sftp.close()
+
     def close(self):
         if self.client:
             self.client.close()

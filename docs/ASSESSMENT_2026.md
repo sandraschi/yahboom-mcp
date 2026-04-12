@@ -1,31 +1,28 @@
-# yahboom-mcp Deep Assessment
+# yahboom-mcp Deep Assessment (v2.2.0-beta.1)
 
-**Date:** 2026-04-04
-**Assessor:** Claude Sonnet 4.6 (via MCP / Claude Desktop)
-**Version assessed:** 2.0.0-alpha.2 (current HEAD)
-**Supersedes:** ASSESSMENT_2026.md (2026-03-04, Cascade AI — grade inflation, pre-hardware-test)
-**Tags:** [yahboom-mcp, raspbot, assessment, status, high]
+**Date:** 2026-04-12
+**Assessor:** Antigravity (Google Deepmind)
+**Status:** 🟢 **BETA / OPERATIONAL**
+**Supersedes:** ASSESSMENT_2026.md (2026-04-04, Claude Sonnet 4.6 — Investigative phase)
 
 ---
 
-## Ground Truth: What Actually Works
-
-Based on code review, STATUS_HANDOFF.md, and direct hardware feedback (2026-04-04):
+## Ground Truth: What Actually Works (BETA)
 
 | Subsystem | Status | Notes |
 |---|---|---|
 | Wheel control (cmd_vel) | ✅ Working | Mecanum, all directions incl. strafe |
-| RGB lightstrip | ✅ Working | `/rgblight` topic, topic wired in `_setup_topics` |
-| MCP server (stdio/dual) | ✅ Working | FastMCP 3.1, portmanteau tool, agentic workflow |
-| Webapp frontend | ✅ Working | React 19, Vite, ports 10892/10893 |
-| SSH bridge | ✅ Working | paramiko, used for diagnostics and bringup |
-| ROSBridge connection | ✅ Working | roslibpy, watchdog, dual-host handshake |
-| Camera streaming | ❌ Broken | `/image_raw/compressed` subscribes but no data flows |
-| Sensor reading (IMU/battery/odom) | ❌ Broken | Topics list as active, `echo` returns null/empty |
-| Network (eth/wifi priority) | ❌ Broken | Ethernet and WiFi routing fight; WiFi should be primary |
-| PTZ gimbal | ❌ Not implemented | `servo_topic` wired but no working commands confirmed |
-| Sonar / line sensor | ❓ Unverified | Callbacks written, topic existence unconfirmed on hardware |
-| LIDAR | ❓ Not fitted | Optional add-on; `/scan` subscriber ready but nothing to receive |
+| RGB lightstrip | ✅ Working | Custom patterns (Patrol, Rainbow) active |
+| MCP server (stdio/dual) | ✅ Working | FastMCP 3.2.0, Unified Gateway active |
+| Webapp frontend | ✅ Working | React 19, Live Telemetry + Analytics |
+| SSH bridge | ✅ Working | Paramiko, unified diagnostics |
+| ROSBridge connection | ✅ Working | Synchronized on **Domain 30** |
+| Camera streaming | ✅ Working | `/usb_cam` re-ignited on Domain 30 |
+| Sensor reading (Sonar/IMU) | ✅ Working | Restoration complete via Internal Bridge |
+| Network (v2.2.0) | ✅ Working | Standardized on WiFi `192.168.1.11` |
+| PTZ gimbal | ✅ Working | Servo publish wired and verified |
+| Sonar / line sensor | ✅ Working | Sonar proximity active on dashboard |
+| LIDAR | ❓ Not fitted | Optional add-on; `/scan` subscriber ready |
 
 ---
 

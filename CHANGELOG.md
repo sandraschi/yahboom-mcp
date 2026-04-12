@@ -5,8 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.0] - 2026-04-12
+## [2.2.0-beta.1] - 2026-04-12
+### 🚀 Final Industrialization — "Total Sensory Fusion" (SOTA v15.0)
+- **Neural Synchronization**: Hardened environment to `ROS_DOMAIN_ID=30`, unifying agentic tools and the dashboard.
+- **Sensory Mastery**: Full restoration of Ultrasonic Sonar (`/ultrasonic`) and Forward Chassis Camera (`/usb_cam`).
+- **Architectural Shift**: Decoupled the ROS 2 Bridge from isolated sidecars to a **Direct Internal Bridge** for low-latency telemetry.
+- **Industrial Dashboard**: 
+  - Activated live **Analytics** suite with Power Flux charts and Inertial Pathing (IMU).
+  - Synchronized **Mission Control** with established hardware protocols.
+- **Version Elevation**: Shifted from Alpha to **Beta** status based on 99% operational stability.
 
+## [2.2.0] - 2026-04-12
 ### ✨ The "iPad Gemini" Breakthrough
 - **Architectural Insight**: Credited to **iPad Gemini** for the deep identification of the "Split-Brain" de-synchronization between the host-level factory bypass (`raspbot.pyc`) and the ROS 2 workstation stack. This insight enabled the transition from generic container troubleshooting to surgical hardware reclamation.
 

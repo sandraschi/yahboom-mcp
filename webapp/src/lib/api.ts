@@ -50,6 +50,10 @@ export interface Telemetry {
     velocity: { linear: number; angular: number };
     position: { x: number; y: number; z: number } | null;
     scan: ScanData | null;
+    /** Single forward ultrasonic (m) */
+    sonar_m?: number | null;
+    /** Eight values (m), order FL,F,FR,... */
+    ir_proximity?: (number | null)[] | null;
     /** Present from Unified Gateway: live when ROS bridge is connected */
     source?: 'live' | 'simulated';
     status?: string;

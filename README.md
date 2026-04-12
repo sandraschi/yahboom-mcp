@@ -1,7 +1,7 @@
-# Yahboom ROS 2 MCP Server (v2.2.0-alpha.2)
+# Yahboom ROS 2 MCP Server (v2.2.0-beta.1)
 
 > [!IMPORTANT]
-> **HARDWARE HANDSHAKE SUCCESSFUL**: The "Split-Brain" architecture has been resolved. The `/dev/ttyUSB0` serial port is now successfully reclaimed from the host demo and bridged via a Micro-ROS sidecar. Motors, IMU, ultrasonic sensors, and actuators are now native to the ROS 2 graph.
+> **BETA STATUS / TOTAL SENSORY FUSION**: The Raspbot is now a fully "Perceivable Agent." The "Split-Brain" architecture has been resolved, and the Domain 30 sensory fusion (Visual/Inertial/Sonar) is active and high-fidelity.
 
 Industrial-grade agentic control interface for the **Yahboom Raspbot v2** (Raspberry Pi 5 / ROS 2 Humble). This project is a core component of the [Robotics Fleet](docs/fleet_overview.md).
 

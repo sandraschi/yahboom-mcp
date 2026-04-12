@@ -318,19 +318,19 @@ class ROS2Bridge:
         else:
             target_ssh = self.ssh_bridge
 
-        # Phase 1: Check for core hardware driver (driver_node)
+        # Phase 1: Check for core hardware driver (Mcnamu_driver)
         out, _, _ = await target_ssh.execute(
-            "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash; source /root/yahboomcar_ws/install/setup.bash; ros2 node list'"
+            "docker exec yahboom_ros2_final bash -c 'source /opt/ros/humble/setup.bash; source /root/yahboomcar_ws/install/setup.bash; ros2 node list'"
         )
 
-        if not out or "driver_node" not in out:
-            logger.info("CRITICAL: Hardware driver (driver_node) offline. Attempting SOTA V14 Recovery Bringup...")
+        if not out or "Mcnamu_driver" not in out:
+            logger.info("CRITICAL: Hardware driver (Mcnamu_driver) offline. Attempting SOTA V15 Recovery Bringup...")
             # Use setsid to ensure the process survives SSH disconnect
             launch_cmd = (
-                "docker exec yahboom_ros2 bash -c '"
+                "docker exec yahboom_ros2_final bash -c '"
                 "source /opt/ros/humble/setup.bash; "
                 "source /root/yahboomcar_ws/install/setup.bash; "
-                "setsid ros2 launch yahboomcar_bringup yahboom_sota.launch.py > /tmp/sota_launch.log 2>&1 &'"
+                "setsid ros2 launch yahboomcar_bringup yahboomcar_bringup.launch.py > /tmp/sota_launch.log 2>&1 &'"
             )
             await target_ssh.execute(launch_cmd)
             await asyncio.sleep(8) 
@@ -416,9 +416,9 @@ class ROS2Bridge:
         self.scan_listener = roslibpy.Topic(self.ros, "/scan", "sensor_msgs/LaserScan")
         self.scan_listener.subscribe(self._scan_callback)
 
-        # Ultrasonic ranger (sensor_msgs/Range) — YAHBOOM_ULTRASONIC_TOPIC if remapped
+        # Ultrasonic ranger (std_msgs/msg/Float32) — Observed in Mcnamu_driver bridge
         self.sonar_listener = roslibpy.Topic(
-            self.ros, self.ultrasonic_topic, "sensor_msgs/Range"
+            self.ros, self.ultrasonic_topic, "std_msgs/msg/Float32"
         )
         self.sonar_listener.subscribe(self._sonar_callback)
 
@@ -574,13 +574,16 @@ class ROS2Bridge:
         }
 
     def _sonar_callback(self, message):
-        """Cache Ultrasound sonar range (m) from sensor_msgs/Range."""
+        """Cache Ultrasound sonar range (m) from std_msgs/msg/Float32."""
         try:
-            rng = float(message.get("range", float("nan")))
+            # Float32 message has a 'data' field
+            rng = float(message.get("data", float("nan")))
         except (TypeError, ValueError):
             return
         if math.isnan(rng) or math.isinf(rng):
             return
+        # Values are usually in cm or m depending on driver version; 
+        # Mcnamu_driver usually sends metres.
         self.state["ir_proximity"] = round(rng, 3)
 
     def _line_callback(self, message):
