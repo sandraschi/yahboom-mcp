@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-04-11
+
+### Fixed
+- **`ros2_bridge.py` — logging crash** — `logger.info` for “Verified Humble Registry” had four `%s` placeholders but five topic arguments (ultrasonic added); fixed format string to include `Ultrasonic=%s`.
+- **`ros2_bridge.py` — roslibpy `ready` callback** — handler now accepts variable args (protocol passes an extra argument); avoids `TypeError` on connect.
+- **`ros2_bridge.py` — reactor / host selection** — single `Ros.run()`, TCP probe before connect, optional `YAHBOOM_FALLBACK_IP` (opt-in Ethernet); avoids `ReactorNotRestartable` when retrying hosts.
+- **Telemetry & sensors** — IMU quaternion validation + fallbacks; `YAHBOOM_IMU_TOPIC`, `YAHBOOM_ULTRASONIC_TOPIC`, `YAHBOOM_LINE_TOPIC` / `YAHBOOM_LINE_MSG_TYPE`; `ir_proximity` ring + `line_sensors` exposed consistently for API/UI.
+- **HTTP `/stream` (MJPEG)** — bridge generator starts when video bridge is active; Vite proxy timeouts for long-lived stream.
+- **Webapp** — Movement/Dashboard/Sensors use `robot_connection.ros` and live `source`/`status`; Peripherals surfaces API `success: false` with backend `log`/`error` (`HardwareOpResponse`).
+- **Duplicate route** — removed extra `POST /api/v1/display/write` registration (kept single handler).
+
+### Added
+- **Display (`operations/display.py`)** — `YAHBOOM_OLED_PAUSE_ROS` (default on): `pkill` stock `oled_node` before luma writes so ROS does not overwrite the OLED; `YAHBOOM_DISPLAY_CMD_PREFIX` to run Python in Docker when I2C/luma live only in a container; fixed scroll `nohup` command when using a prefix; failed luma runs append an on-Pi `pip3 install luma.oled …` hint in `log` when stderr suggests a missing module.
+- **Voice (`operations/voice.py`)** — scans all `/dev/ttyUSB*` / `ttyACM*` with per-port `udevadm` matching (no longer falls back to “first ttyUSB” — that was often Rosmaster). `YAHBOOM_VOICE_DEVICE` forces the serial path; `YAHBOOM_VOICE_USB_IDS` adds extra `vid:pid` pairs; TTS via base64; `ser.flush()`; `get_status` checks `pyserial` on the Pi and returns `pyserial_ok` / `resolve_note`; clearer errors for permission and missing `serial`.
+- **`pyproject.toml`** — dev dependency `pytest>=8.0.0,<9` (compatible with `pytest-httpx` and `tool.pytest.ini_options.minversion`); optional **`robot-pi`** extra pins `pyserial`, `luma.oled`, `luma.core`, `pillow`, `smbus2` (same stack MCP expects on the Pi for voice/OLED over SSH).
+- **`scripts/robot/install_peripherals_pi.sh`** — run on the Pi to `pip3 install` voice + OLED dependencies and verify imports.
+
+### Documentation
+- **`docs/SENSORY_HUB.md`** — line/cliff IR behavior; onboard indicator LEDs; ROS topic naming notes.
+- **`docs/AVOIDANCE_STRATEGY.md`** — cliff guard vs channel count (`[0,0,0]` vs all channels zero).
+- **`README.md`** — pointer to peripheral/sensor env vars.
+
 ## [2.1.0] - 2026-04-04
 
 ### Fixed
@@ -27,14 +49,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`tests/e2e/test_patrol.py`** — camera + sensor E2E tests added: `test_e2e_camera_snapshot_http` (hits `/api/v1/snapshot`), `test_e2e_camera_snapshot_ssh` (cv2.VideoCapture on Pi host), `test_e2e_camera_snapshot_in_docker` (verifies `/dev/video0` mapped in container), `test_e2e_camera_vision_e2b` (E2B describes scene in German via LiteRT-LM API), `test_e2e_rosmaster_serial_direct` (Rosmaster_Lib direct read via SSH), `test_e2e_docker_serial_mapping`, `test_e2e_docker_i2c_mapping`, `test_e2e_oled_luma_installed`, `test_e2e_oled_write`. All use xfail gracefully when hardware not ready.
 - **`scripts/boomy_full_setup.sh`** — single script that does everything on the Pi: udev rules, pip installs, OLED probe+test, Rosmaster serial test, Docker device check, driver deploy, luma in container, boomy_config.json, final summary. Run once: `ssh pi@<ip> 'bash -s' < scripts/boomy_full_setup.sh` (after scp'ing the driver).
 - **`pyproject.toml`** — added `httpx[asyncio]` and `anyio` to dev deps for ASGI test client.
-
- — complete rewrite after reading driver: sensors use UART `/dev/ttyUSB0` (not I2C), wheels use I2C — explains why wheels work and sensors don't. Root causes: (1) voice hat and sensor board may share `/dev/ttyUSB0`, (2) Docker may not have `/dev/ttyUSB*` mapped, (3) `except: pass` everywhere hides errors, (4) OLED was using deprecated `Adafruit_SSD1306` instead of `luma.oled`.
+- **`docs/HARDWARE_DIAGNOSIS_VOICE_I2C.md`** — complete rewrite after reading driver: sensors use UART `/dev/ttyUSB0` (not I2C), wheels use I2C — explains why wheels work and sensors don't. Root causes: (1) voice hat and sensor board may share `/dev/ttyUSB0`, (2) Docker may not have `/dev/ttyUSB*` mapped, (3) `except: pass` everywhere hides errors, (4) OLED was using deprecated `Adafruit_SSD1306` instead of `luma.oled`.
 - **`Mcnamu_driver_patched.py`** — complete rewrite: stable serial port via `_resolve_sensor_port()` (tries `/dev/ttyROSMASTER` → `/dev/ttyUSB0`), startup sanity check logging, `except: pass` replaced with `self.get_logger().warning(str(e))`, battery percentage formula validated for 3S LiPo, IMU covariance fields set correctly, clean shutdown.
 - **`scripts/setup_udev_devices.sh`** — creates `/etc/udev/rules.d/99-boomy.rules` with stable symlinks: `/dev/ttyROSMASTER` (CH340 sensor board), `/dev/ttyVOICE` (CP2102 voice hat). Prints next-step instructions.
 - **`scripts/deploy_driver_and_oled.sh`** — all-in-one Pi-side deploy: installs luma.oled, probes all I2C buses for OLED address, tests OLED display, writes `/home/pi/boomy_config.json`, tests Rosmaster serial inside Docker, copies patched driver, restarts container.
 - **`docs/DOCKING_STATION_DESIGN.md`** — docking station design: three approaches (passive guide rails, visual ArUco docking, SLAM-based), ArUco detection code with PD alignment controller, charging circuit options (TP5100 LiPo charger + pogo pins recommended), BOM ~€36, yahboom-mcp integration plan.
-
- — new POST endpoint accepting `operation` (set/off/pattern/stop_pattern/get_status) and `pattern` field. Routes to `lightstrip.execute()`.
+- **Backend: `/api/v1/control/lightstrip`** — new POST endpoint accepting `operation` (set/off/pattern/stop_pattern/get_status) and `pattern` field. Routes to `lightstrip.execute()`.
 - **Backend: `/api/v1/control/voice`** — new POST endpoint for say/play/volume/get_status. GET `/api/v1/control/voice/status` probes USB device.
 - **Backend: `/api/v1/control/display/status`** — GET probe endpoint for OLED I2C status.
 - **Webapp `Peripherals.tsx`** — complete rewrite: 4 lightstrip pattern buttons (patrol/rainbow/breathe/fire) with active indicator + toggle, static colour with brightness slider, status badges for display and voice (with refresh button), working sound library buttons with loading spinner, volume slider, disabled state when no voice module detected, `StatusBadge` component shows Wifi/WifiOff icon.

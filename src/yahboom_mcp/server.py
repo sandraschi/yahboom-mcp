@@ -12,7 +12,6 @@ import os
 import sys
 import logging
 import asyncio
-from datetime import datetime
 from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -62,7 +61,16 @@ async def lifespan(fastapi_app: FastAPI):
     logger.info("Yahboom MCP Unified Gateway starting up")
 
     robot_host = os.environ.get("YAHBOOM_IP", "192.168.1.11")
-    fallback_host = os.environ.get("YAHBOOM_FALLBACK_IP", "192.168.0.250")
+    # Ethernet recovery (e.g. 192.168.0.250) is opt-in — WiFi-only setups should leave unset.
+    _fb = (os.environ.get("YAHBOOM_FALLBACK_IP") or "").strip()
+    fallback_host = _fb if _fb else None
+    if fallback_host:
+        logger.info("ROSBridge fallback host (ethernet recovery): %s", fallback_host)
+    else:
+        logger.info(
+            "ROSBridge: single host %s (set YAHBOOM_FALLBACK_IP=192.168.0.250 when ethernet is connected)",
+            robot_host,
+        )
     connection_type = (os.environ.get("YAHBOOM_CONNECTION") or "rosbridge").strip().lower()
 
     # Initialize placeholders for resources
@@ -129,7 +137,7 @@ async def lifespan(fastapi_app: FastAPI):
 
         # Start autonomous connection watchdog
         watchdog_task = asyncio.create_task(
-            bridge.watchdog_loop(interval=5.0, on_reconnect=on_reconnect)
+            bridge.monitor_connection(interval=5.0, on_reconnect=on_reconnect)
         )
         logger.info("Connection watchdog active.")
 
@@ -731,17 +739,21 @@ async def video_feed():
     video_bridge = _state.get("video_bridge")
     bridge = _state.get("bridge")
 
-    # SOTA 2026 Logic: Use VideoBridge if healthy, otherwise fallback to bridge cache
-    if video_bridge and video_bridge.active and video_bridge.last_frame is not None:
+    # Use VideoBridge whenever it is running — mjpeg_generator waits for first frame.
+    # (Requiring last_frame here caused a race: no stream until one frame existed, so <img> often failed.)
+    if video_bridge and video_bridge.active:
         logger.info("Vision: Streaming from VideoBridge")
         return StreamingResponse(
             video_bridge.mjpeg_generator(),
             media_type="multipart/x-mixed-replace; boundary=frame",
         )
 
-    # Fallback to the manual image state we just added to ROS2Bridge
+    # Fallback: ROS bridge JPEG cache (no VideoBridge yet)
     async def bridge_gen():
         while True:
+            if not bridge:
+                await asyncio.sleep(0.2)
+                continue
             img_data = bridge.state.get("last_image")
             if img_data:
                 # img_data is base64 string from rosbridge
@@ -803,12 +815,14 @@ async def telemetry():
     if bridge and bridge.connected:
         data = bridge.get_full_telemetry()
         data["status"] = "live"
+        data["source"] = "live"
     else:
         # ─────────────────────────────────────────────────────────────────────
         # SOTA v12.0 Integrity: No Silent Mocks.
         # ─────────────────────────────────────────────────────────────────────
         data = {
             "status": "offline",
+            "source": "simulated",
             "message": "Robot bridge disconnected",
             "battery": None,
             "voltage": None,
@@ -849,12 +863,6 @@ async def write_display(req: DisplayRequest):
         param2=req.line,
         payload={"driver": req.driver},
     )
-
-
-@app.post("/api/v1/display/write")
-async def legacy_display_write(req: DisplayRequest):
-    """Legacy alias for /api/v1/display."""
-    return await write_display(req)
 
 
 @app.post("/api/v1/display/clear")

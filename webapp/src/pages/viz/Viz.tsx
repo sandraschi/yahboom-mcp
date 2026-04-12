@@ -5,6 +5,7 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import * as THREE from 'three'
 import { motion } from 'framer-motion'
 import { Box, Activity, Compass, Battery, Wifi, WifiOff } from 'lucide-react'
+import { isBridgeLiveTelemetry } from '../../lib/api'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Telemetry polling hook
@@ -23,12 +24,12 @@ function useTelemetry() {
         let alive = true
         const poll = async () => {
             try {
-                const r = await fetch('http://localhost:10892/api/v1/telemetry', { signal: AbortSignal.timeout(1500) })
+                const r = await fetch('/api/v1/telemetry', { signal: AbortSignal.timeout(1500) })
                 if (!alive) return
                 const j = await r.json()
                 if (!j.error && j.battery !== undefined) {
                     setData(j)
-                    setConnected(true)
+                    setConnected(isBridgeLiveTelemetry(j))
                 } else {
                     setConnected(false)
                 }

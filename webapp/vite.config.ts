@@ -21,11 +21,12 @@ export default defineConfig({
                 timeout: 60000, // 60s timeout for hardware operations
                 proxyTimeout: 60000
             },
+            // MJPEG is a long-lived HTTP response — avoid short proxy timeouts / buffering issues
             '/stream': { 
                 target: 'http://localhost:10892', 
                 changeOrigin: true,
-                timeout: 60000,
-                proxyTimeout: 60000
+                timeout: 0,
+                proxyTimeout: 0,
             },
         },
     },

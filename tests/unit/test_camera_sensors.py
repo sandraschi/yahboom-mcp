@@ -281,7 +281,7 @@ async def test_camera_capture_ssh_path(mock_bridge, mock_ssh):
 
     # Simulate the capture command the embodied loop uses
     cmd = "python3 -c \"import cv2, base64; cap=cv2.VideoCapture(0); ret,f=cap.read(); cap.release(); _,b=cv2.imencode('.jpg',f); print(base64.b64encode(b.tobytes()).decode())\""
-    out, err, code = mock_ssh.execute(cmd)
+    out, err, code = await mock_ssh.execute(cmd)
 
     assert code == 0
     decoded = base64.b64decode(out)

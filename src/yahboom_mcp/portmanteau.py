@@ -16,7 +16,8 @@ async def yahboom_tool(
     operation: Annotated[
         str,
         Field(
-            description="Operation: health_check, forward/backward, turn_left/right, strafe_left/right, stop/stop_all, read_imu/battery/encoders/lidar, say/play, display/clear_display, led/off/light_effect/patrol_car, stack_inspect, execute_command."
+            description="Operation: health_check, forward/backward, turn_left/right, strafe_left/right, stop/stop_all, read_imu/battery/encoders/lidar, say/play, display/clear_display, led/off/light_effect/patrol_car, camera_up/down/left/right, camera_reset, stack_inspect, execute_command."
+
         ),
     ] = "health_check",
     param1: Annotated[
@@ -99,6 +100,19 @@ async def yahboom_tool(
             # LED expects 3 params (r, g, b) inside execute.
             p3 = param3 if param3 is not None else (payload.get("b") if payload else 0)
             return await lightstrip.execute(ctx, sub_op, param1, param2, p3)
+        elif op_lower in ["camera_up", "camera_down", "camera_left", "camera_right", "camera_reset"]:
+            from .operations import camera_ptz
+            
+            bridge = _state.get("bridge")
+            ssh = _state.get("ssh")
+            
+            if op_lower == "camera_reset":
+                return await camera_ptz.camera_reset(bridge, ssh_bridge=ssh)
+            
+            direction = op_lower.replace("camera_", "")
+            step = int(param1) if param1 else 15
+            return await camera_ptz.camera_move(bridge, direction, step=step, ssh_bridge=ssh)
+
         elif op_lower in ["start_recording", "stop_recording", "list_trajectories"]:
             # Trajectory operations from global state
             manager = _state.get("trajectory_manager")

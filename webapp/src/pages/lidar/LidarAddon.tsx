@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ScanLine, ExternalLink, Package, CheckCircle2, AlertCircle } from 'lucide-react';
-import { api } from '../../lib/api';
+import { api, isBridgeLiveTelemetry } from '../../lib/api';
 
 const MS200_PRICE_USD = 139;
 const MS200_DOC_URL = 'https://www.yahboom.net/study/MS200';
@@ -15,7 +15,7 @@ const LidarAddonPage: React.FC = () => {
             try {
                 const t = await api.getTelemetry();
                 if (!alive) return;
-                setConnected((t as { source?: string }).source === 'live');
+                setConnected(isBridgeLiveTelemetry(t));
                 const scan = (t as { scan?: { nearest_m?: number | null; obstacles?: Record<string, unknown> } }).scan;
                 const hasScan =
                     scan &&

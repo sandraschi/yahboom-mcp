@@ -50,7 +50,9 @@ export interface Telemetry {
     velocity: { linear: number; angular: number };
     position: { x: number; y: number; z: number } | null;
     scan: ScanData | null;
-    source: 'live' | 'simulated';
+    /** Present from Unified Gateway: live when ROS bridge is connected */
+    source?: 'live' | 'simulated';
+    status?: string;
     timestamp?: string;
 }
 
@@ -84,6 +86,13 @@ export interface ChatResponse {
     message: ChatMessage;
 }
 
+/** True when GET /api/v1/telemetry reports a live ROS bridge (webapp uses this vs `status`). */
+export function isBridgeLiveTelemetry(t: unknown): boolean {
+    if (!t || typeof t !== 'object') return false;
+    const o = t as { source?: string; status?: string };
+    return o.source === 'live' || o.status === 'live';
+}
+
 /** Sensors payload: telemetry + ir_proximity, line_sensors, back_light */
 export interface SensorsResponse {
     battery?: number | null;
@@ -93,7 +102,11 @@ export interface SensorsResponse {
     position?: { x: number; y: number; z: number } | null;
     scan?: ScanData | null;
     source?: 'live' | 'simulated';
-    ir_proximity?: number[] | null;
+    status?: string;
+    /** Eight values (m), order FL,F,FR,… — null if sector unknown */
+    ir_proximity?: (number | null)[] | null;
+    /** Single forward ultrasonic (m) when ring not built */
+    sonar_m?: number | null;
     line_sensors?: number[] | null;
     back_light?: { on: boolean; brightness: number };
     timestamp?: string;
@@ -130,6 +143,21 @@ export interface CommandResponse {
     stderr: string;
     exit_code: number;
     error?: string;
+}
+
+/** Hardware op JSON from POST /api/v1/display/*, /api/v1/voice/*, /api/v1/control/voice */
+export interface HardwareOpResponse {
+    success: boolean;
+    error?: string;
+    log?: string;
+    status?: string;
+    result?: {
+        success?: boolean;
+        log?: string;
+        error?: string;
+        hint?: string;
+        [k: string]: unknown;
+    };
 }
 
 export interface MissionStatus {
@@ -193,18 +221,18 @@ export const api = {
             body: JSON.stringify({ text }),
         }),
     postVoicePlay: (sound_id: number) =>
-        request<{ success: boolean }>('/api/v1/control/voice', {
+        request<HardwareOpResponse>('/api/v1/control/voice', {
             method: 'POST',
             body: JSON.stringify({ operation: 'play', id: sound_id }),
         }),
     /** OLED Display */
     postDisplayWrite: (text: string, line: number = 1) =>
-        request<{ success: boolean }>('/api/v1/display/write', {
+        request<HardwareOpResponse>('/api/v1/display/write', {
             method: 'POST',
             body: JSON.stringify({ text, line }),
         }),
     postDisplayClear: () =>
-        request<{ success: boolean }>('/api/v1/display/clear', {
+        request<HardwareOpResponse>('/api/v1/display/clear', {
             method: 'POST',
         }),
     postReconnect: () =>
@@ -219,16 +247,16 @@ export const api = {
             body: JSON.stringify({ r, g, b, mode }),
         }),
     postDisplayControl: (action: 'write' | 'scroll' | 'clear', text?: string, line?: number) => {
-        if (action === 'clear') return request<{ success: boolean }>('/api/v1/display/clear', { method: 'POST' });
-        if (action === 'scroll') return request<{ success: boolean }>('/api/v1/display/scroll', { 
+        if (action === 'clear') return request<HardwareOpResponse>('/api/v1/display/clear', { method: 'POST' });
+        if (action === 'scroll') return request<HardwareOpResponse>('/api/v1/display/scroll', { 
             method: 'POST', body: JSON.stringify({ text }) 
         });
-        return request<{ success: boolean }>('/api/v1/display/write', { 
+        return request<HardwareOpResponse>('/api/v1/display/write', { 
             method: 'POST', body: JSON.stringify({ text, line: line ?? 1 }) 
         });
     },
     postVoiceControl: (text: string) =>
-        request<{ success: boolean }>('/api/v1/voice/say', {
+        request<HardwareOpResponse>('/api/v1/voice/say', {
             method: 'POST',
             body: JSON.stringify({ text }),
         }),

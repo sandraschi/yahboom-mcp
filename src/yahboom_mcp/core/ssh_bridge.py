@@ -17,11 +17,13 @@ class SSHBridge:
         self.lock = threading.Lock()
 
     def connect(self) -> bool:
-        """Establish SSH connection with timeout."""
+        """Establish SSH connection with timeout and robust error trapping."""
+        logger.info(f"Attempting SSH connection to {self.host}...")
         try:
             self.client = paramiko.SSHClient()
             self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            # Ensure password is used if provided
+            
+            # Use password if provided, else rely on keys
             self.client.connect(
                 self.host,
                 username=self.user,
@@ -31,10 +33,16 @@ class SSHBridge:
                 timeout=15,
             )
             self.connected = True
-            logger.info(f"SSH connected to {self.host} as {self.user}")
+            logger.info(f"SSH successfully connected to {self.host}")
             return True
+        except paramiko.AuthenticationException:
+            logger.error(f"SSH Authentication failed for {self.user}@{self.host}. Check YAHBOOM_PASSWORD.")
+            return False
+        except socket.timeout:
+            logger.error(f"SSH Connection timed out to {self.host}. Is the robot powered on?")
+            return False
         except Exception as e:
-            logger.error(f"SSH connection failed to {self.host}: {e}")
+            logger.error(f"SSH Critical failure connecting to {self.host}: {e}")
             return False
 
     async def execute(self, command: str) -> Tuple[str, str, int]:

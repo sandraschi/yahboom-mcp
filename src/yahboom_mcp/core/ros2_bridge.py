@@ -1,7 +1,9 @@
 import logging
 import math
 import asyncio
-from typing import Any, Dict, Optional
+import os
+import time
+from typing import Any, Dict, List, Optional, Tuple
 import roslibpy
 
 logger = logging.getLogger("yahboom-mcp.core.ros2_bridge")
@@ -44,6 +46,29 @@ def _quat_to_euler_deg(q: dict) -> dict:
     }
 
 
+def _quat_valid(q: dict) -> bool:
+    """False if missing or all-zero quaternion (driver marks orientation unusable)."""
+    if not q:
+        return False
+    x = float(q.get("x", 0.0))
+    y = float(q.get("y", 0.0))
+    z = float(q.get("z", 0.0))
+    w = float(q.get("w", 0.0))
+    n = math.sqrt(x * x + y * y + z * z + w * w)
+    return n > 1e-4
+
+
+def _accel_tilt_deg(accel: dict) -> Tuple[float, float]:
+    """Pitch/roll from gravity vector when orientation quaternion is invalid."""
+    ax = float(accel.get("x", 0.0))
+    ay = float(accel.get("y", 0.0))
+    az = float(accel.get("z", 0.0))
+    denom = math.sqrt(ay * ay + az * az)
+    pitch = math.degrees(math.atan2(-ax, denom)) if denom > 1e-6 else 0.0
+    roll = math.degrees(math.atan2(ay, az)) if abs(az) > 1e-6 else 0.0
+    return round(pitch, 2), round(roll, 2)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # LIDAR scan → obstacle summary (nearest per 8 sectors)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -57,6 +82,18 @@ _SECTOR_NAMES = [
     "back_left",
     "left",
     "front_left",
+]
+
+# Order matches webapp Sensors.tsx IR_LABELS: FL, F, FR, R, BR, B, BL, L
+_UI_PROXIMITY_KEYS = [
+    "front_left",
+    "front",
+    "front_right",
+    "right",
+    "back_right",
+    "back",
+    "back_left",
+    "left",
 ]
 
 
@@ -100,7 +137,7 @@ class ROS2Bridge:
     /odom              nav_msgs/Odometry         → state["odom"]
     /scan              sensor_msgs/LaserScan     → state["scan"]
     /sonar             sensor_msgs/Range         → state["ir_proximity"]
-    /line_sensor       std_msgs/Int32MultiArray  → state["line_sensors"]
+    /line_sensor       std_msgs/msg/Int32MultiArray → state["line_sensors"] (env overrides)
     /image_raw/compressed sensor_msgs/CompressedImage → last_image
     """
 
@@ -122,6 +159,17 @@ class ROS2Bridge:
         }
         self.on_reconnect_callback = None
 
+        _imu = (os.environ.get("YAHBOOM_IMU_TOPIC") or "/imu/data").strip()
+        self.imu_topic = _imu if _imu else "/imu/data"
+        _ult = (os.environ.get("YAHBOOM_ULTRASONIC_TOPIC") or "/ultrasonic").strip()
+        self.ultrasonic_topic = _ult if _ult else "/ultrasonic"
+        _lt = (os.environ.get("YAHBOOM_LINE_TOPIC") or "/line_sensor").strip()
+        self.line_topic = _lt if _lt else "/line_sensor"
+        _lmt = (
+            os.environ.get("YAHBOOM_LINE_MSG_TYPE") or "std_msgs/msg/Int32MultiArray"
+        ).strip()
+        self.line_msg_type = _lmt if _lmt else "std_msgs/msg/Int32MultiArray"
+
         # Topics
         self.cmd_vel_topic: Optional[roslibpy.Topic] = None
         self.imu_listener: Optional[roslibpy.Topic] = None
@@ -133,9 +181,47 @@ class ROS2Bridge:
         self.button_listener: Optional[roslibpy.Topic] = None
         self.image_listener: Optional[roslibpy.Topic] = None
 
+    async def _tcp_reachable(self, host: str, port: int, timeout: float = 0.8) -> bool:
+        """True if something accepts TCP on host:port (quick rosbridge preflight)."""
+        try:
+            _reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port),
+                timeout=timeout,
+            )
+        except (asyncio.TimeoutError, OSError, ConnectionError):
+            return False
+        except Exception:
+            return False
+        else:
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:
+                pass
+            return True
+
+    async def _pick_rosbridge_host(self, hosts: List[str]) -> str:
+        """
+        Prefer the first host that accepts TCP on self.port.
+        roslibpy uses a process-global Twisted reactor; only one Ros.run() is safe,
+        so we must pick a single target before connecting (no retry loop that calls run() twice).
+        """
+        for h in hosts:
+            if await self._tcp_reachable(h, self.port):
+                logger.info("Selected ROSBridge host %s:%s (TCP reachable)", h, self.port)
+                return h
+        logger.warning(
+            "No host accepted TCP on port %s for %s; using primary %s (handshake may still fail)",
+            self.port,
+            hosts,
+            hosts[0],
+        )
+        return hosts[0]
+
     async def connect(self, timeout: float = 15.0) -> bool:
         """Establish connection to the ROSBridge server (non-blocking).
-        Supports Dual-Interface handshake: tries primary host, then fallback host.
+        Picks primary or fallback using a TCP probe, then a single roslibpy Ros.run()
+        (Twisted reactor is not restartable in-process).
         """
         if self.ros and self.ros.is_connected:
             return True
@@ -144,51 +230,77 @@ class ROS2Bridge:
         if self.fallback_host and self.fallback_host != self.host:
             hosts_to_try.append(self.fallback_host)
 
-        for current_host in hosts_to_try:
-            logger.info(f"Attempting ROSBridge handshake at {current_host}:{self.port}...")
-            
-            # Pre-Flight: Ensure ROS 2 is running on this specific target
-            # Temporarily update host for the check
-            original_host = self.host
-            self.host = current_host
-            
-            # Synchronize SSH bridge target
-            ssh_target = getattr(self, "ssh", getattr(self, "ssh_bridge", None))
-            if ssh_target:
-                ssh_target.host = current_host
-                # Force an SSH reconnect to the new IP
-                ssh_target.connected = False 
-            
-            try:
-                await self._ensure_ros_running()
-                
-                self.ros = roslibpy.Ros(host=current_host, port=self.port)
-                self.ros.on_ready(lambda: logger.info(f"ROSBridge connection ready at {current_host}"))
-                self.ros.run()
+        original_host = self.host
+        current_host = await self._pick_rosbridge_host(hosts_to_try)
+        self.host = current_host
 
-                # Poll for connection status
-                start_time = asyncio.get_event_loop().time()
-                while not self.ros.is_connected:
-                    if (asyncio.get_event_loop().time() - start_time) > (timeout / len(hosts_to_try)):
-                        break
-                    await asyncio.sleep(0.2)
-                
-                if self.ros.is_connected:
-                    logger.info("ROSBridge connected to %s", current_host)
-                    self.host = current_host  # Permanently switch to successful host
-                    self.connected = True
+        try:
+            logger.info("Attempting ROSBridge handshake at %s:%s...", current_host, self.port)
+            logger.info("Triggering hardware drive bringup on %s...", current_host)
+            await self._ensure_ros_running()
+
+            logger.info("Initializing ROSBridge client at %s:%s...", current_host, self.port)
+            self.ros = roslibpy.Ros(host=current_host, port=self.port)
+
+            # roslibpy emits "ready" with the protocol as the first argument
+            self.ros.on(
+                "ready",
+                lambda *_args: logger.info("ROSBridge handshake success on %s", current_host),
+            )
+            self.ros.on(
+                "error",
+                lambda *args: logger.error(
+                    "ROSBridge Handshake Error: %s", args[0] if args else "unknown"
+                ),
+            )
+
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, self.ros.run)
+
+            handshake_timeout = 5.0
+            handshake_start = time.time()
+            while not self.ros.is_connected and (
+                time.time() - handshake_start < handshake_timeout
+            ):
+                await asyncio.sleep(0.5)
+
+            if self.ros.is_connected:
+                logger.info("CONNECTED: ROS 2 Bridge is now active on %s", current_host)
+                self.host = current_host
+                self.connected = True
+
+                try:
                     await self._setup_topics()
-                    return True
-                else:
-                    logger.warning(f"Connection timeout to ROSBridge at {current_host}:{self.port}")
-                    if self.ros:
-                        self.ros.terminate()
-            except Exception as e:
-                logger.error(f"Handshake failed for {current_host}: {e}")
-                self.host = original_host # Revert if failed
-            
-        self.connected = False
-        return False
+                    logger.info("Telemetry topics successfully registered.")
+                except Exception as e:
+                    logger.error("Partial telemetry failure: %s", e)
+
+                if self.on_reconnect_callback:
+                    self.on_reconnect_callback()
+                return True
+
+            logger.warning(
+                "Bridge handshake failed at %s:%s. Is rosbridge_websocket running?",
+                current_host,
+                self.port,
+            )
+            if self.ros:
+                self.ros.terminate()
+            self.connected = False
+            self.host = original_host
+            return False
+        except Exception as e:
+            logger.error(
+                "Critical failure during bridge initialization at %s: %s", current_host, e
+            )
+            if self.ros:
+                try:
+                    self.ros.terminate()
+                except Exception:
+                    pass
+            self.host = original_host
+            self.connected = False
+            return False
 
     async def _ensure_ros_running(self):
         """Verify ROS 2 nodes via SSH and trigger bringup if missing."""
@@ -206,25 +318,31 @@ class ROS2Bridge:
         else:
             target_ssh = self.ssh_bridge
 
-        # Check for core bringup node (yahboomcar_bringup) inside container
+        # Phase 1: Check for core hardware driver (driver_node)
         out, _, _ = await target_ssh.execute(
-            "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && source /home/pi/yahboomcar_ws/install/setup.bash && ros2 node list'"
+            "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash; source /root/yahboomcar_ws/install/setup.bash; ros2 node list'"
         )
 
-        # If no nodes, or no 'yahboom' related nodes, start bringup
-        if not out or "yahboom" not in out.lower():
-            logger.info("ROS 2 nodes missing on robot. Triggering remote bringup...")
-            # Use setsid to ensure the process survives SSH disconnect, wrapped in docker exec
+        if not out or "driver_node" not in out:
+            logger.info("CRITICAL: Hardware driver (driver_node) offline. Attempting SOTA V14 Recovery Bringup...")
+            # Use setsid to ensure the process survives SSH disconnect
             launch_cmd = (
-                'docker exec yahboom_ros2 bash -c "'
-                "source /opt/ros/humble/setup.bash && "
-                "source /home/pi/yahboomcar_ws/install/setup.bash && "
-                'setsid ros2 launch yahboomcar_bringup yahboomcar_bringup_launch.py > /dev/null 2>&1 &"'
+                "docker exec yahboom_ros2 bash -c '"
+                "source /opt/ros/humble/setup.bash; "
+                "source /root/yahboomcar_ws/install/setup.bash; "
+                "setsid ros2 launch yahboomcar_bringup yahboom_sota.launch.py > /tmp/sota_launch.log 2>&1 &'"
             )
             await target_ssh.execute(launch_cmd)
-            # Give it time to initialize hardware before trying to connect bridge
-            await asyncio.sleep(8)
-            logger.info("Remote bringup triggered.")
+            await asyncio.sleep(8) 
+            logger.info("V14 Recovery Bringup triggered. Waiting for hardware stability...")
+        else:
+            logger.info("Hardware driver (driver_node) confirmed active.")
+
+        # Phase 2: Check for Rosbridge (Webapp link)
+        if "rosbridge_websocket" not in out:
+            logger.warning("TELEMETRY BLACKOUT: rosbridge_websocket is missing from the node list. Webapp will remain disconnected.")
+            # We don't block here, as the MCP can still use SSH-fallback if we implement it, 
+            # but we warn the user via logs.
 
     async def get_all_topics(self) -> list[dict[str, str]]:
         """
@@ -277,9 +395,10 @@ class ROS2Bridge:
         # Velocity
         self.cmd_vel_topic = roslibpy.Topic(self.ros, "/cmd_vel", "geometry_msgs/Twist")
 
-        # IMU
-        imu_topic = "/imu/data"
-        self.imu_listener = roslibpy.Topic(self.ros, imu_topic, "sensor_msgs/Imu")
+        # IMU (override with YAHBOOM_IMU_TOPIC if your stack remaps e.g. /imu → /imu/data)
+        self.imu_listener = roslibpy.Topic(
+            self.ros, self.imu_topic, "sensor_msgs/Imu"
+        )
         self.imu_listener.subscribe(self._imu_callback)
 
         # Battery
@@ -297,15 +416,15 @@ class ROS2Bridge:
         self.scan_listener = roslibpy.Topic(self.ros, "/scan", "sensor_msgs/LaserScan")
         self.scan_listener.subscribe(self._scan_callback)
 
-        # Sonar (Verified /ultrasonic for Humble)
-        sonar_topic = "/ultrasonic"
-        self.sonar_listener = roslibpy.Topic(self.ros, sonar_topic, "sensor_msgs/Range")
+        # Ultrasonic ranger (sensor_msgs/Range) — YAHBOOM_ULTRASONIC_TOPIC if remapped
+        self.sonar_listener = roslibpy.Topic(
+            self.ros, self.ultrasonic_topic, "sensor_msgs/Range"
+        )
         self.sonar_listener.subscribe(self._sonar_callback)
 
-        # Line Follower (Verified /line_sensor for Humble)
-        line_topic = "/line_sensor"
+        # Line follower (Int32MultiArray: typically 3–5 binary channels, 0/1)
         self.line_status_listener = roslibpy.Topic(
-            self.ros, line_topic, "std_msgs/Int32MultiArray"
+            self.ros, self.line_topic, self.line_msg_type
         )
         self.line_status_listener.subscribe(self._line_callback)
 
@@ -332,7 +451,12 @@ class ROS2Bridge:
         )
 
         logger.info(
-            f"Subscribed using Verified Humble Registry: IMU={imu_topic}, Bat={bat_topic}, Vision={image_topic}, Line={line_topic}"
+            "Subscribed using Verified Humble Registry: IMU=%s, Bat=%s, Vision=%s, Line=%s, Ultrasonic=%s",
+            self.imu_topic,
+            bat_topic,
+            image_topic,
+            self.line_topic,
+            self.ultrasonic_topic,
         )
 
     async def resync_metadata(self):
@@ -349,6 +473,10 @@ class ROS2Bridge:
             self.scan_listener.unsubscribe()
         if hasattr(self, "sonar_listener") and self.sonar_listener:
             self.sonar_listener.unsubscribe()
+        if hasattr(self, "line_status_listener") and self.line_status_listener:
+            self.line_status_listener.unsubscribe()
+        if hasattr(self, "button_listener") and self.button_listener:
+            self.button_listener.unsubscribe()
         if hasattr(self, "image_topic") and self.image_topic:
             self.image_topic.unsubscribe()
 
@@ -359,34 +487,38 @@ class ROS2Bridge:
 
     def _imu_callback(self, message):
         """Cache full IMU state including derived euler angles."""
-        orientation = message.get("orientation", {})
-        angular_velocity = message.get("angular_velocity", {})
-        linear_acceleration = message.get("linear_acceleration", {})
+        orientation = message.get("orientation") or {}
+        angular_velocity = message.get("angular_velocity") or {}
+        linear_acceleration = message.get("linear_acceleration") or {}
 
-        euler = _quat_to_euler_deg(orientation) if orientation else {}
+        ori_ok = _quat_valid(orientation)
+        euler: Dict[str, float] = {}
+        if ori_ok:
+            euler = _quat_to_euler_deg(orientation)
+        elif linear_acceleration:
+            # Many stacks publish invalid quat (-1 covariance); use accel tilt for pitch/roll
+            pr = _accel_tilt_deg(linear_acceleration)
+            euler = {"pitch": pr[0], "roll": pr[1], "yaw": 0.0, "heading": 0.0}
 
         self.state["imu"] = {
-            # Raw quaternion
             "orientation": orientation,
-            # Derived Euler in degrees
+            "_orientation_valid": ori_ok,
+            "_accel_tilt": not ori_ok and bool(linear_acceleration),
             "heading": euler.get("heading", 0.0),
             "yaw": euler.get("yaw", 0.0),
             "pitch": euler.get("pitch", 0.0),
             "roll": euler.get("roll", 0.0),
-            # Gyroscope (rad/s)
             "angular_velocity": {
                 "x": round(angular_velocity.get("x", 0.0), 4),
                 "y": round(angular_velocity.get("y", 0.0), 4),
                 "z": round(angular_velocity.get("z", 0.0), 4),
             },
-            # Accelerometer (m/s²)
             "linear_acceleration": {
                 "x": round(linear_acceleration.get("x", 0.0), 4),
                 "y": round(linear_acceleration.get("y", 0.0), 4),
                 "z": round(linear_acceleration.get("z", 0.0), 4),
             },
         }
-        import time
 
         self.state["last_update"] = time.time()
 
@@ -442,12 +574,28 @@ class ROS2Bridge:
         }
 
     def _sonar_callback(self, message):
-        """Cache Ultrasound sonar range (m)."""
-        self.state["ir_proximity"] = round(message.get("range", 0.0), 3)
+        """Cache Ultrasound sonar range (m) from sensor_msgs/Range."""
+        try:
+            rng = float(message.get("range", float("nan")))
+        except (TypeError, ValueError):
+            return
+        if math.isnan(rng) or math.isinf(rng):
+            return
+        self.state["ir_proximity"] = round(rng, 3)
 
     def _line_callback(self, message):
-        """Cache line follower IR array [left, mid, right] (0=white/void, 1=line/black)."""
-        self.state["line_sensors"] = message.get("data", [0, 0, 0])
+        """Cache line-follower channels from std_msgs/Int32MultiArray (typically 0/1 per IR)."""
+        raw = message.get("data")
+        if raw is None and isinstance(message.get("msg"), dict):
+            raw = message["msg"].get("data")
+        if raw is None:
+            return
+        try:
+            parsed = [int(x) for x in raw]
+        except (TypeError, ValueError):
+            logger.warning("line_sensor: data is not a numeric list: %r", raw)
+            return
+        self.state["line_sensors"] = parsed
 
     def _button_callback(self, message):
         """Cache physical button state (True=Pressed)."""
@@ -555,6 +703,42 @@ class ROS2Bridge:
         """Retrieve cached sensor data by key: imu | battery | odom | scan."""
         return self.state.get(key, {})
 
+    def _ir_proximity_ring_for_api(self) -> Optional[List[Optional[float]]]:
+        """
+        Eight distances (m) for the Sensors page (FL,F,FR,…): LIDAR ring + front ultrasonic.
+        The webapp expects ir_proximity as an array; raw state stores a single float from Range.
+        """
+        obs = (self.state.get("scan") or {}).get("obstacles") or {}
+        ring: List[Optional[float]] = [obs.get(k) for k in _UI_PROXIMITY_KEYS]
+
+        raw = self.state.get("ir_proximity")
+        if isinstance(raw, list) and raw:
+            if len(raw) >= 8:
+                return [float(x) if x is not None else None for x in raw[:8]]
+            merged = list(ring)
+            for i, v in enumerate(raw[:8]):
+                if v is not None:
+                    merged[i] = float(v)
+            return merged if any(x is not None for x in merged) else None
+
+        if isinstance(raw, (int, float)):
+            ring[1] = float(raw)
+
+        if any(v is not None for v in ring):
+            return ring
+        return None
+
+    def _line_sensors_for_api(self) -> Optional[List[int]]:
+        raw = self.state.get("line_sensors")
+        if raw is None:
+            return None
+        if isinstance(raw, list):
+            try:
+                return [int(x) for x in raw]
+            except (TypeError, ValueError):
+                return None
+        return None
+
     def get_full_telemetry(self) -> Dict[str, Any]:
         """
         Return a structured telemetry snapshot from all cached sensor data.
@@ -568,17 +752,30 @@ class ROS2Bridge:
         # Velocity: prefer odometry (encoder-based), fall back to zero
         vel = odom.get("velocity", {})
 
+        # Planar heading/yaw: use IMU quaternion only when valid; else wheel odometry
+        ori_ok = imu.get("_orientation_valid")
+        heading = imu.get("heading")
+        yaw = imu.get("yaw")
+        od_h = odom.get("heading") if odom else None
+        if od_h is not None and ori_ok is not True:
+            heading = od_h
+            yaw = (od_h + 180.0) % 360.0 - 180.0
+
+        imu_api = {
+            "heading": heading,
+            "yaw": yaw,
+            "pitch": imu.get("pitch"),
+            "roll": imu.get("roll"),
+            "angular_velocity": imu.get("angular_velocity"),
+            "linear_acceleration": imu.get("linear_acceleration"),
+        }
+        if ori_ok is not None:
+            imu_api["orientation_valid"] = bool(ori_ok)
+
         return {
             "battery": battery.get("percentage"),  # 0–100 %
             "voltage": battery.get("voltage"),  # volts
-            "imu": {
-                "heading": imu.get("heading"),
-                "yaw": imu.get("yaw"),
-                "pitch": imu.get("pitch"),
-                "roll": imu.get("roll"),
-                "angular_velocity": imu.get("angular_velocity"),
-                "linear_acceleration": imu.get("linear_acceleration"),
-            },
+            "imu": imu_api,
             "velocity": {
                 "linear": vel.get("linear", 0.0),
                 "angular": vel.get("angular", 0.0),
@@ -588,7 +785,10 @@ class ROS2Bridge:
                 "nearest_m": scan.get("nearest_m"),
                 "obstacles": scan.get("obstacles"),  # per-sector nearest (m)
             },
-            "sonar_m": self.state.get("ir_proximity"),
-            "line_sensors": self.state.get("line_sensors"),
+            "ir_proximity": self._ir_proximity_ring_for_api(),
+            "sonar_m": self.state.get("ir_proximity")
+            if isinstance(self.state.get("ir_proximity"), (int, float))
+            else None,
+            "line_sensors": self._line_sensors_for_api(),
             "button_pressed": self.state.get("button_pressed", False),
         }

@@ -2,6 +2,19 @@
 
 Boomy's sensory substrate is expanded via a local bridge running on the Raspberry Pi 5. This allows for high-frequency polling of physical buttons, ultrasound distance sensors, and infrared cliff/line sensors.
 
+## Line follow & cliff (downward IR)
+
+The **same** downward-facing **infrared reflectance** array is used for:
+
+- **Line following** — dark line vs floor contrast.
+- **Table edge / “cliff”** — when the beam sees little or no nearby floor (void / bright surface pattern), the stack treats that as a drop-off risk.
+
+Convention in this project: **`0` = void / no line**, **`1` = line** (per channel), as published in `Int32MultiArray.data`. The bridge default topic is **`/line_sensor`** (see `YAHBOOM_LINE_TOPIC` on the MCP host). Older docs may say `/infrared_line`; remap or align with your `Mcnamu` / bringup launch.
+
+### Onboard blue (or status) LEDs above the sensors
+
+Many Raspbot boards mount **small indicator LEDs directly above** each downward IR sensor. They are **analog front-end or comparator indicators**: they light when the sensor sees **no close reflecting surface** (e.g. robot lifted, or edge/cliff) and often go dark when the floor is in range. They are **not** the chassis RGB lightstrip, **not** the patrol-car red/blue pattern, and **not** controlled via ROS topics — they mirror **local** sensor state. Software only sees the digitized values on `/line_sensor` (and mission logic such as cliff guard in `missions.py`).
+
 ## 🛰️ Technical Specification
 
 ### ROS 2 Topics
@@ -9,7 +22,8 @@ Boomy's sensory substrate is expanded via a local bridge running on the Raspberr
 | Topic | Message Type | Purpose | Source |
 |-------|--------------|---------|--------|
 | `/sonar` | `sensor_msgs/Range` | Ultrasound distance (metres) | RPi 5 Bridge |
-| `/infrared_line` | `std_msgs/Int32MultiArray` | [Left, Mid, Right] IR sensors (0=Void, 1=Line) | Transferred from STM32 → RPi 5 |
+| `/line_sensor` (default) | `std_msgs/Int32MultiArray` | IR line/cliff channels (0=Void, 1=Line) | `Mcnamu` / driver — override with `YAHBOOM_LINE_TOPIC` |
+| `/infrared_line` | `std_msgs/Int32MultiArray` | Legacy name for line array (same semantics) | Some bridges |
 | `/button` | `std_msgs/Bool` | Top-mounted "KEY" button state (True=Pressed) | RPi 5 GPIO 18 |
 
 ### Hardware Mapping (RPi 5 GPIO)

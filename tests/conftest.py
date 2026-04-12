@@ -37,7 +37,7 @@ def mock_ssh() -> MagicMock:
     """Mock SSH bridge. execute() returns (stdout, stderr, 0) by default."""
     m = MagicMock()
     m.connected = True
-    m.execute = MagicMock(return_value=("OK", "", 0))
+    m.execute = AsyncMock(return_value=("OK", "", 0))
     old = _state.get("ssh")
     _state["ssh"] = m
     yield m

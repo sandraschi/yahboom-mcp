@@ -5,7 +5,12 @@ import {
     Wifi, WifiOff, Loader2, Radio, RefreshCw,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { api } from '../../lib/api';
+import { api, type HardwareOpResponse } from '../../lib/api';
+
+function peripheralFailMessage(r: HardwareOpResponse): string {
+    const res = r.result as { log?: string; error?: string; hint?: string } | undefined;
+    return String(res?.log ?? res?.hint ?? res?.error ?? r.log ?? r.error ?? 'Command failed');
+}
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -163,16 +168,28 @@ export default function Peripherals() {
         const content = text ?? oledText;
         try {
             if (action === 'clear') {
-                await api.postDisplayClear();
+                const r = await api.postDisplayClear();
+                if (r.success === false) {
+                    showToast(peripheralFailMessage(r), 'error');
+                    return;
+                }
                 setOledText('');
                 setIsScrolling(false);
                 showToast('Display cleared');
             } else if (action === 'scroll') {
-                await api.postDisplayControl('scroll', content);
+                const r = await api.postDisplayControl('scroll', content);
+                if (r.success === false) {
+                    showToast(peripheralFailMessage(r), 'error');
+                    return;
+                }
                 setIsScrolling(true);
                 showToast('Scrolling…');
             } else {
-                await api.postDisplayWrite(content, 0);
+                const r = await api.postDisplayWrite(content, 0);
+                if (r.success === false) {
+                    showToast(peripheralFailMessage(r), 'error');
+                    return;
+                }
                 setIsScrolling(false);
                 showToast('Written to display');
             }
@@ -199,7 +216,11 @@ export default function Peripherals() {
     const handleVoiceSay = async () => {
         if (!voiceText.trim()) return;
         try {
-            await api.postVoiceControl(voiceText);
+            const r = await api.postVoiceControl(voiceText);
+            if (r.success === false) {
+                showToast(peripheralFailMessage(r), 'error');
+                return;
+            }
             showToast('Speaking…');
         } catch {
             showToast('Voice failed', 'error');
@@ -209,7 +230,11 @@ export default function Peripherals() {
     const handleSoundPlay = async (sid: number) => {
         setSoundLoading(sid);
         try {
-            await api.postVoicePlay(sid);
+            const r = await api.postVoicePlay(sid);
+            if (r.success === false) {
+                showToast(peripheralFailMessage(r), 'error');
+                return;
+            }
             showToast(`Sound ${sid} triggered`);
         } catch {
             showToast(`Sound ${sid} failed`, 'error');

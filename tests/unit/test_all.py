@@ -272,10 +272,11 @@ async def test_voice_get_status_not_found(mock_bridge, mock_ssh):
 
 @pytest.mark.asyncio
 async def test_voice_get_status_found(mock_bridge, mock_ssh):
-    # lsusb shows the Yahboom voice module, then _resolve_device returns /dev/ttyUSB0
+    # lsusb, pyserial probe, then _resolve_device script returns /dev/ttyUSB0
     mock_ssh.execute.side_effect = [
-        ("Bus 001 Device 002: ID 1a86:7523 QinHeng Electronics\n", "", 0), # lsusb
-        ("/dev/ttyUSB0\n", "", 0),                                        # _resolve_device
+        ("Bus 001 Device 002: ID 1a86:7523 QinHeng Electronics\n", "", 0),  # lsusb
+        ("PY_SERIAL_OK\n", "", 0),  # pyserial probe
+        ("/dev/ttyUSB0\n", "", 0),  # find device script
     ]
     result = await voice.execute(operation="get_status")
     assert result["success"]

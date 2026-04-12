@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Trash2, Wifi, WifiOff, Compass, Battery } from 'lucide-react';
-import { api, type Telemetry } from '../../lib/api';
+import { api, type Telemetry, isBridgeLiveTelemetry } from '../../lib/api';
 
 const POLL_MS = 800;
 const METRES_PER_PX = 0.015;
@@ -20,7 +20,7 @@ function useTelemetry() {
                 const j = await api.getTelemetry();
                 if (!alive) return;
                 setData(j);
-                setConnected((j as { source?: string }).source === 'live');
+                setConnected(isBridgeLiveTelemetry(j));
             } catch {
                 if (alive) setConnected(false);
             }

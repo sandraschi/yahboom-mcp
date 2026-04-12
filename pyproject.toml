@@ -22,12 +22,20 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0.0",
+    "pytest>=8.0.0,<9",
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=5.0.0",
     "pytest-timeout>=2.3.0",
     "httpx[asyncio]>=0.27.0",   # ASGI test client for snapshot endpoint tests
     "anyio>=4.0.0",              # required by httpx ASGI transport
+]
+# Same packages the MCP installs on the Pi over SSH for voice + OLED; optional locally for smoke tests.
+robot-pi = [
+    "pyserial>=3.5",
+    "luma.oled>=3.12.0",
+    "luma.core>=2.4.0",
+    "pillow>=10.0.0",
+    "smbus2>=0.4.0",
 ]
 
 [build-system]

@@ -36,6 +36,19 @@ Boomy's sensory substrate is expanded via a dedicated **Peripheral Bridge** runn
 > [!TIP]
 > Details on topic mapping and GPIO configuration can be found in [SENSORY_HUB.md](docs/SENSORY_HUB.md).
 
+### Peripheral & display env (host running MCP)
+
+| Variable | Purpose |
+|----------|---------|
+| `YAHBOOM_OLED_PAUSE_ROS` | `1` (default): stop stock `oled_node` before luma OLED writes so the display is not overwritten. Set `0` to skip. |
+| `YAHBOOM_DISPLAY_CMD_PREFIX` | Optional prefix before `python3` on SSH (e.g. `docker exec -i yahboom_ros2`) if luma/I2C must run in a container. |
+| `YAHBOOM_VOICE_BAUD` | Serial baud for the AI voice module (default `9600`). |
+| `YAHBOOM_VOICE_DEVICE` | Force serial path on the robot (e.g. `/dev/ttyUSB1`) when auto-discovery picks the wrong port. |
+| `YAHBOOM_VOICE_USB_IDS` | Extra `vid:pid` values (comma-separated) for nonstandard USB-UART chips. |
+| `YAHBOOM_LINE_TOPIC` / `YAHBOOM_LINE_MSG_TYPE` | Override ROS topic/type for line sensors (default `/line_sensor`, `std_msgs/Int32MultiArray`). |
+
+See [CHANGELOG.md](CHANGELOG.md) for recent bridge and webapp fixes.
+
 ##  Mission Intelligence
 
 Advanced autonomous behaviors utilizing the expanded sensory substrate for safe navigation.
@@ -67,7 +80,7 @@ Advanced autonomous behaviors utilizing the expanded sensory substrate for safe 
 ```powershell
 git clone https://github.com/sandraschi/yahboom-mcp.git
 Set-Location yahboom-mcp
-uv sync
+uv sync --extra dev --extra robot-pi
 
 # Start server (stdio for Cursor/Claude; dual for dashboard + MCP)
 uv run python -m yahboom_mcp.server --mode stdio
@@ -76,6 +89,25 @@ $env:YAHBOOM_IP = "192.168.0.105"; uv run python -m yahboom_mcp.server --mode du
 # Ethernet fallback (recovery/initial setup only):
 $env:YAHBOOM_IP = "192.168.0.250"; uv run python -m yahboom_mcp.server --mode dual --port 10792
 ```
+
+**Raspberry Pi (voice + OLED over SSH):** install the same Python stack on the robot once. The script must be **piped or redirected into** `bash -s` (do not put the file path after `ssh` as a separate argument).
+
+PowerShell (from the repo machine):
+
+```powershell
+Get-Content -Raw "D:\Dev\repos\yahboom-mcp\scripts\robot\install_peripherals_pi.sh" | ssh pi@192.168.1.11 "bash -s"
+```
+
+(Replace the IP with your robot. Adjust the path if your clone lives elsewhere.)
+
+Or copy and run on the Pi:
+
+```powershell
+scp "D:\Dev\repos\yahboom-mcp\scripts\robot\install_peripherals_pi.sh" pi@192.168.1.11:/tmp/
+ssh pi@192.168.1.11 "bash /tmp/install_peripherals_pi.sh"
+```
+
+(`uv sync --extra robot-pi` only affects your dev PC; the Pi needs its own `pip3` as above.)
 
 ##  SOTA Webapp Dashboard
 

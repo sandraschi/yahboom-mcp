@@ -3,13 +3,18 @@
 
 Param(
     [string]$RobotIP = "192.168.1.11",
-    [int]$BridgePort = 9090
+    [int]$BridgePort = 9090,
+    [string]$FallbackIP = ""
 )
 
 $env:YAHBOOM_IP = $RobotIP
 $env:YAHBOOM_BRIDGE_PORT = [string]$BridgePort
+$env:YAHBOOM_FALLBACK_IP = $FallbackIP
 Write-Host "[YAHBOOM-MCP] Target Robot IP: $RobotIP" -ForegroundColor Cyan
-Write-Host "[YAHBOOM-MCP] ROSBridge port: $BridgePort (change with start.bat <IP> <port>)" -ForegroundColor Cyan
+Write-Host "[YAHBOOM-MCP] ROSBridge port: $BridgePort (start.bat <IP> <port> [fallback_ip])" -ForegroundColor Cyan
+if ($FallbackIP) {
+    Write-Host "[YAHBOOM-MCP] Fallback (ethernet recovery): $FallbackIP" -ForegroundColor DarkGray
+}
 
 $APP_PORT = 10892
 $WEBAPP_PORT = 10893

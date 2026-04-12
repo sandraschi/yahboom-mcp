@@ -8,8 +8,8 @@ The `MissionManager` (in `missions.py`) polls sensory data at 10Hz during all au
 
 ### 🛡️ 1. Cliff Guard Dominance (Priority 0)
 - **Sensor**: Line Follower (Infrared Array)
-- **Logic**: If all sensors detect `[0, 0, 0]` (Void/White), Boomy is at a table edge or cliff.
-- **Action**: Immediate motor halt (`cmd_vel: 0, 0`). Mission is aborted with `Emergency Halt` status.
+- **Logic**: If **every** channel reads void (no line), e.g. `[0, 0, 0]` for three sensors, or all zeros for your published width — Boomy is at a table edge or cliff. (Some drivers publish **four** bits; the mission check should match **all channels zero** for your robot’s message length — see `missions.py` and live `/line_sensor` data.)
+- **Action**: Immediate motor halt (`cmd_vel: 0, 0`). Mission is aborted with `Emergency Halt` status. Applies while autonomous missions run the safety loop; manual teleop does not add this unless you implement it elsewhere.
 
 ### 🛡️ 2. Benny-Safe Reactive Avoidance (Priority 1)
 - **Sensor**: Ultrasound (Sonar)

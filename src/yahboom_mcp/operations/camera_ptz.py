@@ -15,7 +15,7 @@ _TILT_SERVO_ID = 2   # vertical tilt
 # Topic used by the Yahboom bringup for servo control.
 # yahboomcar_msgs/msg/ServoControl has fields: id (uint8), angle (uint16)
 # Falls back to std_msgs/Int32MultiArray [id, angle] if custom msg unavailable.
-_SERVO_TOPIC   = "/servo_control"
+_SERVO_TOPIC   = "/servo"
 _SERVO_MSG     = "yahboomcar_msgs/msg/ServoControl"
 _SERVO_MSG_FB  = "std_msgs/Int32MultiArray"   # fallback
 

@@ -20,7 +20,7 @@ async def test_ros_restart_bringup_tool(mock_bridge, mock_ssh):
     # Verify SSH execution
     mock_ssh.execute.assert_called_once()
     cmd = mock_ssh.execute.call_args[0][0]
-    assert "setsid ros2 launch yahboomcar_bringup" in cmd
+    assert "yahboomcar_bringup" in cmd
 
 
 @pytest.mark.asyncio

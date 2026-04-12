@@ -1,11 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Gauge, WifiOff, RefreshCw } from 'lucide-react';
-import { api, type SensorsResponse } from '../../lib/api';
+import { api, type SensorsResponse, isBridgeLiveTelemetry } from '../../lib/api';
 
 const POLL_MS = 500;
 
 const IR_LABELS = ['FL', 'F', 'FR', 'R', 'BR', 'B', 'BL', 'L'];
-const LINE_LABELS = ['L', 'ML', 'C', 'MR', 'R'];
+
+/** Labels for line array length (Yahboom drivers often use 3 or 4 channels) */
+function lineChannelLabels(n: number): string[] {
+    if (n === 3) return ['L', 'C', 'R'];
+    if (n === 4) return ['L', 'ML', 'MR', 'R'];
+    if (n === 5) return ['L', 'ML', 'C', 'MR', 'R'];
+    return Array.from({ length: n }, (_, i) => `Ch${i + 1}`);
+}
+
+function formatLineCell(v: number | null): string {
+    if (v == null || Number.isNaN(v)) return '—';
+    if (v === 0 || v === 1) return v === 1 ? 'LINE' : 'off';
+    if (Number.isInteger(v)) return String(v);
+    return v.toFixed(2);
+}
 
 const SensorsPage: React.FC = () => {
     const [data, setData] = useState<SensorsResponse | null>(null);
@@ -32,8 +46,28 @@ const SensorsPage: React.FC = () => {
     }, [fetchSensors]);
 
 
-    const irValues: number[] = Array.isArray(data?.ir_proximity) ? data.ir_proximity : [];
-    const lineValues: number[] = Array.isArray(data?.line_sensors) ? data.line_sensors : [];
+    const irValues: (number | null)[] = Array.isArray(data?.ir_proximity)
+        ? (data.ir_proximity as (number | null)[]).map((v) =>
+              typeof v === 'number' && !Number.isNaN(v) ? v : null,
+          )
+        : typeof data?.sonar_m === 'number'
+          ? [null, data.sonar_m, ...Array(6).fill(null)]
+          : [];
+    const lineValues: (number | null)[] = Array.isArray(data?.line_sensors)
+        ? (data.line_sensors as unknown[]).map((v) => {
+              if (typeof v === 'number' && !Number.isNaN(v)) return v;
+              if (typeof v === 'string' && v.trim() !== '') {
+                  const n = parseInt(v, 10);
+                  return Number.isNaN(n) ? null : n;
+              }
+              return null;
+          })
+        : [];
+    const lineSlotCount = lineValues.length > 0 ? lineValues.length : 5;
+    const displayLine: (number | null)[] =
+        lineValues.length > 0 ? lineValues : Array.from({ length: lineSlotCount }, () => null);
+    const lineLabels = lineChannelLabels(lineSlotCount);
+
 
     if (loading && !data) {
         return (
@@ -57,7 +91,7 @@ const SensorsPage: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {data?.source === 'live' ? (
+                    {isBridgeLiveTelemetry(data) ? (
                         <span className="px-3 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 text-xs font-bold uppercase">
                             Live
                         </span>
@@ -86,7 +120,7 @@ const SensorsPage: React.FC = () => {
                         Distance readings (m). Configure ROS topic on robot to see live values.
                     </p>
                     <div className="flex flex-wrap gap-3">
-                        {(irValues.length ? irValues : [null, null, null, null, null, null]).map((val, i) => (
+                        {(irValues.length ? irValues : Array.from({ length: 8 }, () => null)).map((val, i) => (
                             <div
                                 key={i}
                                 className="flex flex-col items-center p-3 rounded-xl bg-white/5 border border-white/10 min-w-[3.5rem]"
@@ -107,20 +141,28 @@ const SensorsPage: React.FC = () => {
                     <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4">
                         Line-following front sensors
                     </h2>
-                    <p className="text-xs text-slate-500 mb-4">
-                        Front L / ML / C / MR / R. Configure line-sensor topic on robot for live values.
+                        <p className="text-xs text-slate-500 mb-4">
+                        Binary IR line sensors (0 = floor, 1 = line). Topic{' '}
+                        <code className="text-indigo-400">/line_sensor</code>, type{' '}
+                        <code className="text-indigo-400">std_msgs/msg/Int32MultiArray</code>. Override with{' '}
+                        <code className="text-indigo-400">YAHBOOM_LINE_TOPIC</code> /{' '}
+                        <code className="text-indigo-400">YAHBOOM_LINE_MSG_TYPE</code> if remapped.
                     </p>
-                    <div className="flex justify-center gap-2">
-                        {(lineValues.length ? lineValues : [null, null, null, null, null]).map((val, i) => (
+                    <div className="flex justify-center gap-2 flex-wrap">
+                        {displayLine.map((val, i) => (
                             <div
                                 key={i}
-                                className="flex flex-col items-center p-3 rounded-xl bg-white/5 border border-white/10 flex-1 max-w-[4rem]"
+                                className="flex flex-col items-center p-3 rounded-xl bg-white/5 border border-white/10 flex-1 max-w-[4.5rem] min-w-[3rem]"
                             >
                                 <span className="text-[10px] text-slate-500 uppercase font-mono">
-                                    {LINE_LABELS[i] ?? `L${i}`}
+                                    {lineLabels[i]!}
                                 </span>
-                                <span className="text-sm font-mono text-slate-200 mt-1">
-                                    {val != null ? val.toFixed(2) : '—'}
+                                <span
+                                    className={`text-sm font-mono mt-1 ${
+                                        val === 1 ? 'text-emerald-400 font-bold' : 'text-slate-300'
+                                    }`}
+                                >
+                                    {formatLineCell(val)}
                                 </span>
                             </div>
                         ))}

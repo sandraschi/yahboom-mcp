@@ -66,6 +66,7 @@ class MockROS2Bridge:
                 "num_points": 360,
             },
             "last_update": 0.0,
+            "line_sensors": [0, 1, 0],
         }
 
     async def connect(self, timeout: float = 10.0) -> bool:
@@ -137,6 +138,14 @@ class MockROS2Bridge:
         scan = self.state.get("scan", {})
         vel = odom.get("velocity", {})
 
+        prox = self.state.get("ir_proximity")
+        sonar_m = prox if isinstance(prox, (int, float)) else None
+        ir_ring = None
+        if isinstance(prox, (int, float)):
+            ir_ring = [None, float(prox)] + [None] * 6
+        elif isinstance(prox, list) and prox:
+            ir_ring = list(prox)
+
         return {
             "battery": battery.get("percentage"),
             "voltage": battery.get("voltage"),
@@ -157,4 +166,7 @@ class MockROS2Bridge:
                 "nearest_m": scan.get("nearest_m"),
                 "obstacles": scan.get("obstacles"),
             },
+            "ir_proximity": ir_ring,
+            "sonar_m": sonar_m,
+            "line_sensors": self.state.get("line_sensors"),
         }

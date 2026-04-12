@@ -1,5 +1,6 @@
 from fastmcp import Context
 import logging
+import os
 import time
 
 logger = logging.getLogger("yahboom-mcp.operations.display")
@@ -30,6 +31,43 @@ except Exception as e:
     print(f"ERROR: {{e}}", file=sys.stderr)
     sys.exit(1)
 """
+
+
+def _python3_c_command(script_quoted: str) -> str:
+    """Run python3 -c on the Pi; optional YAHBOOM_DISPLAY_CMD_PREFIX (e.g. docker exec name)."""
+    prefix = os.environ.get("YAHBOOM_DISPLAY_CMD_PREFIX", "").strip()
+    if prefix:
+        return f"{prefix} python3 -c {script_quoted}"
+    return f"python3 -c {script_quoted}"
+
+
+def _nohup_python3_scroll(script_quoted: str) -> str:
+    """Background scroll loop; same prefix semantics as _python3_c_command."""
+    prefix = os.environ.get("YAHBOOM_DISPLAY_CMD_PREFIX", "").strip()
+    if prefix:
+        return f"nohup {prefix} python3 -c {script_quoted} >/dev/null 2>&1 &"
+    return f"nohup python3 -c {script_quoted} >/dev/null 2>&1 &"
+
+
+def _display_err_with_hint(err: str) -> str:
+    """Append Pi-side install hint when remote Python lacks luma."""
+    if not err:
+        return err
+    e = err.strip()
+    if "luma" in e.lower() or "No module named" in e:
+        return e + " — On the Pi: pip3 install luma.oled luma.core pillow"
+    return e
+
+
+async def _maybe_pause_ros_oled(ssh) -> None:
+    """Stop the stock oled_node so luma can own the I2C display (default on). Set YAHBOOM_OLED_PAUSE_ROS=0 to skip."""
+    flag = os.environ.get("YAHBOOM_OLED_PAUSE_ROS", "1").strip().lower()
+    if flag in ("0", "false", "no", "off"):
+        return
+    await ssh.execute(
+        "pkill -f '[y]ahboomcar_apriltag.*oled' 2>/dev/null || "
+        "pkill -f '[o]led_node' 2>/dev/null || true"
+    )
 
 
 async def execute(
@@ -89,7 +127,7 @@ async def execute(
                 "with canvas(device) as draw: draw.text((0,0), 'OK', fill='white', font=font)"
             )
             out, _, code = await ssh.execute(
-                f"python3 -c {__import__('shlex').quote(probe_script)}"
+                _python3_c_command(__import__("shlex").quote(probe_script))
             )
             driver_ok = "VERIFIED" in out
 
@@ -110,18 +148,22 @@ async def execute(
     elif operation == "clear":
         # Kill any running scroll loop
         await ssh.execute("pkill -f 'display_scroll_loop' 2>/dev/null || true")
+        await _maybe_pause_ros_oled(ssh)
         body = "with canvas(device) as draw: pass  # blank frame"
         script = _build_luma_script(driver, address, width, height, body)
-        out, err, _ = await ssh.execute(f"python3 -c {__import__('shlex').quote(script)}")
+        out, err, _ = await ssh.execute(
+            _python3_c_command(__import__("shlex").quote(script))
+        )
         ok = "VERIFIED" in out
         result = {
             "success": ok,
             "status": "cleared" if ok else "failed",
-            "log": err if not ok else "",
+            "log": _display_err_with_hint(err) if not ok else "",
         }
 
     # ── write ────────────────────────────────────────────────────────────────
     elif operation == "write":
+        await _maybe_pause_ros_oled(ssh)
         text = str(param1) if param1 is not None else ""
         line = int(param2) if param2 is not None else 0
         y    = line * 14   # ~14px per line at default font
@@ -129,18 +171,21 @@ async def execute(
         safe_text = text.replace("\\", "\\\\").replace('"', '\\"').replace("'", "\\'")
         body = f'with canvas(device) as draw: draw.text((0, {y}), "{safe_text}", fill="white", font=font)'
         script = _build_luma_script(driver, address, width, height, body)
-        out, err, _ = await ssh.execute(f"python3 -c {__import__('shlex').quote(script)}")
+        out, err, _ = await ssh.execute(
+            _python3_c_command(__import__("shlex").quote(script))
+        )
         ok = "VERIFIED" in out
         result = {
             "success": ok,
             "status": "written" if ok else "failed",
             "text": text,
             "line": line,
-            "log": err if not ok else "",
+            "log": _display_err_with_hint(err) if not ok else "",
         }
 
     # ── status dashboard ─────────────────────────────────────────────────────
     elif operation == "status":
+        await _maybe_pause_ros_oled(ssh)
         body = """
 import psutil, subprocess
 cpu  = psutil.cpu_percent(interval=0.2)
@@ -161,12 +206,19 @@ with canvas(device) as draw:
     draw.text((0, 42), f"TEMP: {temp:.1f}C", fill='white', font=font)
 """
         script = _build_luma_script(driver, address, width, height, body)
-        out, err, _ = await ssh.execute(f"python3 -c {__import__('shlex').quote(script)}")
+        out, err, _ = await ssh.execute(
+            _python3_c_command(__import__("shlex").quote(script))
+        )
         ok = "VERIFIED" in out
-        result = {"success": ok, "status": "displayed" if ok else "failed", "log": err if not ok else ""}
+        result = {
+            "success": ok,
+            "status": "displayed" if ok else "failed",
+            "log": _display_err_with_hint(err) if not ok else "",
+        }
 
     # ── scroll (background marquee) ──────────────────────────────────────────
     elif operation == "scroll":
+        await _maybe_pause_ros_oled(ssh)
         text = str(param1) if param1 else "BOOMY PATROL ACTIVE"
         safe_text = text.replace("'", "\\'")
         # Kill previous scroll
@@ -196,8 +248,7 @@ try:
 except Exception as e:
     print(f'SCROLL ERROR: {{e}}', file=sys.stderr)
 """
-        bg_cmd = f"nohup python3 -c {shlex.quote(scroll_script)} >/dev/null 2>&1 &"
-        await ssh.execute(bg_cmd)
+        await ssh.execute(_nohup_python3_scroll(shlex.quote(scroll_script)))
         result = {"success": True, "status": "scrolling", "text": text}
 
     else:

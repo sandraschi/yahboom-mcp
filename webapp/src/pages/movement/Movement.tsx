@@ -176,7 +176,7 @@ const MovementPage: React.FC = () => {
         const check = async () => {
             try {
                 const h = await api.getHealth();
-                if (alive) setConnected(h.connected);
+                if (alive) setConnected(h.robot_connection?.ros === 'connected');
             } catch {
                 if (alive) setConnected(false);
             }

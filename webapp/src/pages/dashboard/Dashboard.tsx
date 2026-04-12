@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { api } from '../../lib/api'
+import { api, isBridgeLiveTelemetry } from '../../lib/api'
+
+const STREAM_URL = '/stream'
 import {
     Activity, Battery, Compass,
     ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
@@ -34,61 +36,43 @@ interface Telemetry {
     sonar_m: number | null;
     line_sensors: number[] | null;
     button_pressed: boolean;
+    source?: 'live' | 'simulated';
+    status?: string;
 }
 
 export default function Dashboard() {
     const [telemetry, setTelemetry] = useState<Telemetry | null>(null)
     const [connected, setConnected] = useState(false)
-    const [lastFrame, setLastFrame] = useState<string | null>(null)
     const [keysHeld, setKeysHeld] = useState<Record<string, boolean>>({})
     const [wasdActive, setWasdActive] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [isReconnecting, setIsReconnecting] = useState(false)
 
-    // WebSocket for telemetry
+    // REST telemetry (Unified Gateway has no /api/v1/ws/telemetry — Mission Control uses this pattern)
     useEffect(() => {
-        let ws: WebSocket | null = null;
-        let reconnectTimer: any = null;
-
-        const connect = () => {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/api/v1/ws/telemetry`;
-            
-            console.log('Connecting telemetry WS:', wsUrl);
-            ws = new WebSocket(wsUrl);
-
-            ws.onopen = () => {
-                setConnected(true);
-                setError(null);
-                setIsReconnecting(false);
-            };
-
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                if (data.type === 'telemetry') {
-                    setTelemetry(data.data);
-                } else if (data.type === 'image') {
-                    setLastFrame(data.data);
+        let alive = true
+        const poll = async () => {
+            try {
+                const t = await api.getTelemetry()
+                if (!alive) return
+                setTelemetry(t as Telemetry)
+                setConnected(isBridgeLiveTelemetry(t))
+                setError(null)
+                setIsReconnecting(false)
+            } catch {
+                if (alive) {
+                    setConnected(false)
+                    setError('Telemetry unavailable — is the MCP backend running?')
                 }
-            };
-
-            ws.onclose = () => {
-                setConnected(false);
-                setIsReconnecting(true);
-                reconnectTimer = setTimeout(connect, 3000);
-            };
-
-            ws.onerror = () => {
-                setConnected(false);
-            };
-        };
-
-        connect();
+            }
+        }
+        poll()
+        const id = setInterval(poll, 500)
         return () => {
-            if (ws) ws.close();
-            clearTimeout(reconnectTimer);
-        };
-    }, []);
+            alive = false
+            clearInterval(id)
+        }
+    }, [])
 
     // Drive keyboard handler
     useEffect(() => {
@@ -210,16 +194,18 @@ export default function Dashboard() {
                 <div className="xl:col-span-2 space-y-6">
                     {/* Primary Camera / Visual Feed */}
                     <div className="relative aspect-video bg-black rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl group">
-                        {lastFrame ? (
-                            <img 
-                                src={`data:image/jpeg;base64,${lastFrame}`} 
-                                className="w-full h-full object-cover"
+                        {connected ? (
+                            <img
+                                src={STREAM_URL}
+                                className="w-full h-full object-cover min-h-[200px]"
                                 alt="Robot Camera Feed"
                             />
                         ) : (
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-900/50">
                                 <CameraOff className="text-slate-700 w-16 h-16 animate-pulse" />
-                                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Visual Stream Offline</p>
+                                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">
+                                    Visual Stream Offline — connect ROS bridge first
+                                </p>
                             </div>
                         )}
                         
