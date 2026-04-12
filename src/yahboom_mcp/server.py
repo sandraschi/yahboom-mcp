@@ -45,7 +45,7 @@ class EndpointFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
-        return not any(path in msg for path in ["/api/v1/telemetry", "/api/v1/health"])
+        return not any(path in msg for path in ["/api/v1/telemetry", "/api/v1/health", "/api/v1/sensors"])
 
 
 logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
