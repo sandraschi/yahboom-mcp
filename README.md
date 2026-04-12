@@ -1,4 +1,7 @@
-# Yahboom ROS 2 MCP Server (v2.0.0-alpha.1)
+# Yahboom ROS 2 MCP Server (v2.2.0-alpha.2)
+
+> [!IMPORTANT]
+> **HARDWARE HANDSHAKE SUCCESSFUL**: The "Split-Brain" architecture has been resolved. The `/dev/ttyUSB0` serial port is now successfully reclaimed from the host demo and bridged via a Micro-ROS sidecar. Motors, IMU, ultrasonic sensors, and actuators are now native to the ROS 2 graph.
 
 Industrial-grade agentic control interface for the **Yahboom Raspbot v2** (Raspberry Pi 5 / ROS 2 Humble). This project is a core component of the [Robotics Fleet](docs/fleet_overview.md).
 
@@ -8,7 +11,10 @@ Yahboom-MCP operates as a specialized manipulation and navigation node within a 
 - **Virtual-Robotics-MCP**: Physics-based simulation and testing.
 - **Central-Hub**: Intelligent orchestration and fleet-wide lifecycle management.
 
-##  SOTA 2026 Architecture
+##  SOTA 2026 Architecture (v2.2.0-alpha.2)
+
+### ✨ The "iPad Gemini" Breakthrough
+This version marks the successful execution of the **Rosmaster Blueprint**. Credit is due to the **iPad Gemini** for the architectural breakthrough that identified the dual-brain de-synchronization between the host and the ROS 2 workstation. This insight allowed us to surgically deactivate the factory bypass and restore the formal control plane.
 
 This server is built on **FastMCP 3.1** and implements high-density agentic workflows using the **Portmanteau Pattern**, **sampling** (SEP-1577), **prompts**, **skills**, and **scripts**.
 
@@ -34,7 +40,7 @@ Boomy's sensory substrate is expanded via a dedicated **Peripheral Bridge** runn
 - **Auto-Discovery**: I2C bus scanning for SSD1306/SH1106 displays and environmental sensors.
 
 > [!TIP]
-> Details on topic mapping and GPIO configuration can be found in [SENSORY_HUB.md](docs/SENSORY_HUB.md).
+> Details on the ESP32-S3 co-processor can be found in [ROSMASTER_ESP32.md](docs/hardware/ROSMASTER_ESP32.md). The factory bypass audit is recorded in [LEGACY_DEMO_AUDIT.md](docs/factory/LEGACY_DEMO_AUDIT.md).
 
 ### Peripheral & display env (host running MCP)
 

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-04-12
+
+### ✨ The "iPad Gemini" Breakthrough
+- **Architectural Insight**: Credited to **iPad Gemini** for the deep identification of the "Split-Brain" de-synchronization between the host-level factory bypass (`raspbot.pyc`) and the ROS 2 workstation stack. This insight enabled the transition from generic container troubleshooting to surgical hardware reclamation.
+
+### Added
+- **Hardware Handshake (SOTA v15.0)**: Successfully reclaimed `/dev/ttyUSB0` from the host demo and restored the full ROS 2 sensory/actuator graph.
+- **Micro-ROS Sidecar**: Deployed `microros/micro-ros-agent:humble` as a sidecar container to bridge the ESP32-S3 co-processor, bypassing broken dependencies in the factory Yahboom image.
+- **Documented Architecture**: Created `docs/hardware/ROSMASTER_ESP32.md` and `docs/factory/LEGACY_DEMO_AUDIT.md` (Hardware Baseline).
+- **Deactivation Script**: `src/yahboom_mcp/scripts/deactivate_demo.sh` for surgical removal of host-level lockouts.
+
+### Fixed
+- **Serial Port Monopoly**: Resolved the `/dev/ttyUSB0` lock issue that was preventing the ROS 2 workstation from accessing the motors and sensors.
+- **Workspace Visibility**: Resolved the Docker volume "masking" issue where host mounts were hiding factory drivers baked into the image.
+
 ## [2.1.1] - 2026-04-11
 
 ### Fixed
