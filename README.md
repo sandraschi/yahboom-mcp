@@ -1,77 +1,46 @@
-# Boomy: Yahboom Raspbot v2 Industrial-Agentic Gateway
+# Yahboom Raspbot v2 (Boomy) - Documentation Hub
 
 ![Boomy Hero Shot](assets/boomy_hero.png)
 
 ## Overview
 
-**Boomy** is a small-scale demonstration robot car designed as a high-fidelity platform for agentic orchestration and Embodied AI development. While compact, the platform bridges the gap between hobbyist hobbyists and industrial robotics through its sophisticated hardware-software integration.
+**Boomy** is a small-scale demonstration robot car based on the **Yahboom Raspbot v2** (Mecanum Version). This project provides a unified control gateway for testing sensor integration, ROS 2 orchestration, and agentic (AI-driven) robotics.
 
-At its core, Boomy leverages the **Yahboom Raspbot v2** (Mecanum Version) hardware, industrialized with a custom MCP (Model Context Protocol) gateway for seamless LLM-to-Robot interaction.
-
----
-
-## 🏗️ Hardware Architecture: The "Double-Stack" Model
-
-Boomy operates on a sophisticated dual-controller substrate to ensure both real-time physical reliability and high-level cognitive intelligence:
-
-1.  **Rosmaster (ESP32 / Micro-ROS)**:
-    *   **Function**: Low-level hardware abstraction and real-time motion control.
-    *   **Capabilities**: 4x Mecanum wheel PWM control, line-sensor processing, ultrasound pinging, and I2C peripheral management.
-    *   **Protocol**: Interacts with the main brain via Micro-ROS over a high-speed serial bridge.
-
-2.  **Raspberry Pi 5 (ROS 2 Humble / Agentic Gateway)**:
-    *   **Function**: High-level cognition, vision processing, and MCP federation.
-    *   **Capabilities**: Runs the ROS 2 Humble node graph, the local Ollama/Gemma intelligence node, and the Python-based FastMCP bridge.
-    *   **Vision**: Front-mounted dual-servo **Pan-Tilt-Zoom (PTZ)** camera module for autonomous tracking and visual verification.
+### The Manufacturer: Yahboom
+[Yahboom](https://www.yahboom.net/) is a prominent player in the Chinese robotics and STEM education industry. They offer a diverse range of hardware platforms:
+*   **Market Range**: From entry-level $50 DIY kits to advanced $2,000+ STEM robots with precision mechanical arms.
+*   **Industry Position**: They specialize in accessible hardware for education and prototyping, positioned below enterprise-grade platforms such as Unitree or Noetix.
+*   **Developer Ecosystem**: Yahboom maintains a strong commitment to a **FOSS (Free and Open Source Software)** stack and provides active GitHub support for developers.
 
 ---
 
-## 🛠️ Sensory Substrate & Actuation
+## 🏗️ Hardware Architecture
 
-Beyond its drivetrain, Boomy is equipped with a professional-grade sensory array:
+Boomy utilizes a "Double-Stack" controller model to bridge real-time physical reliability with high-level cognitive tasks:
 
-*   **Omnidirectional Mobility**: 4x Mecanum wheels enabling strafing, rotation, and complex 360° navigation.
-*   **Visual Intelligence**: PTZ camera arm with 180° pan/tilt range for dynamic environment scanning.
-*   **Proximity Fusion**: Ultrasonic "eyes" for reactive obstacle avoidance and line-tracking sensors for cliff-guard safety.
-*   **Peripheral Zen**: Top-mounted OLED telemetry display and an RGB status lightstrip for human-robot visual feedback.
+1.  **Rosmaster (ESP32 / Micro-ROS)**: Small-form-factor hardware controller for low-latency motor control, ultrasonic pinging, and line-sensor processing.
+2.  **Raspberry Pi 5 (ROS 2 Humble / Gateway)**: The main brain, handling vision processing, networking, and the orchestration of the agentic gateway.
+
+---
+
+## 🕹️ Interface Separation
+
+This project clearly distinguishes between human-operable controls and machine-optimized interfaces:
+
+*   **Human Interface**: A browser-based **Web Dashboard** (React/Vite) designed for manual telemetry observation, peripheral control (lights, OLED), and human-robot interaction.
+*   **Machine Interface**: A standards-compliant **MCP Server** (Model Context Protocol) designed for AI agents and MCP clients to programmatic control Boomy as a tool within a larger fleet.
 
 ---
 
 ## 📂 Documentation Pillars
 
-The documentation is organized into four logical pillars to support rapid technical navigation:
-
 | Pillar | Focus | Key Topics |
 | :--- | :--- | :--- |
-| **[Architecture & Logic](docs/core/)** | Core Cognition | System design, State machines, Neurophilosophy, Embodied AI. |
-| **[Hardware Technicals](docs/hardware/)** | Physical Substrate | Pinouts, Wiring, I2C Bridges, Mecanum logic, PTZ Servos. |
-| **[Operations & Deployment](docs/ops/)** | Lifecycle Management | Connectivity, WiFi Transition, OS Stack, Testing & Diagnostics. |
-| **[Fleet & Federation](docs/fleet/)** | Ecosystem | Multi-robot orchestration, Dreame-MCP integration, Racing Vision. |
+| **[Setup & Installation](docs/ops/installation.md)** | Start Here | Launch commands, `uv run` usage, and baseline configuration. |
+| **[Software & Logic](docs/core/)** | Architecture | System design, ROS 2 node graphs, and state management. |
+| **[Hardware & Pinouts](docs/hardware/)** | Physical Layer | Wiring diagrams, I2C addresses, and sensor technical specs. |
+| **[Multi-Robot Integration](docs/fleet/)** | Ecosystem | Federated fleet standards and cross-robot communication protocols. |
 
 ---
 
-## 🚀 Getting Started
-
-### 1. Connection Baseline
-Boomy primarily communicates over WiFi via ROSBridge.
-```powershell
-# Set robot IP and launch the dual-mode gateway
-$env:YAHBOOM_IP = "192.168.1.XX"
-uv run python -m yahboom_mcp.server --mode dual --port 10792
-```
-
-### 2. SOTA Webapp Hub
-Access the professional **Peripheral Zen** control plane:
-*   **UI Dashboard**: `http://localhost:10893` (Vite dev server)
-*   **Documentation Library**: Detailed guides are available in the [docs/](docs/) directory.
-
----
-
-## 🏁 Project Status & Compliance
-- [x] **FastMCP 3.1+** (Sampling, Prompts, Skills)
-- [x] **Double-Stack Hardware Bridge** (ESP32 + Pi 5)
-- [x] **Mecanum Omnidirectional Control**
-- [x] **PTZ Camera & Global Shutter Vision**
-- [x] **Industrial documentation hierarchy**
-
-*Historical logs and legacy assessments are preserved in the [docs/archive/](docs/archive/) directory.*
+*Historical status logs and legacy research are preserved in the [docs/archive/](docs/archive/) directory.*
