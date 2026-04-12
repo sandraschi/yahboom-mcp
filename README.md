@@ -1,4 +1,4 @@
-# Yahboom Raspbot v2 (Boomy) - Documentation Hub
+# Yahboom Raspbot v2 (Boomy) - MCP Server, Webapp & Documentation
 
 ![Boomy Hero Shot](assets/boomy_hero.png)
 
