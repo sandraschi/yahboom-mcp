@@ -47,6 +47,68 @@ export default function Dashboard() {
     const [wasdActive, setWasdActive] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [isReconnecting, setIsReconnecting] = useState(false)
+    const [isListening, setIsListening] = useState(false)
+    const [transcript, setTranscript] = useState('')
+    const [llmResponse, setLlmResponse] = useState<string | null>(null)
+    const recognitionRef = useRef<any>(null)
+
+    // Voice Intelligence Logic
+    useEffect(() => {
+        const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+        if (!SpeechRecognition) return;
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event: any) => {
+            let current = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                current += event.results[i][0].transcript;
+            }
+            setTranscript(current);
+
+            // Final result detected
+            if (event.results[event.results.length - 1].isFinal) {
+                const final = event.results[event.results.length - 1][0].transcript;
+                processVoiceCommand(final);
+            }
+        };
+
+        recognition.onend = () => {
+            if (isListening) recognition.start();
+        };
+
+        recognitionRef.current = recognition;
+    }, [isListening]);
+
+    const toggleListening = () => {
+        if (isListening) {
+            recognitionRef.current?.stop();
+            setIsListening(false);
+            setTranscript('');
+        } else {
+            setLlmResponse(null);
+            recognitionRef.current?.start();
+            setIsListening(true);
+        }
+    };
+
+    const processVoiceCommand = async (text: string) => {
+        if (!text.trim()) return;
+        try {
+            // Pipe text to robot for "chat_and_say" (Gemma 3 on Pi)
+            const res = await api.postTool('chat_and_say', text);
+            if (res?.result?.response) {
+                setLlmResponse(res.result.response);
+                // Clear response after 10 seconds
+                setTimeout(() => setLlmResponse(null), 10000);
+            }
+        } catch (err) {
+            console.error('Voice pipe failed:', err);
+        }
+    };
 
     // REST telemetry (Unified Gateway has no /api/v1/ws/telemetry — Mission Control uses this pattern)
     useEffect(() => {
@@ -410,24 +472,82 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        {/* Intelligence Hub */}
+                        {/* Voice & Media Hub (SOTA v16.0) */}
                         <div className="bg-[#0f0f12]/80 border border-white/5 rounded-3xl p-6 backdrop-blur-xl shadow-xl">
-                            <div className="flex items-center gap-3 mb-4">
-                                <MessageSquare className="text-indigo-400 w-5 h-5" />
-                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Intelligence Hub</h3>
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                    <MessageSquare className="text-indigo-400 w-5 h-5" />
+                                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Voice & Media Hub</h3>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className={`w-2 h-2 rounded-full ${isListening ? 'bg-red-500 animate-ping' : 'bg-slate-700'}`} />
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                                        {isListening ? 'Listening' : 'Ready'}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="space-y-3">
-                                <button 
-                                    onClick={() => api.postTool('camera_center')}
-                                    className="w-full py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:bg-indigo-500/20 hover:text-indigo-300 transition-all text-left px-4 flex items-center justify-between group"
-                                >
-                                    <span>Hardware Centering Assist</span>
-                                    <Link2 size={12} className="group-hover:rotate-45 transition-transform" />
-                                </button>
-                                <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-xl">
-                                    <p className="text-[10px] text-indigo-300/60 leading-relaxed italic">
-                                        "Positioning servos at 90° for assembly alignment."
-                                    </p>
+                            
+                            <div className="space-y-4">
+                                {/* Transcription Log */}
+                                <div className="h-20 bg-black/40 rounded-2xl border border-white/5 p-3 overflow-y-auto overflow-x-hidden scrollbar-hide">
+                                    <AnimatePresence mode="wait">
+                                        {llmResponse ? (
+                                            <motion.div 
+                                                initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+                                                className="text-[10px] text-indigo-300 font-medium leading-relaxed italic"
+                                            >
+                                                " {llmResponse} "
+                                            </motion.div>
+                                        ) : transcript ? (
+                                            <motion.div 
+                                                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                                className="text-[11px] text-slate-400 font-mono"
+                                            >
+                                                {transcript}...
+                                            </motion.div>
+                                        ) : (
+                                            <div className="text-[9px] text-slate-600 uppercase tracking-widest text-center mt-4">
+                                                Awaiting instructions
+                                            </div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+
+                                {/* Controls */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button 
+                                        onClick={toggleListening}
+                                        disabled={!connected}
+                                        className={`flex flex-col items-center justify-center gap-2 h-20 rounded-2xl border transition-all ${
+                                            isListening 
+                                            ? 'bg-red-500/20 border-red-500/40 text-red-400' 
+                                            : 'bg-indigo-500/5 border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/10'
+                                        } disabled:opacity-30`}
+                                    >
+                                        <Volume2 className={isListening ? 'animate-pulse' : ''} />
+                                        <span className="text-[9px] font-black uppercase tracking-widest">
+                                            {isListening ? 'Stop' : 'Talk To Boomy'}
+                                        </span>
+                                    </button>
+
+                                    <div className="grid grid-rows-2 gap-2">
+                                        <button 
+                                            onClick={() => api.postVoice('play_beep')}
+                                            disabled={!connected}
+                                            className="bg-white/5 border border-white/10 rounded-xl text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2 group"
+                                        >
+                                            <Zap size={12} className="group-hover:text-amber-500" />
+                                            Sound Check
+                                        </button>
+                                        <button 
+                                            onClick={() => api.postVoice('play_file', "E:\\Multimedia Files\\Music - Blues\\James, Etta\\Her Best (1997)\\James, Etta - Her Best (1997) - 16 - I'd Rather Go Blind.mp3")}
+                                            disabled={!connected}
+                                            className="bg-white/5 border border-white/10 rounded-xl text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-300 hover:bg-indigo-500/10 transition-all flex items-center justify-center gap-2 group"
+                                        >
+                                            <Monitor size={12} className="group-hover:text-indigo-400" />
+                                            Play Blues
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0-beta.1] - 2026-04-12
+### 🎙️ Conversational Edge Intelligence (SOTA v16.0)
+- **Speech Activation**: Resolved the "Silence" issue by hardening the USB Voice Module serial protocol and ensuring default volume initialization.
+- **Voice Intelligence Hub**: 
+    - Overhauled the Mission Control "Intelligence" card with a premium **Voice & Media** suite.
+    - Integrated **Web Speech API (STT)** into the browser, enabling hands-free robot interactions.
+- **Edge Conversational Pipe**: 
+    - Implemented a low-latency "Chat & Say" workflow piping transcribed speech to a local **Ollama (Gemma3:1b)** node on the Pi 5.
+    - Real-time LLM thought processing displayed in the webapp HUD.
+- **High-Fidelity Media**: 
+    - Unlocked native MP3 playback via the Voice Module's secondary **USB Audio interface (Card 2)**.
+    - Deployed `mpg123` to the robot for industrial audio streaming (verified with Etta James).
+- **Diagnostics**: Added a "Sound Check" (Beep) tool for rapid hardware verification.
+
 ## [2.2.0-beta.1] - 2026-04-12
 ### 🚀 Final Industrialization — "Total Sensory Fusion" (SOTA v15.0)
 - **Neural Synchronization**: Hardened environment to `ROS_DOMAIN_ID=30`, unifying agentic tools and the dashboard.

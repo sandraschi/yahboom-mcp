@@ -2,6 +2,7 @@ from fastmcp import Context
 import logging
 import os
 import time
+import asyncio
 
 logger = logging.getLogger("yahboom_mcp.operations.voice")
 
@@ -256,6 +257,78 @@ except Exception as e:
                 "sound_id": sound_id,
                 "log": (err or "").strip() if not ok else "",
             }
+
+    # ── play_beep ────────────────────────────────────────────────────────────
+    elif operation == "play_beep":
+        device, resolve_note = await _resolve_device(ssh)
+        if not device:
+            result = {"success": False, "error": resolve_note or "Voice module not detected"}
+        else:
+            # Set volume to 25 then play sound 1
+            body = (
+                "        ser.write(b'$VOL,25#')\n"
+                "        time.sleep(0.1)\n"
+                "        ser.write(b'$play,1#')\n"
+                "        time.sleep(0.1)\n"
+                "        ser.flush()"
+            )
+            out, err, code = await ssh.execute(_serial_cmd(device, body, baud))
+            result = {"success": "OK" in out, "device": device, "log": err}
+
+    # ── play_file ────────────────────────────────────────────────────────────
+    elif operation == "play_file":
+        local_path = str(param1) if param1 else ""
+        if not local_path or not os.path.exists(local_path):
+            result = {"success": False, "error": f"Local file not found: {local_path}"}
+        else:
+            remote_tmp = f"/tmp/{os.path.basename(local_path)}"
+            # 1. Upload
+            try:
+                await asyncio.to_thread(ssh.put_file, local_path, remote_tmp)
+                # 2. Play via Card 2 (USB Audio)
+                # We use mpg123 -D hw:2,0 (Card 2, Device 0)
+                # -q for quiet, -m for mono fallback
+                import shlex
+                q_tmp = shlex.quote(remote_tmp)
+                cmd = f"mpg123 -q -D hw:2,0 {q_tmp}"
+                out, err, code = await ssh.execute(cmd)
+                result = {
+                    "success": code == 0,
+                    "local_path": local_path,
+                    "remote_path": remote_tmp,
+                    "exit_code": code,
+                    "log": (err or "").strip()
+                }
+            except Exception as e:
+                result = {"success": False, "error": f"Media playback failed: {e}"}
+
+    # ── chat_and_say ─────────────────────────────────────────────────────────
+    elif operation == "chat_and_say":
+        user_text = str(param1) if param1 else "Tell me something."
+        # Call local Ollama on the Pi via SSH
+        import json
+        import shlex
+        
+        prompt = f"Give a short, friendly, robot-like response to: {user_text}. Max 20 words."
+        payload_data = {"model": "gemma3:1b", "prompt": prompt, "stream": False}
+        payload_json = json.dumps(payload_data)
+        
+        cmd = f"curl -s -X POST http://localhost:11434/api/generate -d {shlex.quote(payload_json)}"
+        out, err, _ = await ssh.execute(cmd)
+        
+        try:
+            resp = json.loads(out)
+            llm_text = resp.get("response", "I am thinking.")
+            # Now speak it
+            speak_res = await execute(ctx, operation="say", param1=llm_text)
+            result = {
+                "success": speak_res["success"],
+                "input": user_text,
+                "response": llm_text,
+                "say_result": speak_res
+            }
+        except Exception as e:
+            result = {"success": False, "error": f"LLM parsing failed: {e}", "raw": out}
 
     # ── volume ───────────────────────────────────────────────────────────────
     elif operation == "volume":

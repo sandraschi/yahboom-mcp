@@ -19,9 +19,12 @@
 | ROSBridge connection | ✅ Working | Synchronized on **Domain 30** |
 | Camera streaming | ✅ Working | `/usb_cam` re-ignited on Domain 30 |
 | Sensor reading (Sonar/IMU) | ✅ Working | Restoration complete via Internal Bridge |
-| Network (v2.2.0) | ✅ Working | Standardized on WiFi `192.168.1.11` |
+| Network (v2.3.0) | ✅ Working | Standardized on WiFi `192.168.1.11` |
 | PTZ gimbal | ✅ Working | Servo publish wired and verified |
 | Sonar / line sensor | ✅ Working | Sonar proximity active on dashboard |
+| Speech Module | ✅ Working | USB Voice Serial active; Initialized at Vol 25 |
+| Media Hub | ✅ Working | mp3 playback via `mpg123` (USB Audio Card 2) |
+| Edge Intelligence | ✅ Working | Local Gemma3:1b (Ollama) pipe integrated |
 | LIDAR | ❓ Not fitted | Optional add-on; `/scan` subscriber ready |
 
 ---
