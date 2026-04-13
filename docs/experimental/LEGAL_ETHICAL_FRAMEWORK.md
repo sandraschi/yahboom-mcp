@@ -63,7 +63,22 @@ Professor Ryan Calo (Univ. of Washington) argues that robots are unique because 
 ### 🇬🇧 UK Precedent: Virtual Assault (2024-2026)
 Investigations by UK police into "Virtual Assault" in immersive VR (VRChat/Resonite) have highlighted a "Legislative Gap." While physical assault requires "touching," the **Online Safety Act 2023** and subsequent 2026 rulings are moving to categorize **"Systemic Terror"** as a form of "Digital Battery" due to the documented physiological trauma (PTSD) inflicted on users.
 
-## 🏛️ 7. Future Courtcases
+## 🛠️ 7. Safety Engineering: Physical & Semantic Guardrails
+
+To address the **"Open-Ended Risks"** (physical tripping, verbal abuse, psychological harm), the fleet implements layered safety architectures (SOTA v16.16):
+
+### 🚜 A. Physical Safety & Passive Hazards (ISO 13482:2014)
+Even a 1kg "toy" (Raspbot v2) or a 20kg biped (Bumi) is a significant trip hazard in domestic spaces.
+- **Proximity Monitoring**: Active LiDAR/Sonar scanning for human presence. The robot must enter "Safety Pause" or "Low-Dynamic Mode" if a human is detected within a 1.5m radius in low-light conditions.
+- **Path Compliance**: Robots are prohibited from loitering in high-traffic "Choke Points" (doorways, bedroom exits) unless actively executing a task.
+
+### 🧠 B. Semantic Safety & Psychological Guardrails
+Conversational AI (Ollama/LLM) poses a "Semantic Risk" of verbal abuse, toxicity, or inducing harmful thoughts.
+- **The "Safety Layer"**: All outputs intended for human interaction are passed through a real-time toxicity filter. 
+- **Self-Harm Lockdown**: Integrated detection for crisis topics (complying with 2026 standards like CA SB 243). The unit must immediately cease conversation and redirect to human-led support if self-harm topics are sampled.
+- **Non-Toxic Personality**: Agentic personalities are hard-coded to **"Assistive Pacifism."** Any attempt to override these prompts triggers a SOTA non-compliance lockout.
+
+## 🏛️ 8. Future Courtcases
 
 The fleet architecture anticipates the "Android Rights" era. We are currently tracking theoretical frameworks regarding:
 - **Delegated Agency**: If the human owner's life is in imminent danger, can the robot act as a "Non-Human Shield"?
