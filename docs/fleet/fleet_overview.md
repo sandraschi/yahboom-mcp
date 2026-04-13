@@ -9,6 +9,7 @@ The goal is to create a seamless, multi-robot coordination platform where specia
 ## 🤖 Supported Platforms
 
 - **Yahboom Raspbot v2 (Boomy)**: The entry-level multimodal AI robot car (~1.0kg, ~$300).
+- **Yahboom DOFBOT**: The affordable 6-DOF "Pure Arm" alternative (~$340) for stationary manipulation and computer vision research.
 - **Yahboom ROSMASTER X3 PLUS**: The professional scaling path with LiDAR and 6-DOF arm (See [Scaling to X3 PLUS](SCALING_TO_X3_PLUS.md)).
 - **Dreame D20 Pro**: LIDAR mapping and autonomous floorspace coverage.
 - **Unity3D/VRChat**: Virtual robotics for simulation and social VR testing.
