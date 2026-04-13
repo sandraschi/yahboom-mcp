@@ -91,6 +91,12 @@ In an unavoidable collision scenario (e.g., Child vs. Octogenarians), the fleet 
 - **Defensive Utility**: Ethical engineering focuses on **Risk Mitigation** (preventing the scenario from ever occurring) rather than "Choice Logic." 
 - **The "Braking" Default**: When data is uncertain, the mandatory SOTA response is to reduce velocity to the lowest possible level. A 5km/h impact with any victim is a superior "ethical" outcome to a 40km/h "choice."
 
+### ⚖️ C. Non-Judicial Autonomy (Criminal vs. Innocent)
+The question of whether an agent should target a "gun-wielding criminal" over a "child" is rejected by the **Non-Judicial Autonomy** protocol:
+- **Violation of Due Process**: Robotic platforms are not authorized to act as judge, jury, or executioner. Identifying someone as a "criminal" in a sub-second collision window violates the core legal right to a trial.
+- **Algorithmic Discrimination**: Coding a system to allocate harm based on perceived "moral worth" or "legal status" is a direct violation of 2026 AI discrimination laws (e.g., Colorado SB 24-205). 
+- **The "Infinite Equality" Rule**: To maintain SOTA compliance, the unit MUST treat both individuals as having equal physical value. Any attempt to "target" the perceived criminal is legally viewed as **Premeditated Assault** by the owner/developer.
+
 ## 🏛️ 9. Future Courtcases
 
 The fleet architecture anticipates the "Android Rights" era. We are currently tracking theoretical frameworks regarding:
