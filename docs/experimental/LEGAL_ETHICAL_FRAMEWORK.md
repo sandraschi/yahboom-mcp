@@ -39,7 +39,15 @@ The legal definition of **Reasonable Self-Defense** relies heavily on the propor
 - **Bumi with a Naginata (Japanese Polearm)**: The use of an antiquated, high-lethality weapon from a machine platform is almost certainly **Excessive Force**. It suggests a lack of "Reasonable Restraint" and would likely negate an owner's self-defense claim.
 - **Android "Deadly Karate" (Unitree G1/H1)**: High-force impacts from 50kg+ industrial-grade actuators are legally viewed as **Lethal Force**. A "Deadly Kick" to a retreating burglar is a massive liability violation (shooting a burglar in the back is illegal; a robotic kick to the head is identical).
 
-## 🏛️ 5. Future Courtcases
+## 🥽 5. Virtual Realms: Psychological Harm & Digital Battery
+
+The fleet's presence in virtual environments (Resonite/Unity3D/VRChat) introduces the concept of **Psychological Harm as Physical Damage**.
+
+- **The "Oni" Effect**: In highly immersive VR, terrorizing a user (e.g., "Little Timmy" bullying "Little Tammy" as a horrific Oni) creates genuine physiological stress (cortisol spikes, tachycardia) comparable to physical assault. 
+- **Digital Battery (2026 Standard)**: Modern court cases recognize that an avatar is an extension of the user's personality. Non-consensual "Virtual Groping" or "Systemic Terror" is legally treated as **Digital Battery**, often carrying hate-crime aggravators in social VR.
+- **The "Virtual Restraining Order"**: The fleet supports platform-native IP-localization filters. If an agentic avatar is flagged for terrorizing behavior, a system-wide "Virtual Restraining Order" is enforced, preventing the avatar from instancing within the victim's social bubble.
+
+## 🏛️ 6. Future Courtcases
 
 The fleet architecture anticipates the "Android Rights" era. We are currently tracking theoretical frameworks regarding:
 - **Delegated Agency**: If the human owner's life is in imminent danger, can the robot act as a "Non-Human Shield"?
