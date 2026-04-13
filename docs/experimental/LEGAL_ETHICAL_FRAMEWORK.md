@@ -124,7 +124,24 @@ To bridge the split-second gap without violating Due Process, the fleet implemen
 - **Action 2: Human-in-the-Loop Handoff (T+250ms)**: The system provides a high-fidelity "Decision Packet" to human responders.
 - **The Reasoning**: The machine’s speed is used to **Protect**, while the human’s judgment is used to **Act**. If the robot "acts" by killing, it has failed its SOTA v16.16 safety mission.
 
-## 🏛️ 11. Future Courtcases
+## 🏠 11. Domestic Civil Liability & Modification Risks
+
+Transitioning from "Defense" to "Daily Utility" (e.g., the **Butlerbot** scenario) introduces complex civil liability structures:
+
+### ☕ A. Minor Damange & Product Liability
+Injuries such as hot coffee scalds caused by robotic instability fall under **Product Liability**. 
+- **Manufacturer Liability**: If the robot splashes liquid due to a design defect (e.g., inadequate stabilization in *Bipedal Mode*), "Robot Corp" is liable.
+- **The "Modification Gap"**: If the robot has been modified (e.g., our custom **Tablet Holder/DOFBOT** integration), the liability shifts to the **User (Sandra)**. The manufacturer’s safety certifications are voided upon unauthorized hardware integration.
+
+### 💣 B. High-Hazard Manipulation (The Gas Stove Standard)
+A robot capable of turning a physical control knob on a gas stove introduces "Life-Hazard" potential.
+- **The Redline**: Autonomous manipulation of high-energy appliances is **Strictly Prohibited** unless the appliance is equipped with a **Digital Interlock**. 
+- **Secondary Failsafe**: A robot must not initiate a "Torque Event" on a gas knob unless it has confirmed there is a human present or a heat-sensing hub active. Unattended gas manipulation is codified as **Reckless Endangerment**.
+
+### 🔍 C. Digital Forensics
+In any domestic accident, **Digital Evidence is Primary**. The fleet maintains high-fidelity logs of sensor state and firmware history. Any attempt to tamper with these logs to "blame the machine" for a user error is detectable via SOTA hash-verification.
+
+## 🏛️ 12. Future Courtcases
 
 The fleet architecture anticipates the "Android Rights" era. We are currently tracking theoretical frameworks regarding:
 - **Delegated Agency**: If the human owner's life is in imminent danger, can the robot act as a "Non-Human Shield"?
