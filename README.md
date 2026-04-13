@@ -19,7 +19,13 @@
 Boomy utilizes a "Double-Stack" controller model to bridge real-time physical reliability with high-level cognitive tasks:
 
 1.  **Rosmaster (ESP32 / Micro-ROS)**: Small-form-factor hardware controller for low-latency motor control, ultrasonic pinging, and line-sensor processing.
-2.  **Raspberry Pi 5 (ROS 2 Humble / Gateway)**: The main brain, handling vision processing, networking, and the orchestration of the agentic gateway.
+2.  **Raspberry Pi 5 (Optional / Gateway)**: The main brain for standalone operation.
+
+### 🚀 The "Zero-Host" Swarm Config
+For scaled deployments, Boomy can operate in a **Pi-less Swarm** mode:
+- **Setup**: Remove the Raspberry Pi; replace with a WiFi-to-Ethernet/UART bridge ($15).
+- **Control**: Centralized orchestration via a remote **Mothership** (PC with RTX 4090).
+- **Scaling**: Deploy 3+ units for the price of a single Pi-hosted robot.
 
 ---
 
