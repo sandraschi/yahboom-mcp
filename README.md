@@ -4,7 +4,7 @@
 
 ## Overview
 
-**Boomy** is a **Yahboom Raspbot v2** (Mecanum Version) robot car. Weighing in at approximately **1.0 kg** and costing roughly **$300** (fully loaded with a Raspberry Pi 5 16GB), it provides a unified control gateway for testing sensor integration, ROS 2 orchestration, and agentic (AI-driven) robotics. It's also great fun for kids of all ages.
+**Boomy** is a **Yahboom Raspbot v2** (Mecanum Version) robot car. Weighing in at approximately **1.0 kg** and costing roughly **$300** (fully loaded with a Raspberry Pi 5 16GB), it provides a unified platform for testing sensor integration, ROS 2 orchestration, and agentic (AI-driven) robotics. It's also great fun for kids of all ages.
 
 ### The Manufacturer: Yahboom
 [Yahboom](https://www.yahboom.net/) is a prominent player in the Chinese robotics and STEM education industry. They offer a diverse range of hardware platforms:

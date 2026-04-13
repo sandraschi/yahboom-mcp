@@ -52,10 +52,10 @@ function useTelemetry() {
 const WHEEL_RADIUS = 0.0325
 const WHEEL_X_OFF = 0.08
 const WHEEL_Y_HALF = 0.169 / 2 + (-0.01) // 0.0745m
-/** World Y of wheel axle so tire bottom sits on ground (y=0). URDF z offsets are Z-up; here Y is up. */
+/** World Y of wheel axle so tire bottom sits on ground (y=0). */
 const WHEEL_AXLE_Y = WHEEL_RADIUS
-/** base_link origin sits one wheel radius above wheel centers in URDF; keep that gap in Y-up space. */
-const BASE_LINK_Y = WHEEL_AXLE_Y + WHEEL_RADIUS
+/** Chassis underside sits at half wheel height (WHEEL_RADIUS) above ground. */
+const BASE_LINK_Y = WHEEL_RADIUS
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STL mesh helper — loads one STL file and returns a mesh with material
@@ -126,7 +126,7 @@ function WheelMesh({
         <group ref={groupRef} position={position}>
             <StlPart
                 url={url}
-                rotation={[0, Math.PI / 2, flip ? Math.PI : 0]}
+                rotation={[0, Math.PI / 2, Math.PI / 2 + (flip ? Math.PI : 0)]}
                 color="#222222"
                 metalness={0.3}
                 roughness={0.8}
@@ -222,6 +222,7 @@ function G1Robot({ yaw, linearVel }: { yaw: number; linearVel: number }) {
             <StlPart
                 url="/assets/meshes/base_link_X3.STL"
                 position={[0, BASE_LINK_Y, 0]}
+                rotation={[-Math.PI / 2, 0, 0]}
                 color="#1e3a5f"
                 metalness={0.5}
                 roughness={0.5}
@@ -364,8 +365,11 @@ const Viz = () => {
                     <Box className="text-indigo-400 w-6 h-6" />
                     <div>
                         <h1 className="text-2xl font-bold text-white tracking-tight">3D Visualization</h1>
-                        <p className="text-slate-400 text-xs">
-                            Raspbot v2 — real STL meshes from URDF
+                        <p className="font-mono text-[10px] text-amber-500 font-bold uppercase tracking-widest mt-0.5">
+                            v0.1 Pre-Alpha · Everything is jumbled · Work in Progress (Haha)
+                        </p>
+                        <p className="text-slate-400 text-xs mt-1">
+                            Raspbot v2 — Using X3 proxy meshes for now
                             {' · '}
                             <a
                                 href="https://github.com/automaticaddison/yahboom_rosmaster"

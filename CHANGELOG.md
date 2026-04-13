@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.3] - 2026-04-13
+### 🎨 3D Visualization Refinement (SOTA v16.12)
+- **Geometry Correction**: Re-oriented the 3D model (Y-up) and applied -90° X-axis rotation to the chassis.
+- **Physics Alignment**: Elevated the chassis base to half wheel height (`WHEEL_RADIUS`) and aligned wheel axles horizontally.
+- **Humorous Transparency**: Added "v0.1 Pre-Alpha" disclaimer to the dashboard to manage expectations regarding proxy meshes.
+
+## [2.3.2] - 2026-04-13
+### 🚢 Fleet Scaling & Identity (SOTA v16.11)
+- **Identity Hardening**: Explicitly documented Boomy as a ~$300 / 1.0kg **unified platform** in the primary README.
+- **Premium Expansion**: Added `docs/fleet/SCALING_TO_X3_PLUS.md` detailing the professional path to Jetson Orin + LiDAR + 6-DOF arm hardware.
+- **Bumi Roadmap**: Initialized the `bumi-mcp` (Noetix Bumi Android) project as an Autumn 2026 hardware target with a current **Virtual Twin** focus.
+
+## [2.3.1] - 2026-04-12
+### 🌐 Universal Port Synchronization (SOTA v16.10)
+- **Port 10892 Standard**: Re-aligned the entire project stack (Vite Proxy, Justfile, FastAPI) to port 10892 to match the `start.ps1` runtime environment.
+- **Peripheral Restoration**: Fully restored the "Patrol Car" lightstrip pattern in `Peripherals.tsx`.
+- **Infrastructure Cleanup**: Hardened `start.ps1` to prevent port collisions and ensure zero-downtime startups.
+
 ## [2.3.0-beta.1] - 2026-04-12
 ### 🎙️ Conversational Edge Intelligence (SOTA v16.0)
 - **Speech Activation**: Resolved the "Silence" issue by hardening the USB Voice Module serial protocol and ensuring default volume initialization.
