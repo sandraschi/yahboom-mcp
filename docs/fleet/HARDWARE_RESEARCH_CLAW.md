@@ -12,6 +12,7 @@ To evolve the **Butlerbot v0.1** beyond the heavy DOFBOT demonstrator, we are re
 | Option | Pros | Cons | Ideal Use |
 | :--- | :--- | :--- | :--- |
 | **Aluminum Mini-Claw** | Durable, Premium Look (~70g). | Slightly heavier than plastic. | **Tablet Holding** / Tray Service. |
+| **Stopgap Toy Arms** | Ultra-Cheap ($50-$80), Fast-Ship. | Flimsy, Low-Payload (~150g). | **Software Prototyping** / Basic Handoff. |
 | **3D-Printed Soft-Grip** | Ultralight (<50g), customizable. | Less durable, requires printing. | **Fruit/Delicate Object** handling. |
 | **Plywood Laser-Cut** | Cheap, DIY friendly. | Aesthetics don't match Bumi VT. | Rapid prototyping. |
 
