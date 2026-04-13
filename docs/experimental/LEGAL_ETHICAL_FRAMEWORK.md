@@ -110,7 +110,21 @@ If "Humanity" is at stake, the Zeroeth Law suggests the terrorist can be harmed 
 - **The Protocol**: While philosophically sound, the **Zeroeth Law is Non-Actionable** for civilian units. Without judicial authority, the machine cannot define "Humanity" or "Terrorist" accurately in real-time. 
 - **Kinetic Standard**: The only compliant "Zeroeth Law" action is to **Minimize Total Kinetic Energy** in the environment and provide **High-Fidelity Telemetry** for human first responders.
 
-## 🏛️ 10. Future Courtcases
+## ⚡ 10. The Split-Second Paradox (RoboCop Failure Mode)
+
+In extreme scenarios where a threat must be neutralized in milliseconds (e.g., a hand grenade pin pull), the fleet addresses the **"RoboCop" Paradox**:
+
+### 🚫 A. The RoboCop Failure Mode
+Automation of "Lethal Commands" (e.g., "Drop your weapon") results in high-risk failure modes where machine latency or contextual misidentification leads to tragic outcomes. 
+- **The Core Standard**: Even if an LLM/Vision system detects a threat 10x faster than a human, the **Judicial Barrier** prevents the machine from initiating lethal force. 
+
+### 🛡️ B. The Protective Handoff (Shield-First)
+To bridge the split-second gap without violating Due Process, the fleet implements the **Protective Handoff**:
+- **Action 1: Passive Intervention (T+0ms)**: The robot deploys its mass as a physical barrier (Shielding) or uses disorienting signals. This is a **Non-Lethal Kinetic Event** aimed at delaying the threat.
+- **Action 2: Human-in-the-Loop Handoff (T+250ms)**: The system provides a high-fidelity "Decision Packet" to human responders.
+- **The Reasoning**: The machine’s speed is used to **Protect**, while the human’s judgment is used to **Act**. If the robot "acts" by killing, it has failed its SOTA v16.16 safety mission.
+
+## 🏛️ 11. Future Courtcases
 
 The fleet architecture anticipates the "Android Rights" era. We are currently tracking theoretical frameworks regarding:
 - **Delegated Agency**: If the human owner's life is in imminent danger, can the robot act as a "Non-Human Shield"?
