@@ -36,4 +36,5 @@
 
 - **Port Paradox**: Resolved (All components moved from 10792 -> 10892).
 - **Process Guard**: `start.ps1` hardened with automatic port squatter cleanup.
-- **Documentation**: All READMEs and guides synced to v16.12.
+- **Documentation**: All READMEs and guides synced to v16.12/Autumn 2026 standards.
+- **Android Doctrine**: Federated safety and operational standards synchronized via `robotics-mcp`.
