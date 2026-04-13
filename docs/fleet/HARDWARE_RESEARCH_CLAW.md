@@ -15,7 +15,14 @@ To evolve the **Butlerbot v0.1** beyond the heavy DOFBOT demonstrator, we are re
 | **3D-Printed Soft-Grip** | Ultralight (<50g), customizable. | Less durable, requires printing. | **Fruit/Delicate Object** handling. |
 | **Plywood Laser-Cut** | Cheap, DIY friendly. | Aesthetics don't match Bumi VT. | Rapid prototyping. |
 
-## 📐 3. Integration Path
+## 📜 3. Historical Precedent: The Dalek Principle
+
+The **Dalek Plunger Arm** (BBC, 1963) remains one of the most effective "Affordable Industrialization" examples in robotics history.
+- **The £5 Prop**: By using a domestic sink plunger, the BBC demonstrated that **High-Adhesion Vacuum** is a viable alternative to complex (and expensive) multi-fingered hands.
+- **Modern SOTA (2026)**: We see this lineage in the **Universal Jamming Gripper** and professional vacuum suction hubs used in logistics. 
+- **Application for Bumi**: A passive suction cup (The "Dalek Standard") offers a zero-power, fail-safe method for transporting smooth trays or tablets, perfectly aligning with the "Bumi-Attuned" lightweight requirement.
+
+## 📐 4. Integration Path
 1. **Mounting**: Use the existing passive claw mount point on Bumi's arm.
 2. **Power**: External 5V rail (Common Ground with ESP32). Do NOT power from ESP32 3.3V pin.
 3. **Control**: `ESP32Servo` library over PWM.
