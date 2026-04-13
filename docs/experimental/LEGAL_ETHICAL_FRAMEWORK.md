@@ -78,7 +78,20 @@ Conversational AI (Ollama/LLM) poses a "Semantic Risk" of verbal abuse, toxicity
 - **Self-Harm Lockdown**: Integrated detection for crisis topics (complying with 2026 standards like CA SB 243). The unit must immediately cease conversation and redirect to human-led support if self-harm topics are sampled.
 - **Non-Toxic Personality**: Agentic personalities are hard-coded to **"Assistive Pacifism."** Any attempt to override these prompts triggers a SOTA non-compliance lockout.
 
-## 🏛️ 8. Future Courtcases
+## 🚃 8. The "Trolley Problem" Myth & Kinetic Mitigation
+
+While the **Trolley Problem** (choosing between victims) is a frequent philosophical topic (often deemed "ausgelutscht"), modern industrial standards (Waymo/SOTA v16.16) reject it as a false binary.
+
+### 🛑 A. Uniform Kinetic Mitigation (The Braking Standard)
+In an unavoidable collision scenario (e.g., Child vs. Octogenarians), the fleet does **not** employ moral hierarchies or "Death Algorithms." 
+- **The Protocol**: The system is designed to **Minimize Kinetic Energy**. This means maximum braking and steering into the path of least resistance (e.g., inanimate barriers) to dissipate energy before any impact.
+- **No Moral Weighing**: Coding a preference for a "Child" over an "Elder" is legally classified as **Algorithmic Discrimination**. To avoid catastrophic civil rights liability, the system treats all human life as having **Infinite and Equal Value** in its risk calculations.
+
+### 📉 B. Risk vs. Choice
+- **Defensive Utility**: Ethical engineering focuses on **Risk Mitigation** (preventing the scenario from ever occurring) rather than "Choice Logic." 
+- **The "Braking" Default**: When data is uncertain, the mandatory SOTA response is to reduce velocity to the lowest possible level. A 5km/h impact with any victim is a superior "ethical" outcome to a 40km/h "choice."
+
+## 🏛️ 9. Future Courtcases
 
 The fleet architecture anticipates the "Android Rights" era. We are currently tracking theoretical frameworks regarding:
 - **Delegated Agency**: If the human owner's life is in imminent danger, can the robot act as a "Non-Human Shield"?
