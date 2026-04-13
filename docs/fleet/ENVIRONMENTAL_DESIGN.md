@@ -21,7 +21,23 @@ Robots struggle with traditional door handles.
 - **The Mod**: Storing "Utility Objects" (Feather dusters, Trays, Tablets) in open **Reception Docks** rather than enclosed spaces.
 - **The Android Rule**: If the robot cannot see the tool's interaction handle, the tool does not exist for the autonomous agent.
 
-## 🌐 3. Interaction Standards
+## 🗺️ 3. Physical Mapping: The Niantic Standard
+
+To achieve **Tier 2 Intelligence**, the household must be converted into a high-fidelity digital twin.
+- **Niantic Mapping**: We utilize the **Niantic/Scaniverse** ecosystem for 3D Gaussian Splatting. 
+- **The Workflow**:
+    1. A human operator performs the initial apartment scan using Niantic Lightship.
+    2. The resulting SPLAT/PLY data is exported to the fleet knowledge base.
+    3. The robot uses the 3D Splat as a reference for semantic object location (Spatial RAG).
+
+## 🛒 4. External Mobility: The Passive Trolley
+
+The robot's interaction with the outside world (e.g., the SPAR grocery mission) is governed by the **Passive Traction Standard**:
+- **Mechanical Hook**: A standardized, low-cost hitch for standard "Cheapo" push/pull trolleys or shoppers.
+- **Passive Tractive Effort**: The robot acts as the primary motor; the trolley is passive (no independent drive-wheels).
+- **Control Law**: The robot must utilize stability-aware braking to account for trolley inertia during descent or emergency stops.
+
+## 🌐 5. Interaction Standards
 - **Digital Handshakes**: High-torque appliances should inform the robot of their state (Open/Closed/Locked) via MQTT/Matter to prevent "Dead-Lock" scenarios.
 - **Path Clearance**: Maintaining a 50cm "Bumi-Corridor" in living spaces to ensure 100% navigation uptime.
 

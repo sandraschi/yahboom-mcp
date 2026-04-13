@@ -141,7 +141,22 @@ A robot capable of turning a physical control knob on a gas stove introduces "Li
 ### 🔍 C. Digital Forensics
 In any domestic accident, **Digital Evidence is Primary**. The fleet maintains high-fidelity logs of sensor state and firmware history. Any attempt to tamper with these logs to "blame the machine" for a user error is detectable via SOTA hash-verification.
 
-## 🏛️ 12. Future Courtcases
+## 🔥 12. Tier 2 Safety: Thermal & Fluid Protocols
+
+As the fleet moves into high-hazard domestic tasks, the following **Redline Standards** are mandatory:
+
+### 🍵 A. The "Kettle & Bath" Failsafe (Fluid Dynamics)
+Manipulation of liquids (Running a bath, Boiling a kettle) requires **Multi-Modal Verification**:
+- **Acoustic Monitoring**: Detecting the sound of boiling or the pitch-shift of a filling tub.
+- **Thermal Interlock**: Mandatory IR sensor lock. A bath must not be filled without verifying the temperature is below the **Scald Redline** (49°C / 120°F).
+- **Proactive Over-Flow Prevention**: If sensor logs show a filling duration exceeding the apartment’s calibrated "Digital Twin" volume, the robot must initiate an emergency valve shut-off or alert.
+
+### 🔪 B. Dangerous Goods Exclusion (The Chef's Knife Rule)
+Autonomous manipulation of lethal civilian objects (e.g., chefs' knives, lye, power tools) is strictly controlled:
+- **Exclusion by Default**: Robots are logically barred from grasping high-hazard objects unless the system is in a **Restricted Maintenance/Chef State**.
+- **The "Storage-First" Rule**: Robots may only move these items for the purpose of "Safe Lockaway" (returning them to a known-safe, robot-proof storage zone).
+
+## 🏛️ 13. Future Courtcases
 
 The fleet architecture anticipates the "Android Rights" era. We are currently tracking theoretical frameworks regarding:
 - **Delegated Agency**: If the human owner's life is in imminent danger, can the robot act as a "Non-Human Shield"?
