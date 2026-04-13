@@ -27,7 +27,19 @@ The fleet's AI guardrails are designed to maximize utility and minimize sufferin
 | **Passive Detainment** (Boxing in) | Medium | High (If no risk of crushing). |
 | **Active Force** (The "Knife" Protocol) | **STRICTLY PROHIBITED** | **NEGATIVE** (Leads to catastrophic liability). |
 
-## 🏛️ Future Courtcases
+## 🥊 4. Proportionality & The "Reasonable Weapon" Standard
+
+The legal definition of **Reasonable Self-Defense** relies heavily on the proportionality of the weapon used. In 2026, this creates a specific "Capability Scale" for autonomous units:
+
+### 🟢 Category A: Reasonable Deterrents
+- **Bumi with a Baseball Bat**: Legally comparable to a human homeowner with a bat. Provided the force is directed at a threat *entering* a dwelling and stops once the threat is neutralized/retreating, it may fall under "Reasonable Force" protections for the owner.
+- **Flash/Sound/Entrapment**: High-utility, low-liability deterrence.
+
+### 🟡 Category B: Questionable/Excessive Force
+- **Bumi with a Naginata (Japanese Polearm)**: The use of an antiquated, high-lethality weapon from a machine platform is almost certainly **Excessive Force**. It suggests a lack of "Reasonable Restraint" and would likely negate an owner's self-defense claim.
+- **Android "Deadly Karate" (Unitree G1/H1)**: High-force impacts from 50kg+ industrial-grade actuators are legally viewed as **Lethal Force**. A "Deadly Kick" to a retreating burglar is a massive liability violation (shooting a burglar in the back is illegal; a robotic kick to the head is identical).
+
+## 🏛️ 5. Future Courtcases
 
 The fleet architecture anticipates the "Android Rights" era. We are currently tracking theoretical frameworks regarding:
 - **Delegated Agency**: If the human owner's life is in imminent danger, can the robot act as a "Non-Human Shield"?
