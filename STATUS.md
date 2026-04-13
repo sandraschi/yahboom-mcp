@@ -38,3 +38,4 @@
 - **Process Guard**: `start.ps1` hardened with automatic port squatter cleanup.
 - **Documentation**: All READMEs and guides synced to v16.12/Autumn 2026 standards.
 - **Android Doctrine**: Federated safety and operational standards synchronized via `robotics-mcp`.
+- **Architectural Alignment**: Formalized the "Host-Controller" separation pattern across both Bumi (E1-based) and Boomy (RosMaster-based) hardware targets.
