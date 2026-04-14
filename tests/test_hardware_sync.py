@@ -1,6 +1,6 @@
-import os
 import asyncio
 import logging
+import os
 import sys
 
 # Add src to path
@@ -8,10 +8,10 @@ sys.path.insert(
     0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
 )
 
-from yahboom_mcp.core.ssh_bridge import SSHBridge
 from yahboom_mcp.core.ros2_bridge import ROS2Bridge
-from yahboom_mcp.state import _state
+from yahboom_mcp.core.ssh_bridge import SSHBridge
 from yahboom_mcp.operations import lightstrip
+from yahboom_mcp.state import _state
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("hardware-test")

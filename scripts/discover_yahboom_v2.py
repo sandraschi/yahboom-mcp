@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -24,7 +25,7 @@ def discover_yahboom():
     print(f"YAHBOOM_FOLDERS: {out}")
 
     print("[*] Searching for SSD1306 imports in /home/pi/...")
-    out, err, code = ssh.execute("grep -r 'SSD1306' /home/pi/ 2>/dev/null | head -n 5")
+    out, err, _code = ssh.execute("grep -r 'SSD1306' /home/pi/ 2>/dev/null | head -n 5")
     print(f"SSD1306_GREP: {out}")
 
 

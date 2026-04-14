@@ -1,9 +1,9 @@
 """Yahboom MCP Shared State."""
 
-from typing import Dict, Any
+from typing import Any
 
 # Global state for resource sharing between lifespan and tools/routes
-_state: Dict[str, Any] = {
+_state: dict[str, Any] = {
     "bridge": None,
     "video_bridge": None,
     "trajectory_manager": None,

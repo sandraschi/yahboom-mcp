@@ -1,8 +1,9 @@
-import logging
-import time
 import json
+import logging
 import os
-from typing import List, Dict, Any, Optional
+import time
+from typing import Any
+
 from pydantic import BaseModel
 
 logger = logging.getLogger("yahboom-mcp.operations.trajectory")
@@ -23,7 +24,7 @@ class TrajectoryManager:
 
     def __init__(self, data_dir: str = "data/trajectories"):
         self.data_dir = data_dir
-        self.active_recording: List[TrajectoryPoint] = []
+        self.active_recording: list[TrajectoryPoint] = []
         self.is_recording = False
 
         if not os.path.exists(self.data_dir):
@@ -40,7 +41,7 @@ class TrajectoryManager:
                 TrajectoryPoint(timestamp=time.time(), x=x, y=y, z=z, heading=heading)
             )
 
-    def stop_recording(self, name: str) -> Optional[str]:
+    def stop_recording(self, name: str) -> str | None:
         if not self.is_recording:
             return None
 
@@ -54,13 +55,13 @@ class TrajectoryManager:
         logger.info(f"Trajectory saved to {filepath}")
         return filepath
 
-    def list_trajectories(self) -> List[str]:
+    def list_trajectories(self) -> list[str]:
         return [f for f in os.listdir(self.data_dir) if f.endswith(".json")]
 
-    def load_trajectory(self, filename: str) -> List[Dict[str, Any]]:
+    def load_trajectory(self, filename: str) -> list[dict[str, Any]]:
         filepath = os.path.join(self.data_dir, filename)
         if not os.path.exists(filepath):
             return []
 
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             return json.load(f)

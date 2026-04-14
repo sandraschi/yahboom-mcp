@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# encoding: utf-8
 #
 # Mcnamu_driver_patched.py — Yahboom Raspbot v2 ROS 2 driver
 #
@@ -16,17 +15,18 @@
 #                         Falls back to /dev/ttyUSB0 if symlink not present
 #   BOOMY_SENSOR_BAUD   — baud rate (default: 115200)
 
-import os
-import rclpy
-from rclpy.node import Node
-from geometry_msgs.msg import Twist
-from sensor_msgs.msg import Imu, BatteryState
-from std_msgs.msg import Int32, Bool, Int32MultiArray, Float32
-from yahboomcar_msgs.msg import ServoControl
-from Raspbot_Lib import Raspbot
-from Rosmaster_Lib import Rosmaster
-import time
 import math
+import os
+import time
+
+import rclpy
+from geometry_msgs.msg import Twist
+from Raspbot_Lib import Raspbot
+from rclpy.node import Node
+from Rosmaster_Lib import Rosmaster
+from sensor_msgs.msg import BatteryState, Imu
+from std_msgs.msg import Bool, Float32, Int32, Int32MultiArray
+from yahboomcar_msgs.msg import ServoControl
 
 # Battery cell chemistry constants
 _CELL_COUNT   = 3          # 3S LiPo
@@ -282,21 +282,16 @@ if __name__ == "__main__":
     main()
 
 
-import rclpy
-from rclpy.node import Node
 from geometry_msgs.msg import Twist
-from sensor_msgs.msg import Imu, BatteryState
-from std_msgs.msg import Int32, Bool, Int32MultiArray, Float32
+from rclpy.node import Node
+from std_msgs.msg import Bool, Int32, Int32MultiArray
 from yahboomcar_msgs.msg import ServoControl
-from Raspbot_Lib import Raspbot
-from Rosmaster_Lib import Rosmaster
-import time
-import math
+
 
 class YahboomCarDriver(Node):
     def __init__(self, name):
         super().__init__(name)
-        
+
         # Motion Controller (I2C)
         try:
             self.car = Raspbot()
@@ -305,7 +300,7 @@ class YahboomCarDriver(Node):
         except Exception as e:
             self.get_logger().error(f'Failed to initialize Raspbot I2C: {e}')
             self.car = None
-        
+
         # Sensory Controller (Serial)
         try:
             self.sensors = Rosmaster(com='/dev/ttyUSB0')
@@ -379,7 +374,7 @@ class YahboomCarDriver(Node):
                 # Blue
                 if self.sensors: self.sensors.set_colorful_lamps(0xFF, 0, 0, 255)
                 if self.car: self.car.Ctrl_WQ2812_brightness_ALL(0, 0, 255)
-        
+
         # Effect 1-6: Rosmaster built-in effects
         elif 1 <= self.current_effect <= 6:
             if self.sensors:
@@ -453,20 +448,20 @@ class YahboomCarDriver(Node):
                 imu_msg = Imu()
                 imu_msg.header.stamp = self.get_clock().now().to_msg()
                 imu_msg.header.frame_id = 'base_link'
-                
+
                 acc = self.sensors.get_accelerometer_data()
                 gyro = self.sensors.get_gyroscope_data()
-                
+
                 if acc:
                     imu_msg.linear_acceleration.x = float(acc[0])
                     imu_msg.linear_acceleration.y = float(acc[1])
                     imu_msg.linear_acceleration.z = float(acc[2])
-                
+
                 if gyro:
                     imu_msg.angular_velocity.x = float(gyro[0]) * (math.pi / 180.0)
                     imu_msg.angular_velocity.y = float(gyro[1]) * (math.pi / 180.0)
                     imu_msg.angular_velocity.z = float(gyro[2]) * (math.pi / 180.0)
-                    
+
                 self.pub_imu.publish(imu_msg)
             except: pass
 

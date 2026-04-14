@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
+import logging
 import os
 import sys
-import logging
 
 # Add the src directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
@@ -27,12 +27,12 @@ async def main():
 
     # 1. Check NetworkManager Connections
     logger.info("🔍 Probing NetworkManager for 'raspbot' identity...")
-    out, err, code = ssh.execute("nmcli connection show")
+    out, _err, _code = ssh.execute("nmcli connection show")
     if "raspbot" in out:
         logger.info("✅ Found 'raspbot' profile in NetworkManager.")
 
         # Audit the specific profile
-        out_prof, err_prof, code_prof = ssh.sudo_execute(
+        out_prof, _err_prof, _code_prof = ssh.sudo_execute(
             "nmcli connection show raspbot"
         )
         print("\n--- NetworkManager 'raspbot' Profile ---")
@@ -55,19 +55,19 @@ async def main():
             "⚠️ No 'raspbot' profile found in nmcli. Checking for generic hotspot..."
         )
         # Check all wifi devices
-        out_dev, err_dev, code_dev = ssh.execute("nmcli device show wlan0")
+        out_dev, _err_dev, _code_dev = ssh.execute("nmcli device show wlan0")
         print(out_dev)
 
     # 2. Check Systemd services for non-standard AP wrappers
     logger.info("🔍 Probing system services for custom wrappers...")
-    out_serv, err_serv, code_serv = ssh.execute(
+    out_serv, _err_serv, _code_serv = ssh.execute(
         "systemctl list-units --type=service | grep -E 'ap|wifi|hostapd|create_ap'"
     )
     print(out_serv)
 
     # 3. Check for regional/driver frequency rejection
     logger.info("🔍 Checking WiFi regulatory domain...")
-    out_reg, err_reg, code_reg = ssh.execute("iw reg get")
+    out_reg, _err_reg, _code_reg = ssh.execute("iw reg get")
     print(out_reg)
 
     ssh.close()

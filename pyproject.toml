@@ -1,6 +1,6 @@
 [project]
 name = "yahboom-mcp"
-version = "2.2.0-beta.1"
+version = "2.3.0"
 description = "SOTA 2026 Yahboom Raspbot v2 ROS 2 MCP Server"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -28,6 +28,7 @@ dev = [
     "pytest-timeout>=2.3.0",
     "httpx[asyncio]>=0.27.0",   # ASGI test client for snapshot endpoint tests
     "anyio>=4.0.0",              # required by httpx ASGI transport
+    "ruff>=0.9.0",
 ]
 # Same packages the MCP installs on the Pi over SSH for voice + OLED; optional locally for smoke tests.
 robot-pi = [

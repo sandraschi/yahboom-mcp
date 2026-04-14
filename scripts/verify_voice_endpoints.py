@@ -1,5 +1,6 @@
-import requests
 import time
+
+import requests
 
 
 def verify_voice_endpoints():

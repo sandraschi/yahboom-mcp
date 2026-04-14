@@ -5,11 +5,9 @@ Run: pytest tests/unit/ -v
 """
 import pytest
 
-from yahboom_mcp.operations import motion, lightstrip
-from yahboom_mcp.operations import display, voice
+from yahboom_mcp.operations import display, lightstrip, motion, voice
 from yahboom_mcp.operations.camera_ptz import camera_move, camera_reset, camera_set_pos
 from yahboom_mcp.portmanteau import yahboom_tool
-
 
 # ── Motion ───────────────────────────────────────────────────────────────────
 

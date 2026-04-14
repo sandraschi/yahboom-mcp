@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -12,7 +13,7 @@ def trace_launch_script():
         return
 
     print("[*] Reading /usr/local/bin/yahboom-launch.sh...")
-    out, err, code = ssh.execute("cat /usr/local/bin/yahboom-launch.sh")
+    out, err, _code = ssh.execute("cat /usr/local/bin/yahboom-launch.sh")
     if out:
         print("-" * 40)
         print(out)

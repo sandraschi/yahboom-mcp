@@ -1,36 +1,38 @@
 #!/usr/bin/env python3
 """
 SOTA 2026 Yahboom Raspbot v2 ROS 2 MCP Server
-**Timestamp**: 2026-04-04
-**Standards**: FastMCP 3.2.0, Unified Gateway, SEP-1577
+**Timestamp**: 2026-04-14
+**Standards**: FastMCP 3.2.0, Unified Gateway, SEP-1577, v2.3.0 parity
 
 This server implements the Unified Gateway pattern, consolidating MCP SSE transport
 and custom API endpoints into a single high-performance FastAPI substrate.
+It supports native FastMCP 3.2.0 Prompts and formalized Claude Skills.
 """
 
+import asyncio
+import logging
 import os
 import sys
-import logging
-import asyncio
+import time
 from contextlib import asynccontextmanager
+
+import httpx
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import Response, StreamingResponse
 from fastmcp import FastMCP
-import httpx
-import time
+from pydantic import BaseModel
 
 start_time = time.time()
 
-from .state import _state
-from .core.ssh_bridge import SSHBridge
-from .core.ros2_bridge import ROS2Bridge
 from .core.esp32_bridge import ESP32Bridge
+from .core.ros2_bridge import ROS2Bridge
+from .core.ssh_bridge import SSHBridge
 from .core.video_bridge import VideoBridge
+from .operations import lightstrip, missions, voice
 from .operations.trajectory import TrajectoryManager
-from .operations import voice, lightstrip, missions
+from .state import _state
 
 # SOTA 2026 Logging Configuration
 logging.basicConfig(
@@ -77,7 +79,7 @@ async def lifespan(fastapi_app: FastAPI):
     video_bridge = None
     watchdog_task = None
     trajectory_manager = TrajectoryManager()
-    
+
     # Store early in state so tools can access even before connected
     _state["trajectory_manager"] = trajectory_manager
 
@@ -116,10 +118,10 @@ async def lifespan(fastapi_app: FastAPI):
         """Background task to handle initial connection without blocking API startup."""
         nonlocal video_bridge, watchdog_task
         logger.info(f"Connecting to Yahboom robot at {robot_host} (Async)...")
-        
+
         # ROS/Bridge connection
         connected = await bridge.connect(timeout=15.0)
-        
+
         # SSH connection (secondary)
         if ssh:
             ssh_success = await asyncio.to_thread(ssh.connect)
@@ -176,6 +178,11 @@ app.add_middleware(
 # Initialize MCP from FastAPI (Unified Gateway pattern)
 mcp = FastMCP.from_fastapi(app, name="Yahboom ROS 2")
 
+# --- SOTA 3.2.0 Prompt Registration ---
+from .prompts import register_prompts
+
+register_prompts(mcp)
+
 
 # --- SOTA 3.1.1 Unified Gateway Routes ---
 
@@ -185,7 +192,7 @@ async def get_health():
     bridge = _state.get("bridge")
     video = _state.get("video_bridge")
     ssh = _state.get("ssh")
-    
+
     ros_connected = False
     if bridge and getattr(bridge, "ros", None):
         ros_connected = bridge.ros.is_connected
@@ -362,11 +369,11 @@ async def ros_restart_bringup() -> str:
 
     # Give it time to initialize hardware before trying to connect bridge
     await asyncio.sleep(5)
-    
+
     bridge: ROS2Bridge = _state.get("bridge")
     if bridge:
         await bridge.resync_metadata()
-        
+
     return "Native bringup triggered via SSH. Sensory resync in progress."
 
 
@@ -675,59 +682,7 @@ async def lidar(
 # Register LIDAR tool (the only one not already decorated above)
 mcp.tool()(lidar)
 
-# --- Prompts (FastMCP 3.1) ---
-
-
-@mcp.prompt
-def yahboom_quick_start(robot_ip: str = "localhost") -> str:
-    """Get step-by-step instructions to connect and run the Yahboom Raspbot v2 robot with this MCP server."""
-    return f"""You are helping set up the Yahboom Raspbot v2 ROS 2 MCP server.
-
-1. Ensure the robot is powered and on the same LAN. ROSBridge must be running on the robot (e.g. `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`).
-2. Set YAHBOOM_IP={robot_ip} (or the robot's actual IP) and start the server: `uv run python -m yahboom_mcp.server --mode dual --port 10792`.
-3. Open the dashboard at http://localhost:10793. Use Mission Control for telemetry and the Chat page for natural-language commands.
-4. From an MCP client (Cursor, Claude Desktop), use the yahboom tool with operation=health_check first, then motion operations (forward, backward, turn_left, turn_right, stop).
-5. For high-level goals use the yahboom_agentic_workflow tool with a natural-language goal."""
-
-
-@mcp.prompt
-def yahboom_patrol(duration_seconds: str = "10") -> str:
-    """Generate a patrol plan for the Yahboom robot (e.g. square or figure-8)."""
-    return f"""Plan a safe patrol for the Yahboom G1 robot lasting about {duration_seconds} seconds.
-
-Use the yahboom_agentic_workflow tool with a goal like: "Patrol in a square: move forward 2 seconds, turn left 90 degrees, repeat 4 times, then stop and report battery."
-Or use individual yahboom(operation=...) calls for forward, turn_left, turn_right, stop. Always check health first."""
-
-
-@mcp.prompt
-def yahboom_diagnostics() -> str:
-    """Get a diagnostic checklist for the Yahboom robot and MCP server."""
-    return """Run a quick diagnostic on the Yahboom setup:
-
-1. Call yahboom(operation='health_check') to see ROS bridge connection and battery.
-2. If connected, call yahboom(operation='read_imu') for orientation and yahboom(operation='read_battery') for power.
-3. Check the dashboard at http://localhost:10793 (Mission Control) for live telemetry and the 3D Viz page.
-4. If bridge is disconnected, verify YAHBOOM_IP, robot power, and rosbridge_server on the robot."""
-
-
-@mcp.prompt
-def yahboom_patrol_apartment() -> str:
-    """Standard action: patrol the apartment (full circuit of main rooms, avoid obstacles, return to start)."""
-    return """Execute a patrol of the apartment with the Yahboom Raspbot v2 robot.
-
-1. Call yahboom(operation='health_check') and ensure battery is sufficient (> 20%).
-2. Use yahboom_agentic_workflow with a goal like: "Patrol the apartment: do a full circuit of the main rooms. Move forward along walls, turn at corners, avoid obstacles using LIDAR/common sense. Return to the starting position and stop. Report battery when done."
-3. Alternatively use a sequence of yahboom(operation='forward', param1=duration), yahboom(operation='turn_left'|'turn_right', param1=duration), and lidar(operation='read') to check obstacles. Prefer agentic_workflow for multi-step patrol."""
-
-
-@mcp.prompt
-def yahboom_go_to_recharge() -> str:
-    """Standard action: go to recharge (drive to charging station and stop). Contactless recharger to be equipped later."""
-    return """Send the Yahboom Raspbot v2 robot to the charging station.
-
-1. Call yahboom(operation='health_check'). If battery is critical (< 15%), prioritise a short path to the dock.
-2. Use yahboom_agentic_workflow with a goal like: "Go to recharge: drive to the charging station and stop. Position the robot so it is aligned with the dock. (Contactless recharger will be equipped later; for now just stop at the dock.)"
-3. If the dock position is known (fixed coordinates or landmark), you can use a sequence of forward/turn/strafe and stop. Otherwise instruct the user to guide the robot manually to the dock or to define the dock waypoint."""
+# --- Legacy Prompts Removed (Now in prompts.py) ---
 
 
 # --- Custom API Endpoints (Native to FastMCP App) ---
@@ -1065,12 +1020,12 @@ async def reconnect_hardware():
 
     logger.info("Manual reconnection triggered via API")
     connected = await bridge.connect(timeout=10.0)
-    
+
     if connected:
         resync = _state.get("resync_all_components")
         if resync:
             await resync()
-            
+
     return {"success": connected, "status": "online" if connected else "offline"}
 
 

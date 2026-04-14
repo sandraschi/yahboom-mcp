@@ -77,8 +77,7 @@ def build_observation_text(telemetry: dict) -> str:
         parts.append(f"Nearest obstacle: {nearest:.2f} m")
     else:
         parts.append(
-            "Obstacles: front=%s left=%s right=%s"
-            % (
+            "Obstacles: front={} left={} right={}".format(
                 scan.get("front"),
                 scan.get("left"),
                 scan.get("right"),

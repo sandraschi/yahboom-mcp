@@ -1,10 +1,10 @@
-import cv2
-import logging
 import asyncio
+import logging
+
+import cv2
+import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
-import uvicorn
-import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("yahboom-cam-host")
@@ -31,11 +31,11 @@ class Camera:
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAP_WIDTH)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAP_HEIGHT)
         self.cap.set(cv2.CAP_PROP_FPS, CAP_FPS)
-        
+
         if not self.cap.isOpened():
             logger.error(f"Cannot open camera {CAP_DEVICE}")
             return False
-            
+
         self.active = True
         logger.info(f"Camera {CAP_DEVICE} opened at {CAP_WIDTH}x{CAP_HEIGHT}")
         return True
@@ -49,7 +49,7 @@ class Camera:
     async def get_frame(self):
         if not self.active or not self.cap:
             return None
-            
+
         # Running in a thread to keep FastAPI responsive
         loop = asyncio.get_event_loop()
         ret, frame = await loop.run_in_executor(None, self.cap.read)
@@ -81,7 +81,7 @@ async def video_feed():
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
             await asyncio.sleep(1/CAP_FPS)
-            
+
     return StreamingResponse(generator(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 if __name__ == "__main__":

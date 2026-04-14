@@ -1,7 +1,8 @@
-from fastmcp import Context
 import logging
 import os
 import time
+
+from fastmcp import Context
 
 logger = logging.getLogger("yahboom-mcp.operations.display")
 
@@ -126,7 +127,7 @@ async def execute(
                 driver, probe_addr, width, height,
                 "with canvas(device) as draw: draw.text((0,0), 'OK', fill='white', font=font)"
             )
-            out, _, code = await ssh.execute(
+            out, _, _code = await ssh.execute(
                 _python3_c_command(__import__("shlex").quote(probe_script))
             )
             driver_ok = "VERIFIED" in out

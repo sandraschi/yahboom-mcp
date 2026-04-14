@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any
+from typing import Any
 
 import roslibpy
 
@@ -84,7 +84,7 @@ async def _ssh_servo_fallback(ssh_bridge, servo_id: int, angle: int) -> bool:
         f"print('OK')\""
     )
     cmd = f"docker exec yahboom_ros2 bash -c '{py_cmd}'"
-    out, err, code = await ssh_bridge.execute(cmd)
+    out, err, _code = await ssh_bridge.execute(cmd)
     ok = "OK" in out
     if not ok:
         logger.error(f"SSH servo fallback failed: out={out!r} err={err!r}")
@@ -93,7 +93,7 @@ async def _ssh_servo_fallback(ssh_bridge, servo_id: int, angle: int) -> bool:
 
 async def camera_move(
     ros_bridge, direction: str, step: int = 10, ssh_bridge=None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Move camera incrementally in 4 directions.
     direction: 'up', 'down', 'left', 'right'
@@ -133,7 +133,7 @@ async def camera_move(
 
 async def camera_set_pos(
     ros_bridge, pan: int, tilt: int, ssh_bridge=None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Set absolute camera angles (0-180)."""
     pan  = max(0, min(180, pan))
     tilt = max(0, min(180, tilt))
@@ -155,12 +155,12 @@ async def camera_set_pos(
     }
 
 
-async def camera_reset(ros_bridge, ssh_bridge=None) -> Dict[str, Any]:
+async def camera_reset(ros_bridge, ssh_bridge=None) -> dict[str, Any]:
     """Reset camera to centre (90, 90)."""
     return await camera_set_pos(ros_bridge, 90, 90, ssh_bridge=ssh_bridge)
 
 
-async def camera_center_for_assembly(ros_bridge, ssh_bridge=None) -> Dict[str, Any]:
+async def camera_center_for_assembly(ros_bridge, ssh_bridge=None) -> dict[str, Any]:
     """
     Centre servos for hardware assembly: mount horns/wings at the 90° position.
     """

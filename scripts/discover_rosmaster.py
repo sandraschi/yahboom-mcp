@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -13,7 +14,7 @@ def discover_rosmaster():
 
     print("[*] Searching for 'Rosmaster.py' on the robot...")
     # Find the location of the Rosmaster library source
-    out, err, code = ssh.execute("find /home/pi/ -name 'Rosmaster.py'")
+    out, _err, _code = ssh.execute("find /home/pi/ -name 'Rosmaster.py'")
     if out:
         path = out.strip().split("\n")[0]
         print(f"[*] Found Rosmaster at: {path}")

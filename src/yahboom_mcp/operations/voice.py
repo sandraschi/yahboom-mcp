@@ -1,8 +1,9 @@
-from fastmcp import Context
+import asyncio
 import logging
 import os
 import time
-import asyncio
+
+from fastmcp import Context
 
 logger = logging.getLogger("yahboom_mcp.operations.voice")
 
@@ -308,14 +309,14 @@ except Exception as e:
         # Call local Ollama on the Pi via SSH
         import json
         import shlex
-        
+
         prompt = f"Give a short, friendly, robot-like response to: {user_text}. Max 20 words."
         payload_data = {"model": "gemma3:1b", "prompt": prompt, "stream": False}
         payload_json = json.dumps(payload_data)
-        
+
         cmd = f"curl -s -X POST http://localhost:11434/api/generate -d {shlex.quote(payload_json)}"
         out, err, _ = await ssh.execute(cmd)
-        
+
         try:
             resp = json.loads(out)
             llm_text = resp.get("response", "I am thinking.")

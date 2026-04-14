@@ -1,18 +1,19 @@
 import asyncio
 import os
-import sys
 import shlex
+import sys
 
 # Add src to path
 sys.path.append(os.path.join(os.getcwd(), "src"))
 
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
+
 async def test_beep():
     host = "192.168.1.11"
     password = "yahboom"
     ssh = SSHBridge(host, password=password)
-    
+
     # Try connect
     if not await asyncio.to_thread(ssh.connect):
         print("SSH Connection failed")
@@ -21,7 +22,7 @@ async def test_beep():
     # Find device (typical is /dev/ttyUSB0)
     device = "/dev/ttyUSB0"
     baud = 9600
-    
+
     # Python script to write to serial
     body = f"""
 import serial, time, sys
@@ -38,11 +39,11 @@ except Exception as exc:
     print(f"ERROR: {{exc}}", file=sys.stderr)
 """
     cmd = f"python3 -c {shlex.quote(body)}"
-    out, err, code = await ssh.execute(cmd)
+    out, err, _code = await ssh.execute(cmd)
     print(f"Result: {out}")
     if err:
         print(f"Error: {err}")
-    
+
     ssh.close()
 
 if __name__ == "__main__":

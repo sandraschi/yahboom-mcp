@@ -1,9 +1,10 @@
+import asyncio
 import logging
 import math
-import asyncio
 import os
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
 import roslibpy
 
 logger = logging.getLogger("yahboom-mcp.core.ros2_bridge")
@@ -58,7 +59,7 @@ def _quat_valid(q: dict) -> bool:
     return n > 1e-4
 
 
-def _accel_tilt_deg(accel: dict) -> Tuple[float, float]:
+def _accel_tilt_deg(accel: dict) -> tuple[float, float]:
     """Pitch/roll from gravity vector when orientation quaternion is invalid."""
     ax = float(accel.get("x", 0.0))
     ay = float(accel.get("y", 0.0))
@@ -105,7 +106,7 @@ def _scan_to_obstacle_summary(
     Returns a dict of {sector_name: distance_metres} for 8 sectors.
     Infinite / NaN readings are treated as 'clear' (set to None).
     """
-    sectors: Dict[str, Optional[float]] = {n: None for n in _SECTOR_NAMES}
+    sectors: dict[str, float | None] = {n: None for n in _SECTOR_NAMES}
     if not ranges:
         return sectors
 
@@ -141,13 +142,13 @@ class ROS2Bridge:
     /image_raw/compressed sensor_msgs/CompressedImage → last_image
     """
 
-    def __init__(self, host: str = "localhost", port: int = 9090, fallback_host: Optional[str] = None):
+    def __init__(self, host: str = "localhost", port: int = 9090, fallback_host: str | None = None):
         self.host = host
         self.port = port
         self.fallback_host = fallback_host
-        self.ros: Optional[roslibpy.Ros] = None
+        self.ros: roslibpy.Ros | None = None
         self.connected = False
-        self.state: Dict[str, Any] = {
+        self.state: dict[str, Any] = {
             "imu": {},
             "odom": {},
             "battery": {},
@@ -171,15 +172,15 @@ class ROS2Bridge:
         self.line_msg_type = _lmt if _lmt else "std_msgs/msg/Int32MultiArray"
 
         # Topics
-        self.cmd_vel_topic: Optional[roslibpy.Topic] = None
-        self.imu_listener: Optional[roslibpy.Topic] = None
-        self.battery_listener: Optional[roslibpy.Topic] = None
-        self.odom_listener: Optional[roslibpy.Topic] = None
-        self.scan_listener: Optional[roslibpy.Topic] = None
-        self.sonar_listener: Optional[roslibpy.Topic] = None
-        self.line_status_listener: Optional[roslibpy.Topic] = None
-        self.button_listener: Optional[roslibpy.Topic] = None
-        self.image_listener: Optional[roslibpy.Topic] = None
+        self.cmd_vel_topic: roslibpy.Topic | None = None
+        self.imu_listener: roslibpy.Topic | None = None
+        self.battery_listener: roslibpy.Topic | None = None
+        self.odom_listener: roslibpy.Topic | None = None
+        self.scan_listener: roslibpy.Topic | None = None
+        self.sonar_listener: roslibpy.Topic | None = None
+        self.line_status_listener: roslibpy.Topic | None = None
+        self.button_listener: roslibpy.Topic | None = None
+        self.image_listener: roslibpy.Topic | None = None
 
     async def _tcp_reachable(self, host: str, port: int, timeout: float = 0.8) -> bool:
         """True if something accepts TCP on host:port (quick rosbridge preflight)."""
@@ -188,7 +189,7 @@ class ROS2Bridge:
                 asyncio.open_connection(host, port),
                 timeout=timeout,
             )
-        except (asyncio.TimeoutError, OSError, ConnectionError):
+        except (TimeoutError, OSError, ConnectionError):
             return False
         except Exception:
             return False
@@ -200,7 +201,7 @@ class ROS2Bridge:
                 pass
             return True
 
-    async def _pick_rosbridge_host(self, hosts: List[str]) -> str:
+    async def _pick_rosbridge_host(self, hosts: list[str]) -> str:
         """
         Prefer the first host that accepts TCP on self.port.
         roslibpy uses a process-global Twisted reactor; only one Ros.run() is safe,
@@ -333,7 +334,7 @@ class ROS2Bridge:
                 "setsid ros2 launch yahboomcar_bringup yahboomcar_bringup.launch.py > /tmp/sota_launch.log 2>&1 &'"
             )
             await target_ssh.execute(launch_cmd)
-            await asyncio.sleep(8) 
+            await asyncio.sleep(8)
             logger.info("V14 Recovery Bringup triggered. Waiting for hardware stability...")
         else:
             logger.info("Hardware driver (driver_node) confirmed active.")
@@ -341,7 +342,7 @@ class ROS2Bridge:
         # Phase 2: Check for Rosbridge (Webapp link)
         if "rosbridge_websocket" not in out:
             logger.warning("TELEMETRY BLACKOUT: rosbridge_websocket is missing from the node list. Webapp will remain disconnected.")
-            # We don't block here, as the MCP can still use SSH-fallback if we implement it, 
+            # We don't block here, as the MCP can still use SSH-fallback if we implement it,
             # but we warn the user via logs.
 
     async def get_all_topics(self) -> list[dict[str, str]]:
@@ -371,7 +372,7 @@ class ROS2Bridge:
             # Map result (topics, types) to list of dicts
             enriched = []
             if "topics" in result and "types" in result:
-                for name, t_type in zip(result["topics"], result["types"]):
+                for name, t_type in zip(result["topics"], result["types"], strict=False):
                     enriched.append({"name": name, "type": t_type})
 
             return enriched
@@ -492,7 +493,7 @@ class ROS2Bridge:
         linear_acceleration = message.get("linear_acceleration") or {}
 
         ori_ok = _quat_valid(orientation)
-        euler: Dict[str, float] = {}
+        euler: dict[str, float] = {}
         if ori_ok:
             euler = _quat_to_euler_deg(orientation)
         elif linear_acceleration:
@@ -582,7 +583,7 @@ class ROS2Bridge:
             return
         if math.isnan(rng) or math.isinf(rng):
             return
-        # Values are usually in cm or m depending on driver version; 
+        # Values are usually in cm or m depending on driver version;
         # Mcnamu_driver usually sends metres.
         self.state["ir_proximity"] = round(rng, 3)
 
@@ -702,17 +703,17 @@ class ROS2Bridge:
 
     # ─── Data access ─────────────────────────────────────────────────────────
 
-    async def get_sensor_data(self, key: str) -> Dict[str, Any]:
+    async def get_sensor_data(self, key: str) -> dict[str, Any]:
         """Retrieve cached sensor data by key: imu | battery | odom | scan."""
         return self.state.get(key, {})
 
-    def _ir_proximity_ring_for_api(self) -> Optional[List[Optional[float]]]:
+    def _ir_proximity_ring_for_api(self) -> list[float | None] | None:
         """
         Eight distances (m) for the Sensors page (FL,F,FR,…): LIDAR ring + front ultrasonic.
         The webapp expects ir_proximity as an array; raw state stores a single float from Range.
         """
         obs = (self.state.get("scan") or {}).get("obstacles") or {}
-        ring: List[Optional[float]] = [obs.get(k) for k in _UI_PROXIMITY_KEYS]
+        ring: list[float | None] = [obs.get(k) for k in _UI_PROXIMITY_KEYS]
 
         raw = self.state.get("ir_proximity")
         if isinstance(raw, list) and raw:
@@ -731,7 +732,7 @@ class ROS2Bridge:
             return ring
         return None
 
-    def _line_sensors_for_api(self) -> Optional[List[int]]:
+    def _line_sensors_for_api(self) -> list[int] | None:
         raw = self.state.get("line_sensors")
         if raw is None:
             return None
@@ -742,7 +743,7 @@ class ROS2Bridge:
                 return None
         return None
 
-    def get_full_telemetry(self) -> Dict[str, Any]:
+    def get_full_telemetry(self) -> dict[str, Any]:
         """
         Return a structured telemetry snapshot from all cached sensor data.
         Falls back gracefully with None fields if sensors haven't published yet.

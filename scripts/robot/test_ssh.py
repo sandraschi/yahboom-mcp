@@ -1,5 +1,6 @@
-import paramiko
 import sys
+
+import paramiko
 
 
 def test_ssh(host, user, password, command="hostname"):
@@ -7,7 +8,7 @@ def test_ssh(host, user, password, command="hostname"):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(host, username=user, password=password, timeout=10)
-        stdin, stdout, stderr = ssh.exec_command(command)
+        _stdin, stdout, stderr = ssh.exec_command(command)
         print(f"STDOUT: {stdout.read().decode().strip()}")
         print(f"STDERR: {stderr.read().decode().strip()}")
         ssh.close()

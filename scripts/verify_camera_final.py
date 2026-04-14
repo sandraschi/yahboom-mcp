@@ -1,5 +1,6 @@
 import os
 import time
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -23,7 +24,7 @@ def verify_camera_final():
     print("[*] Checking for /image_raw topic inside Docker...")
     # This command uses grep to confirm topic existence
     cmd = "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && ros2 topic list | grep -i image_raw'"
-    out, err, code = ssh.execute(cmd)
+    out, err, _code = ssh.execute(cmd)
 
     if out:
         print(f"[SUCCESS] Camera topic detected:\n{out}")

@@ -1,6 +1,7 @@
-from yahboom_mcp.core.ssh_bridge import SSHBridge
-import time
 import sys
+import time
+
+from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 ROBOT_IP = "192.168.0.250"
 
@@ -58,6 +59,6 @@ try:
     bridge.close()
 
 except Exception as e:
-    print(f"Deployment Error: {str(e)}")
+    print(f"Deployment Error: {e!s}")
     bridge.close()
     sys.exit(1)

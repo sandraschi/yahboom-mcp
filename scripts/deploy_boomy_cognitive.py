@@ -31,7 +31,7 @@ def deploy():
     bridge.sudo_execute("rm -rf /var/log/*.gz /var/log/*.1")
     bridge.sudo_execute("rm -rf /home/pi/.cache/*")
 
-    out, err, code = bridge.execute("df -h /")
+    out, _err, _code = bridge.execute("df -h /")
     print(f"Current Disk Usage:\n{out}")
 
     bridge.close()

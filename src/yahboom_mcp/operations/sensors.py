@@ -1,6 +1,7 @@
-from fastmcp import Context
 import logging
 import time
+
+from fastmcp import Context
 
 logger = logging.getLogger("yahboom-mcp.operations.sensors")
 

@@ -1,6 +1,7 @@
-from yahboom_mcp.core.ssh_bridge import SSHBridge
 import os
 import sys
+
+from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 # Substrate Configuration
 ROBOT_IP = "192.168.0.250"
@@ -44,5 +45,5 @@ try:
     bridge.close()
 
 except Exception as e:
-    print(f"Backup Error: {str(e)}")
+    print(f"Backup Error: {e!s}")
     sys.exit(1)

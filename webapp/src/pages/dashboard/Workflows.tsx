@@ -1,43 +1,44 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Play, 
-  Square, 
-  Activity, 
-  Terminal as TerminalIcon, 
-  Clock, 
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Activity,
   AlertTriangle,
-  Sun,
+  Clock,
   Coffee,
-  ShieldAlert
-} from 'lucide-react';
-import { api, MissionStatus } from '../../lib/api';
+  Play,
+  ShieldAlert,
+  Square,
+  Sun,
+  Terminal as TerminalIcon,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { api, type MissionStatus } from "../../lib/api";
 
 const MISSION_METADATA = [
   {
-    id: 'patrol',
-    title: 'Patrol Car',
-    description: 'Engage police strobe and siren while patrolling the perimeter in a tactical square pattern.',
+    id: "patrol",
+    title: "Patrol Car",
+    description:
+      "Engage police strobe and siren while patrolling the perimeter in a tactical square pattern.",
     icon: ShieldAlert,
-    color: 'from-blue-600 to-red-600',
-    tags: ['Motion', 'Siren', 'LEDs']
+    color: "from-blue-600 to-red-600",
+    tags: ["Motion", "Siren", "LEDs"],
   },
   {
-    id: 'alarm',
-    title: 'Smart Alarm',
-    description: 'Slow sunrise LED sequence followed by a gentle voice greeting to start your day.',
+    id: "alarm",
+    title: "Smart Alarm",
+    description: "Slow sunrise LED sequence followed by a gentle voice greeting to start your day.",
     icon: Sun,
-    color: 'from-orange-500 to-yellow-400',
-    tags: ['Lighting', 'Voice']
+    color: "from-orange-500 to-yellow-400",
+    tags: ["Lighting", "Voice"],
   },
   {
-    id: 'briefing',
-    title: 'Morning Briefing',
-    description: 'Fetch sensor data and status briefing followed by a morning stretch routine.',
+    id: "briefing",
+    title: "Morning Briefing",
+    description: "Fetch sensor data and status briefing followed by a morning stretch routine.",
     icon: Coffee,
-    color: 'from-emerald-500 to-teal-600',
-    tags: ['Sensors', 'Motion', 'Speech']
-  }
+    color: "from-emerald-500 to-teal-600",
+    tags: ["Sensors", "Motion", "Speech"],
+  },
 ];
 
 export default function Workflows() {
@@ -51,7 +52,7 @@ export default function Workflows() {
         const data = await api.getMissionStatus();
         setStatus(data);
       } catch (err) {
-        console.error('Failed to fetch mission status:', err);
+        console.error("Failed to fetch mission status:", err);
       }
     };
 
@@ -65,7 +66,7 @@ export default function Workflows() {
     try {
       await api.postMissionRun(id);
     } catch (err) {
-      console.error('Failed to run mission:', err);
+      console.error("Failed to run mission:", err);
     } finally {
       setLoading(null);
     }
@@ -75,11 +76,11 @@ export default function Workflows() {
     try {
       await api.postMissionStop();
     } catch (err) {
-      console.error('Failed to stop mission:', err);
+      console.error("Failed to stop mission:", err);
     }
   };
 
-  const isActive = status?.status === 'running';
+  const isActive = status?.status === "running";
 
   return (
     <div className="space-y-8 pb-12">
@@ -87,7 +88,9 @@ export default function Workflows() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Mission Control</h1>
-          <p className="text-slate-400 mt-1">Orchestrate agentic workflows and automated behaviors.</p>
+          <p className="text-slate-400 mt-1">
+            Orchestrate agentic workflows and automated behaviors.
+          </p>
         </div>
 
         <AnimatePresence>
@@ -117,24 +120,31 @@ export default function Workflows() {
               key={mission.id}
               whileHover={{ y: -5 }}
               className={`relative overflow-hidden group bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 transition-all duration-300 ${
-                isThisRunning ? 'ring-2 ring-blue-500/50 border-blue-500/50' : 'hover:border-slate-700'
+                isThisRunning
+                  ? "ring-2 ring-blue-500/50 border-blue-500/50"
+                  : "hover:border-slate-700"
               }`}
             >
-              <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${mission.color} opacity-5 blur-3xl group-hover:opacity-10 transition-opacity`} />
-              
+              <div
+                className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${mission.color} opacity-5 blur-3xl group-hover:opacity-10 transition-opacity`}
+              />
+
               <div className="relative z-10">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${mission.color} flex items-center justify-center text-white shadow-lg mb-4`}>
+                <div
+                  className={`w-12 h-12 rounded-xl bg-gradient-to-br ${mission.color} flex items-center justify-center text-white shadow-lg mb-4`}
+                >
                   <Icon size={24} />
                 </div>
 
                 <h3 className="text-xl font-bold text-white mb-2">{mission.title}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                  {mission.description}
-                </p>
+                <p className="text-slate-400 text-sm leading-relaxed mb-6">{mission.description}</p>
 
                 <div className="flex flex-wrap gap-2 mb-8">
-                  {mission.tags.map(tag => (
-                    <span key={tag} className="px-2 py-1 bg-slate-800/50 text-slate-500 text-[10px] font-bold uppercase tracking-wider rounded-md border border-slate-700/50">
+                  {mission.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-2 py-1 bg-slate-800/50 text-slate-500 text-[10px] font-bold uppercase tracking-wider rounded-md border border-slate-700/50"
+                    >
                       {tag}
                     </span>
                   ))}
@@ -144,9 +154,9 @@ export default function Workflows() {
                   disabled={isActive || loading === mission.id}
                   onClick={() => runMission(mission.id)}
                   className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${
-                    isThisRunning 
-                      ? 'bg-blue-500/20 text-blue-400 cursor-default'
-                      : 'bg-slate-800 text-white hover:bg-slate-750 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95'
+                    isThisRunning
+                      ? "bg-blue-500/20 text-blue-400 cursor-default"
+                      : "bg-slate-800 text-white hover:bg-slate-750 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                   }`}
                 >
                   {isThisRunning ? (
@@ -169,7 +179,7 @@ export default function Workflows() {
 
       {/* Progress & Logs (Only visible if status exists) */}
       <AnimatePresence>
-        {status?.status !== 'idle' && (
+        {status?.status !== "idle" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -182,7 +192,9 @@ export default function Workflows() {
                 <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg">
                   <Activity size={20} />
                 </div>
-                <h3 className="text-lg font-bold text-white uppercase tracking-tight">Active State</h3>
+                <h3 className="text-lg font-bold text-white uppercase tracking-tight">
+                  Active State
+                </h3>
               </div>
 
               <div className="space-y-6">
@@ -192,7 +204,7 @@ export default function Workflows() {
                     <span className="text-blue-400 font-mono font-bold">{status?.progress}%</span>
                   </div>
                   <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
-                    <motion.div 
+                    <motion.div
                       className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full"
                       initial={{ width: 0 }}
                       animate={{ width: `${status?.progress}%` }}
@@ -203,17 +215,25 @@ export default function Workflows() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/30">
-                    <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Status</div>
-                    <div className={`text-sm font-bold uppercase tracking-wide ${
-                      status?.status === 'running' ? 'text-blue-400' :
-                      status?.status === 'completed' ? 'text-emerald-400' :
-                      'text-red-400'
-                    }`}>
+                    <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">
+                      Status
+                    </div>
+                    <div
+                      className={`text-sm font-bold uppercase tracking-wide ${
+                        status?.status === "running"
+                          ? "text-blue-400"
+                          : status?.status === "completed"
+                            ? "text-emerald-400"
+                            : "text-red-400"
+                      }`}
+                    >
                       {status?.status}
                     </div>
                   </div>
                   <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/30">
-                    <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Uptime</div>
+                    <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">
+                      Uptime
+                    </div>
                     <div className="text-sm font-mono text-white flex items-center gap-1.5">
                       <Clock size={12} className="text-slate-400" />
                       {status?.uptime}s
@@ -235,7 +255,9 @@ export default function Workflows() {
               <div className="px-6 py-4 border-bottom border-slate-800 bg-slate-900/80 backdrop-blur-md flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <TerminalIcon size={18} className="text-blue-400" />
-                  <span className="text-sm font-bold text-white uppercase tracking-widest opacity-80 underline underline-offset-4 decoration-blue-500/40">Autonomous Link Stream</span>
+                  <span className="text-sm font-bold text-white uppercase tracking-widest opacity-80 underline underline-offset-4 decoration-blue-500/40">
+                    Autonomous Link Stream
+                  </span>
                 </div>
                 <div className="flex gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-slate-700" />

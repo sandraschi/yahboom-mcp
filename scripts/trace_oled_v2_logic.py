@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -14,7 +15,7 @@ def trace_oled_v2_logic():
     print("[*] Searching for OLED-related source code in /home/pi/...")
     # This command finds all .py files containing 'SSD1306' or 'Adafruit_SSD1306'
     cmd = "grep -rlE 'SSD1306|Adafruit_SSD1306' /home/pi/ --include='*.py' 2>/dev/null"
-    out, err, code = ssh.execute(cmd)
+    out, _err, _code = ssh.execute(cmd)
 
     if out:
         paths = out.strip().split("\n")

@@ -1,6 +1,7 @@
-from yahboom_mcp.core.ssh_bridge import SSHBridge
-import time
 import sys
+import time
+
+from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 ROBOT_IP = "192.168.0.250"
 RETRIES = 20
@@ -52,6 +53,6 @@ try:
     bridge.close()
 
 except Exception as e:
-    print(f"Stabilization Error: {str(e)}")
+    print(f"Stabilization Error: {e!s}")
     bridge.close()
     sys.exit(1)

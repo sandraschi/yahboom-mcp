@@ -1,6 +1,6 @@
-from fastmcp import FastMCP
-from fastapi import FastAPI
 import starlette.applications
+from fastapi import FastAPI
+from fastmcp import FastMCP
 from starlette.applications import Starlette
 
 app = FastAPI()

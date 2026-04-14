@@ -1,5 +1,5 @@
-import subprocess
 import re
+import subprocess
 
 
 def scan_i2c():

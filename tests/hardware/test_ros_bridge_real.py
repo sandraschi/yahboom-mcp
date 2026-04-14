@@ -1,5 +1,7 @@
-import pytest
 import os
+
+import pytest
+
 from yahboom_mcp.core.ros2_bridge import ROS2Bridge
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
@@ -42,7 +44,7 @@ def test_real_ssh_recovery_command():
         assert code == 0, f"ROS workspace not found on Pi: {err}"
 
         # Verify ROS nodes can be listed (even if none are running)
-        out, err, code = ssh.execute(
+        _out, err, code = ssh.execute(
             "source /opt/ros/foxy/setup.bash && ros2 node list"
         )
         assert code == 0, f"ROS 2 environment issue on Pi: {err}"

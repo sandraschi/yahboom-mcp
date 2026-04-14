@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
+import threading
+import time
+
+import lgpio
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Bool, Int32MultiArray, Float32
-import lgpio
-import time
-import threading
+from std_msgs.msg import Bool, Float32, Int32MultiArray
 
 # Pi 5 GPIO/SPI Pins
 BUTTON_PIN = 18
@@ -65,7 +66,7 @@ class PeripheralBridge(Node):
         """Monitors Pi 5 SoC temperature and executes software throttling."""
         while not self._stop_event.is_set():
             try:
-                with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+                with open("/sys/class/thermal/thermal_zone0/temp") as f:
                     self._cpu_temp = int(f.read().strip()) / 1000.0
 
                 if self._cpu_temp >= 79:

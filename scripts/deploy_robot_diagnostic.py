@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -23,20 +24,20 @@ def test_oled():
     try:
         import Adafruit_SSD1306
         from PIL import Image, ImageDraw, ImageFont
-        
+
         # Yahboom parameters from yahboom_oled.py
         disp = Adafruit_SSD1306.SSD1306_128_32(rst=None, i2c_bus=1)
         disp.begin()
         disp.clear()
         disp.display()
-        
+
         width, height = disp.width, disp.height
         image = Image.new('1', (width, height))
         draw = ImageDraw.Draw(image)
         font = ImageFont.load_default()
         draw.text((0, 0), "REALITY CHECK", font=font, fill=255)
         draw.text((0, 10), "SOTA v14.0", font=font, fill=255)
-        
+
         disp.image(image)
         disp.display()
         print("[OLED] SUCCESS: Text written to display.")
@@ -73,7 +74,7 @@ if __name__ == '__main__':
 
     # 2. Run the diagnostic script
     print("[*] Executing diagnostic on robot...")
-    out, err, code = ssh.execute("python3 /tmp/diag.py")
+    out, err, _code = ssh.execute("python3 /tmp/diag.py")
     print("-" * 40)
     print(out)
     if err:

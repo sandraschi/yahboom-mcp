@@ -5,19 +5,20 @@ import sys
 # Add src to path
 sys.path.append(os.path.join(os.getcwd(), "src"))
 
-from yahboom_mcp.operations import voice
 from yahboom_mcp.core.ssh_bridge import SSHBridge
+from yahboom_mcp.operations import voice
 from yahboom_mcp.state import _state
+
 
 async def run_integration_test():
     host = "192.168.1.11"
     password = "yahboom"
     ssh = SSHBridge(host, password=password)
-    
+
     if not await asyncio.to_thread(ssh.connect):
         print("SSH Connection failed")
         return
-    
+
     _state["ssh"] = ssh
 
     print("\n--- TEST 1: Beep (Loudness Check) ---")
@@ -40,7 +41,7 @@ if __name__ == "__main__":
     # Ensure environment vars
     os.environ["YAHBOOM_VOICE_DEVICE"] = "/dev/ttyUSB0"
     # Force UTF-8 for windows terminal
-    import sys
     import io
+    import sys
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     asyncio.run(run_integration_test())

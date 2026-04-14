@@ -1,8 +1,9 @@
-from fastmcp import Context
-import logging
 import asyncio
+import logging
 import time
+
 import roslibpy
+from fastmcp import Context
 
 logger = logging.getLogger("yahboom-mcp.operations.lightstrip")
 
@@ -36,7 +37,6 @@ async def _run_patrol_car(bridge, interval: float = 0.25):
 
 async def _run_rainbow(bridge, interval: float = 0.08):
     """Cycle through hue wheel."""
-    import math
     topic = getattr(bridge, "rgblight_topic", None)
     if not topic:
         topic = roslibpy.Topic(bridge.ros, "/rgblight", "std_msgs/Int32MultiArray")

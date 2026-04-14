@@ -1,5 +1,6 @@
-import paramiko
 import sys
+
+import paramiko
 
 
 def set_lights(r, g, b):
@@ -15,7 +16,7 @@ def set_lights(r, g, b):
     cmd = f"docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && ros2 topic pub --once /rgblight std_msgs/msg/Int32MultiArray \"{{data: [{r}, {g}, {b}]}}\"'"
 
     print(f"Executing: {cmd}")
-    stdin, stdout, stderr = ssh.exec_command(cmd)
+    _stdin, stdout, stderr = ssh.exec_command(cmd)
     print(stdout.read().decode())
     print(stderr.read().decode())
     ssh.close()

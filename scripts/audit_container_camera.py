@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -16,7 +17,7 @@ def audit_container():
     cmd = (
         "docker exec yahboom_ros2 find /root/yahboomcar_ws/ -name '*camera*launch*.py'"
     )
-    out, err, code = ssh.execute(cmd)
+    out, _err, _code = ssh.execute(cmd)
 
     if out:
         paths = out.strip().split("\n")

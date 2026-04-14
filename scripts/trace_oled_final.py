@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -13,7 +14,7 @@ def trace_oled_final():
 
     print("[*] Performing a deep search for OLED scripts...")
     # This command finds all .py files with 'oled' in the name
-    out, err, code = ssh.execute("find /home/pi/ -name '*oled*.py'")
+    out, _err, _code = ssh.execute("find /home/pi/ -name '*oled*.py'")
     if out:
         paths = out.strip().split("\n")
         print(f"[*] Found {len(paths)} scripts:")

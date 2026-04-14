@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -20,7 +21,7 @@ def discover_drivers():
     print(f"PIP_ROSMASTER: {out}")
 
     print("[*] Checking /home/pi/ (Yahboom usually keeps sample scripts there)")
-    out, err, code = ssh.execute("ls -R /home/pi/ | grep -i display")
+    out, _err, _code = ssh.execute("ls -R /home/pi/ | grep -i display")
     print(f"FS_DISPLAY: {out}")
 
 

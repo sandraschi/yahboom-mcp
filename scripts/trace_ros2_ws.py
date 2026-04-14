@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -12,7 +13,7 @@ def trace_ros2_ws():
         return
 
     print("[*] Searching for 'setup.bash' in /home/pi/ to find ROS 2 workspaces...")
-    out, err, code = ssh.execute("find /home/pi/ -name 'setup.bash' -maxdepth 4")
+    out, _err, _code = ssh.execute("find /home/pi/ -name 'setup.bash' -maxdepth 4")
     if out:
         paths = out.strip().split("\n")
         print(f"[*] Found {len(paths)} workspaces:")

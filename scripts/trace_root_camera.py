@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -14,7 +15,7 @@ def trace_root_camera():
     print("[*] Searching for camera launch files in /root/yahboomcar_ws/...")
     # This command finds all .py files in the root workspace with camera/launch in path
     cmd = "sudo find /root/yahboomcar_ws/ -name '*camera*.launch.py'"
-    out, err, code = ssh.execute(cmd)
+    out, _err, _code = ssh.execute(cmd)
 
     if out:
         paths = out.strip().split("\n")

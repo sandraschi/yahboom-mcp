@@ -1,11 +1,12 @@
 import asyncio
 import logging
 import time
-from typing import Dict, Any, Optional
-from .lightstrip import execute as led_execute
-from .display import execute as display_execute
-from .voice import execute as voice_execute
+from typing import Any, Optional
+
 from ..core.ros2_bridge import ROS2Bridge
+from .display import execute as display_execute
+from .lightstrip import execute as led_execute
+from .voice import execute as voice_execute
 
 logger = logging.getLogger(__name__)
 
@@ -15,17 +16,17 @@ class MissionManager:
 
     def __init__(self, ros_bridge: ROS2Bridge):
         self.ros_bridge = ros_bridge
-        self.active_mission: Optional[asyncio.Task] = None
-        self.mission_id: Optional[str] = None
+        self.active_mission: asyncio.Task | None = None
+        self.mission_id: str | None = None
         self.status: str = "idle"
         self.progress: int = 0
         self.logs: list[str] = []
         self.start_time: float = 0
-        self.last_error: Optional[str] = None
+        self.last_error: str | None = None
         self._safety_active: bool = False
 
     @classmethod
-    def get_instance(cls, ros_bridge: Optional[ROS2Bridge] = None) -> "MissionManager":
+    def get_instance(cls, ros_bridge: ROS2Bridge | None = None) -> "MissionManager":
         if cls._instance is None:
             if ros_bridge is None:
                 raise ValueError(
@@ -148,7 +149,7 @@ class MissionManager:
             return {"success": True}
         return {"success": False, "error": "No active mission"}
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         return {
             "mission_id": self.mission_id,
             "status": self.status,
@@ -290,7 +291,7 @@ class MissionManager:
             self.last_error = str(e)
 
 
-async def execute(action: str, mission_id: Optional[str] = None):
+async def execute(action: str, mission_id: str | None = None):
     # This will be called from the server, passing the bridge instance
     # The bridge instance should be managed in server.py
     # For now, we will assume singleton is initialized in server.py

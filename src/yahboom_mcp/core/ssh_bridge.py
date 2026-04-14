@@ -1,8 +1,8 @@
-import paramiko
 import logging
-import threading
 import os
-from typing import Tuple
+import threading
+
+import paramiko
 
 logger = logging.getLogger("yahboom-mcp.ssh-bridge")
 
@@ -22,7 +22,7 @@ class SSHBridge:
         try:
             self.client = paramiko.SSHClient()
             self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            
+
             # Use password if provided, else rely on keys
             self.client.connect(
                 self.host,
@@ -45,12 +45,12 @@ class SSHBridge:
             logger.error(f"SSH Critical failure connecting to {self.host}: {e}")
             return False
 
-    async def execute(self, command: str) -> Tuple[str, str, int]:
+    async def execute(self, command: str) -> tuple[str, str, int]:
         """Execute a standard command asynchronously and return (stdout, stderr, exit_code)."""
         import asyncio
         return await asyncio.to_thread(self._execute_sync, command)
 
-    def _execute_sync(self, command: str) -> Tuple[str, str, int]:
+    def _execute_sync(self, command: str) -> tuple[str, str, int]:
         """Synchronous implementation."""
         with self.lock:
             if not self.client or not self.connected:
@@ -64,7 +64,7 @@ class SSHBridge:
                     return "", "SSH Not Connected", -1
 
             try:
-                stdin, stdout, stderr = self.client.exec_command(command)
+                _stdin, stdout, stderr = self.client.exec_command(command)
                 out = stdout.read().decode().strip()
                 err = stderr.read().decode().strip()
                 code = stdout.channel.recv_exit_status()
@@ -73,12 +73,12 @@ class SSHBridge:
                 logger.error(f"SSH execution failed: {e}")
                 return "", str(e), -1
 
-    async def sudo_execute(self, command: str) -> Tuple[str, str, int]:
+    async def sudo_execute(self, command: str) -> tuple[str, str, int]:
         """Execute a command with sudo asynchronously, providing the password via stdin."""
         import asyncio
         return await asyncio.to_thread(self._sudo_execute_sync, command)
 
-    def _sudo_execute_sync(self, command: str) -> Tuple[str, str, int]:
+    def _sudo_execute_sync(self, command: str) -> tuple[str, str, int]:
         """Synchronous implementation."""
         with self.lock:
             if not self.client or not self.connected:
@@ -119,7 +119,7 @@ class SSHBridge:
             if not self.client or not self.connected:
                 if not self.connect():
                     raise ConnectionError("SSH Not Connected")
-            
+
             sftp = self.client.open_sftp()
             try:
                 logger.info(f"SFTP: Uploading {local_path} to {remote_path}...")

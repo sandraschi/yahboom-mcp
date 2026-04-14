@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -14,7 +15,7 @@ def trace_oled_v2():
     print("[*] Searching for OLED-related scripts in /home/pi/...")
     # Find all .py files containing 'OLED' and read the initialization line
     cmd = "grep -rl 'OLED' /home/pi/ --include='*.py' 2>/dev/null | head -n 5"
-    out, err, code = ssh.execute(cmd)
+    out, _err, _code = ssh.execute(cmd)
 
     if out:
         paths = out.strip().split("\n")

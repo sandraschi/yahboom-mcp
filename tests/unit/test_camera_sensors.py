@@ -3,15 +3,12 @@ Unit tests — camera snapshot, video_bridge direct capture, sensor data flow.
 No hardware required. Uses MockROS2Bridge + mock SSH.
 Run: pytest tests/unit/test_camera_sensors.py -v
 """
-import asyncio
 import base64
-import io
 import os
-import time
-from unittest.mock import MagicMock, patch, AsyncMock
-import pytest
-import numpy as np
+from unittest.mock import MagicMock, patch
 
+import numpy as np
+import pytest
 
 # ── Camera / Video Bridge ────────────────────────────────────────────────────
 
@@ -57,6 +54,7 @@ class TestVideoBridgeDirect:
     def test_image_callback_compressed(self):
         """Test _image_callback with a valid base64-encoded JPEG."""
         import cv2
+
         from yahboom_mcp.core.video_bridge import VideoBridge
         vb = VideoBridge(ros_client=MagicMock())
 
@@ -80,7 +78,6 @@ class TestVideoBridgeDirect:
 
     def test_image_callback_raw_rgb8(self):
         """Test raw image fallback path (sensor_msgs/Image encoding=rgb8)."""
-        import cv2
         from yahboom_mcp.core.video_bridge import VideoBridge
         vb = VideoBridge(ros_client=MagicMock())
 
@@ -103,7 +100,6 @@ class TestVideoBridgeDirect:
     @pytest.mark.asyncio
     async def test_mjpeg_generator_yields_frames(self):
         """Generator should yield MJPEG boundary frames."""
-        import cv2
         from yahboom_mcp.core.video_bridge import VideoBridge
         vb = VideoBridge(ros_client=MagicMock())
         vb.active = True
@@ -133,8 +129,8 @@ async def test_snapshot_endpoint_returns_jpeg(mock_bridge):
     Test /api/v1/snapshot endpoint returns 200 + JPEG when VideoBridge has a frame.
     Uses httpx test client against the FastAPI app.
     """
-    import cv2
     import numpy as np
+
     from yahboom_mcp.core.video_bridge import VideoBridge
     from yahboom_mcp.state import _state
 
@@ -152,8 +148,9 @@ async def test_snapshot_endpoint_returns_jpeg(mock_bridge):
 
     try:
         # Import app after state is set up to avoid lifespan startup
+        from httpx import ASGITransport, AsyncClient
+
         from yahboom_mcp.server import app
-        from httpx import AsyncClient, ASGITransport
 
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
@@ -172,10 +169,11 @@ async def test_snapshot_endpoint_returns_jpeg(mock_bridge):
 @pytest.mark.asyncio
 async def test_snapshot_endpoint_no_frame(mock_bridge):
     """Snapshot should return 204 when VideoBridge has no frame."""
+    from httpx import ASGITransport, AsyncClient
+
     from yahboom_mcp.core.video_bridge import VideoBridge
-    from yahboom_mcp.state import _state
     from yahboom_mcp.server import app
-    from httpx import AsyncClient, ASGITransport
+    from yahboom_mcp.state import _state
 
     vb = VideoBridge(ros_client=MagicMock())
     vb.active = True
@@ -226,10 +224,10 @@ async def test_mock_odom_telemetry(mock_bridge):
 @pytest.mark.asyncio
 async def test_imu_callback_populates_state(mock_bridge):
     """Simulate an incoming IMU message and verify state update."""
-    from yahboom_mcp.core.ros2_bridge import _quat_to_euler_deg
-
     # Simulate a quaternion representing 45° yaw
     import math
+
+    from yahboom_mcp.core.ros2_bridge import _quat_to_euler_deg
     yaw = math.radians(45)
     q = {
         "x": 0.0,
@@ -268,6 +266,7 @@ async def test_camera_capture_ssh_path(mock_bridge, mock_ssh):
     This tests the Pi-side capture path used by the embodied loop.
     """
     import base64
+
     import cv2
     import numpy as np
 
@@ -281,7 +280,7 @@ async def test_camera_capture_ssh_path(mock_bridge, mock_ssh):
 
     # Simulate the capture command the embodied loop uses
     cmd = "python3 -c \"import cv2, base64; cap=cv2.VideoCapture(0); ret,f=cap.read(); cap.release(); _,b=cv2.imencode('.jpg',f); print(base64.b64encode(b.tobytes()).decode())\""
-    out, err, code = await mock_ssh.execute(cmd)
+    out, _err, code = await mock_ssh.execute(cmd)
 
     assert code == 0
     decoded = base64.b64decode(out)

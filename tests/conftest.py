@@ -9,14 +9,14 @@ Modes:
 from __future__ import annotations
 
 import os
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 
 os.environ.setdefault("YAHBOOM_USE_MOCK_BRIDGE", "1")
 
 from yahboom_mcp.state import _state
 from yahboom_mcp.testing.mock_bridge import MockROS2Bridge
-
 
 # ── Core fixtures ────────────────────────────────────────────────────────────
 

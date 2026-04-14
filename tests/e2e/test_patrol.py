@@ -19,7 +19,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import time
 
 import pytest
 
@@ -60,7 +59,7 @@ async def live_bridge():
 
 @pytest.mark.asyncio
 async def test_e2e_connection(live_bridge):
-    bridge, ssh = live_bridge
+    bridge, _ssh = live_bridge
     assert bridge.connected, "Bridge should be connected to robot"
 
     topics = await bridge.get_all_topics()
@@ -93,7 +92,7 @@ async def test_e2e_telemetry(live_bridge):
 @pytest.mark.asyncio
 async def test_e2e_lightstrip_basic(live_bridge):
     from yahboom_mcp.operations import lightstrip
-    bridge, _ = live_bridge
+    _bridge, _ = live_bridge
 
     r = await lightstrip.execute(operation="set", param1=0, param2=255, param3=0)
     assert r["success"], f"Lightstrip set failed: {r}"
@@ -218,7 +217,6 @@ async def test_e2e_camera_snapshot_ssh(live_bridge):
     Verifies /dev/video0 is accessible and returns a real image.
     Saves frame to /tmp/boomy_test_snapshot.jpg on the Pi.
     """
-    import base64
     _, ssh = live_bridge
 
     cmd = (
@@ -252,7 +250,6 @@ async def test_e2e_camera_snapshot_in_docker(live_bridge):
     """
     Capture a frame inside the Docker container (verifies /dev/video0 is mapped).
     """
-    import base64
     _, ssh = live_bridge
 
     cmd = (
@@ -264,7 +261,7 @@ async def test_e2e_camera_snapshot_in_docker(live_bridge):
         "print('FRAME_OK' if ret and f is not None else 'FRAME_FAIL'); "
         "\""
     )
-    out, err, code = ssh.execute(cmd)
+    out, _err, _code = ssh.execute(cmd)
 
     if "FRAME_OK" not in out:
         pytest.xfail(
@@ -282,7 +279,6 @@ async def test_e2e_camera_vision_e2b(live_bridge):
     Capture a frame via SSH, then ask E2B to describe the scene.
     Requires LiteRT-LM E2B server running on the Pi at port 8080.
     """
-    import base64
     import httpx
     _, ssh = live_bridge
 
@@ -299,7 +295,7 @@ async def test_e2e_camera_vision_e2b(live_bridge):
         "print(base64.b64encode(b.tobytes()).decode()) if ret else print('FAIL')"
         "\""
     )
-    out, err, code = ssh.execute(cap_cmd)
+    out, _err, _code = ssh.execute(cap_cmd)
 
     if not out.strip() or out.strip() == "FAIL":
         pytest.xfail("Camera capture failed — skipping E2B vision test")
@@ -371,7 +367,7 @@ async def test_e2e_rosmaster_serial_direct(live_bridge):
         "print('SENSOR_OK' if volt and float(volt) > 0.5 else 'SENSOR_FAIL')"
         "\""
     )
-    out, err, code = ssh.execute(cmd)
+    out, err, _code = ssh.execute(cmd)
     logger.info(f"Rosmaster direct test: {out.strip()}")
 
     if "SENSOR_FAIL" in out or not out.strip():
@@ -389,7 +385,7 @@ async def test_e2e_docker_serial_mapping(live_bridge):
     """Verify Docker container has /dev/ttyUSB0 mapped."""
     _, ssh = live_bridge
 
-    out, err, _ = ssh.execute(
+    out, _err, _ = ssh.execute(
         "docker exec yahboom_ros2 ls /dev/ttyUSB* /dev/ttyROSMASTER 2>/dev/null || echo MISSING"
     )
     logger.info(f"Docker serial devices: {out.strip()}")
@@ -407,7 +403,7 @@ async def test_e2e_docker_i2c_mapping(live_bridge):
     """Verify Docker container has /dev/i2c-1 mapped (for OLED + Raspbot)."""
     _, ssh = live_bridge
 
-    out, err, _ = ssh.execute(
+    out, _err, _ = ssh.execute(
         "docker exec yahboom_ros2 ls /dev/i2c-1 2>/dev/null || echo MISSING"
     )
     logger.info(f"Docker I2C: {out.strip()}")
@@ -425,7 +421,7 @@ async def test_e2e_oled_luma_installed(live_bridge):
     """Verify luma.oled is installed on Pi host."""
     _, ssh = live_bridge
 
-    out, err, code = ssh.execute(
+    out, err, _code = ssh.execute(
         "python3 -c \"from luma.oled.device import ssd1306; print('OK')\" 2>&1"
     )
     if "OK" not in out:
@@ -479,7 +475,6 @@ async def test_e2e_patrol_square(live_bridge):
     Full patrol: ~4 sides × ~3s = ~12s driving + overhead.
     """
     from yahboom_mcp.operations import lightstrip
-    from yahboom_mcp.core.ros2_bridge import ROS2Bridge
     bridge, _ = live_bridge
 
     assert bridge.connected, "Bridge must be connected for patrol"

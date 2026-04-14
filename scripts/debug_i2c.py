@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -13,7 +14,7 @@ def check_i2c():
 
     print("[*] Checking All I2C Buses...")
     for bus in [0, 1, 2, 3, 4, 11]:
-        out, err, code = ssh.execute(f"i2cdetect -y {bus}")
+        out, _err, _code = ssh.execute(f"i2cdetect -y {bus}")
         if "3c" in out:
             print(f"[OK] OLED Address 0x3c DETECTED on BUS {bus}!")
             return

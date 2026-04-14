@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
+import logging
 import os
 import sys
-import logging
 
 # Add the src directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
@@ -36,7 +36,7 @@ async def main():
     local_bridge_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "robot", "peripheral_bridge.py")
     )
-    with open(local_bridge_path, "r") as f:
+    with open(local_bridge_path) as f:
         bridge_content = f.read()
 
     # Upload via base64 to avoid escaping issues

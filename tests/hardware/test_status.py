@@ -1,5 +1,7 @@
-import pytest
 import asyncio
+
+import pytest
+
 from yahboom_mcp.state import _state
 
 # Markers are handled by conftest.py (default to skip unless YAHBOOM_E2E=1)

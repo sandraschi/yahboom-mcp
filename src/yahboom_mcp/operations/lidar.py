@@ -5,8 +5,8 @@ LIDAR portmanteau backend: Yahboom /scan (optional) and Dreame D20 Pro map (opti
 - Dreame: reads map/scan from optional DREAME_MAP_URL (e.g. robotics-mcp or dreame-mcp endpoint).
 """
 
-import os
 import logging
+import os
 from typing import Any
 
 logger = logging.getLogger("yahboom-mcp.operations.lidar")

@@ -6,7 +6,7 @@ Same public interface as ROS2Bridge so the server can swap bridges via env.
 import asyncio
 import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger("yahboom-mcp.core.esp32_bridge")
 
@@ -30,10 +30,10 @@ class ESP32Bridge:
         self.host = host
         self.port = port
         self.connected = False
-        self._reader: Optional[asyncio.StreamReader] = None
-        self._writer: Optional[asyncio.StreamWriter] = None
-        self._read_task: Optional[asyncio.Task] = None
-        self.state: Dict[str, Any] = {
+        self._reader: asyncio.StreamReader | None = None
+        self._writer: asyncio.StreamWriter | None = None
+        self._read_task: asyncio.Task | None = None
+        self.state: dict[str, Any] = {
             "imu": {},
             "odom": {},
             "battery": {},
@@ -54,7 +54,7 @@ class ESP32Bridge:
             self._read_task = asyncio.create_task(self._read_loop())
             logger.info("ESP32 bridge connected")
             return True
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("ESP32 connection timeout to %s:%s", self.host, self.port)
             self.connected = False
             return False
@@ -180,11 +180,11 @@ class ESP32Bridge:
             self.connected = False
             return False
 
-    async def get_sensor_data(self, key: str) -> Dict[str, Any]:
+    async def get_sensor_data(self, key: str) -> dict[str, Any]:
         """Return cached sensor data by key: imu | battery | odom | scan."""
         return self.state.get(key, {})
 
-    def get_full_telemetry(self) -> Dict[str, Any]:
+    def get_full_telemetry(self) -> dict[str, Any]:
         """Same shape as ROS2Bridge.get_full_telemetry for drop-in replacement."""
         imu = self.state.get("imu", {})
         battery = self.state.get("battery", {})

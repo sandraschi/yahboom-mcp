@@ -1,6 +1,7 @@
 import os
-from yahboom_mcp.core.ssh_bridge import SSHBridge
 import time
+
+from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
 def debug_camera_logs():

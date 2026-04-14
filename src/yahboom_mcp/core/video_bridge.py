@@ -1,14 +1,12 @@
-import logging
-import base64
 import asyncio
+import base64
+import logging
 import threading
-from typing import Optional
+import time
+
 import cv2
 import numpy as np
 import roslibpy
-
-
-import time
 
 logger = logging.getLogger("yahboom-mcp.core.video_bridge")
 
@@ -38,23 +36,23 @@ class VideoBridge:
     ):
         self.ros = ros_client
         self.topic_name = topic_name
-        self.topic: Optional[roslibpy.Topic] = None
-        self.last_frame: Optional[np.ndarray] = None
+        self.topic: roslibpy.Topic | None = None
+        self.last_frame: np.ndarray | None = None
         self.frame_lock = threading.Lock()
         self.active = False
         self.frame_count = 0
         self.ssh = ssh_bridge
 
         # Direct capture state
-        self._direct_cap: Optional[cv2.VideoCapture] = None
-        self._direct_thread: Optional[threading.Thread] = None
+        self._direct_cap: cv2.VideoCapture | None = None
+        self._direct_thread: threading.Thread | None = None
         self._direct_active = False
-        self._ros_start_time: Optional[float] = None
+        self._ros_start_time: float | None = None
 
         import os
         self._force_direct = os.environ.get("YAHBOOM_CAMERA_DIRECT", "0") == "1"
         self._device = int(os.environ.get("YAHBOOM_CAMERA_DEVICE", "0"))
-        
+
         # SOTA 2026: Remote Stream Fallback Removed
         # The fallback logic using port 10895 belonged to dreame-mcp and was erroneously
         # failing because no robot webserver exists. We rely fully on ROS topic or direct /dev/video0.
@@ -194,7 +192,7 @@ class VideoBridge:
         except Exception as e:
             logger.error(f"VideoBridge: error decoding image frame: {e}")
 
-    def get_latest_frame_jpeg(self) -> Optional[bytes]:
+    def get_latest_frame_jpeg(self) -> bytes | None:
         """Return the latest frame encoded as JPEG bytes."""
         with self.frame_lock:
             if self.last_frame is None:

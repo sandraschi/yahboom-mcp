@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import asyncio
+import logging
 import os
 import sys
-import logging
 from datetime import datetime
 
 # Add the src directory to path so we can import the package
@@ -10,7 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "s
 
 try:
     from yahboom_mcp.core.ros2_bridge import ROS2Bridge
-    from yahboom_mcp.operations import lightstrip, voice, display
+    from yahboom_mcp.operations import display, lightstrip, voice
     from yahboom_mcp.state import _state
 except ImportError as e:
     print(f"ERROR: Could not import yahboom_mcp internals: {e}")

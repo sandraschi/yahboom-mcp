@@ -1,6 +1,7 @@
-from fastmcp import Context
 import logging
 from typing import Any
+
+from fastmcp import Context
 
 logger = logging.getLogger("yahboom-mcp.operations.safety")
 

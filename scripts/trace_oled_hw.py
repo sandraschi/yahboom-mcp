@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -15,7 +16,7 @@ def trace_oled_hw():
     # Find all .py files containing 'Adafruit_SSD1306' and read the initialization line
     # We use grep with --include to target only source files
     cmd = "grep -r 'Adafruit_SSD1306.SSD1306_128_64' /home/pi/ --include='*.py' 2>/dev/null | head -n 5"
-    out, err, code = ssh.execute(cmd)
+    out, _err, _code = ssh.execute(cmd)
 
     if out:
         print(f"[*] Found initialization logic:\n{out}")

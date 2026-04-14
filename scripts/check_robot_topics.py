@@ -1,5 +1,6 @@
-from yahboom_mcp.core.ssh_bridge import SSHBridge
 import os
+
+from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
 def check_robot_topics():
@@ -13,7 +14,7 @@ def check_robot_topics():
         return
 
     cmd = 'docker exec yahboom_ros2 bash -c "source /opt/ros/humble/setup.bash && ros2 topic list"'
-    out, err, code = ssh.execute(cmd)
+    out, err, _code = ssh.execute(cmd)
 
     print("\n--- ROS 2 Topics ---")
     print(out if out else "[None]")

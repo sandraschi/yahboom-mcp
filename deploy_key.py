@@ -1,12 +1,13 @@
-import paramiko
 import os
+
+import paramiko
 
 hostname = "192.168.0.250"
 username = "pi"
 password = "yahboom"
 key_path = os.path.expanduser("~/.ssh/id_rsa.pub")
 
-with open(key_path, "r") as f:
+with open(key_path) as f:
     key = f.read().strip()
 
 print(f"Deploying key to {username}@{hostname}...")

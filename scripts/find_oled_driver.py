@@ -1,4 +1,5 @@
 import os
+
 from yahboom_mcp.core.ssh_bridge import SSHBridge
 
 
@@ -13,7 +14,7 @@ def find_working_sample():
 
     print("[*] Searching for 'SSD1306' in /home/pi/...")
     # This command finds files containing 'SSD1306' and prints their paths
-    out, err, code = ssh.execute("grep -rl 'Adafruit_SSD1306' /home/pi/ 2>/dev/null")
+    out, _err, _code = ssh.execute("grep -rl 'Adafruit_SSD1306' /home/pi/ 2>/dev/null")
     if out:
         paths = out.strip().split("\n")
         print(f"[*] Found {len(paths)} scripts:")
