@@ -13,6 +13,7 @@ import {
   Lightbulb,
   Map,
   MessageSquare,
+  Mic,
   Monitor,
   Package,
   Play,
@@ -20,6 +21,7 @@ import {
   ScanLine,
   Settings,
   Shield,
+  Sparkles,
   Wrench,
 } from "lucide-react";
 import type React from "react";
@@ -50,8 +52,10 @@ const navGroups = [
     items: [
       { path: "/movement", label: "Movement", icon: Gamepad2 },
       { path: "/sensors", label: "Sensors", icon: Gauge },
-      { path: "/peripherals", label: "Peripherals", icon: Lightbulb },
-      { path: "/lidar-addon", label: "Lidar Addon", icon: Package },
+      { path: "/peripherals", label: "Peripherals",    icon: Lightbulb },
+      { path: "/voice",       label: "Voice & Audio",  icon: Mic       },
+      { path: "/voice-upgrade", label: "Voice Upgrade", icon: Sparkles },
+      { path: "/lidar-addon", label: "Lidar Addon",    icon: Package   },
     ],
   },
   {

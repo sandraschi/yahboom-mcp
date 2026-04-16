@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "biome:ci": "biome ci .",
+    "biome": "biome check --write ."
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.6",

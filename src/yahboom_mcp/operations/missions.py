@@ -66,6 +66,8 @@ class MissionManager:
             self.active_mission = asyncio.create_task(self._smart_alarm_mission())
         elif mission_id == "briefing":
             self.active_mission = asyncio.create_task(self._morning_briefing_mission())
+        elif mission_id == "kaffeehaus":
+            self.active_mission = asyncio.create_task(self._kaffeehaus_mission())
         else:
             self.status = "error"
             self.last_error = f"Unknown mission ID: {mission_id}"
@@ -262,6 +264,118 @@ class MissionManager:
             self.status = "error"
             self.last_error = str(e)
 
+    async def _kaffeehaus_mission(self):
+        """
+        Kaffeehaus demo routine — ~30 seconds, crowd-legible, no large space needed.
+        Sequence:
+          1. Greeting fanfare (sound + OLED)
+          2. Rainbow spin — slow 360° with rainbow LEDs
+          3. Bow — forward/back pulse
+          4. Strafe waltz — left/right sway
+          5. Obstacle-aware forward creep with blue breathe LEDs
+          6. Victory spin + fanfare
+          7. Return to idle
+        """
+        try:
+            # ── 1. Greeting ──────────────────────────────────────────────────
+            self._add_log("Kaffeehaus: Greeting sequence...")
+            await display_execute(None, operation="scroll", param1="SERVUS WIEN!")
+            await led_execute(None, operation="set", param1=255, param2=215, param3=0)  # gold
+            await voice_execute(None, operation="play", param1=3)  # greeting sound
+            await asyncio.sleep(2.0)
+            self.progress = 10
+
+            # ── 2. Rainbow spin ──────────────────────────────────────────────
+            self._add_log("Kaffeehaus: Rainbow spin...")
+            await led_execute(None, operation="pattern", param1="rainbow")
+            # One full 360° turn: angular_z=0.6 rad/s × ~10.5 s ≈ 2π rad
+            spin_time = 0.0
+            while spin_time < 10.5:
+                await self._check_critical_safety()
+                await self.ros_bridge.publish_velocity(linear_x=0.0, angular_z=0.6)
+                await asyncio.sleep(0.1)
+                spin_time += 0.1
+            await self.ros_bridge.publish_velocity(0.0, 0.0)
+            await asyncio.sleep(0.3)
+            self.progress = 30
+
+            # ── 3. Bow ───────────────────────────────────────────────────────
+            self._add_log("Kaffeehaus: Bow...")
+            await led_execute(None, operation="set", param1=255, param2=215, param3=0)  # gold
+            await self.ros_bridge.publish_velocity(linear_x=0.18, angular_z=0.0)
+            await asyncio.sleep(0.5)
+            await self.ros_bridge.publish_velocity(linear_x=-0.18, angular_z=0.0)
+            await asyncio.sleep(0.5)
+            await self.ros_bridge.publish_velocity(0.0, 0.0)
+            await asyncio.sleep(0.3)
+            self.progress = 45
+
+            # ── 4. Strafe waltz — left/right sway ───────────────────────────
+            self._add_log("Kaffeehaus: Waltz sway...")
+            await led_execute(None, operation="set", param1=180, param2=0, param3=220)  # violet
+            for _ in range(3):
+                await self._check_critical_safety()
+                # strafe left (linear_y > 0 on mecanum)
+                await self.ros_bridge.publish_velocity(linear_x=0.0, angular_z=0.0, linear_y=0.18)
+                await asyncio.sleep(0.6)
+                await self.ros_bridge.publish_velocity(linear_x=0.0, angular_z=0.0, linear_y=-0.18)
+                await asyncio.sleep(0.6)
+            await self.ros_bridge.publish_velocity(0.0, 0.0)
+            await asyncio.sleep(0.3)
+            self.progress = 60
+
+            # ── 5. Obstacle-aware creep ──────────────────────────────────────
+            self._add_log("Kaffeehaus: Forward creep with obstacle check...")
+            await led_execute(None, operation="pattern", param1="breathe")
+            await display_execute(None, operation="scroll", param1="BOOMY ONLINE")
+            creep_time = 0.0
+            while creep_time < 2.5:
+                await self._check_critical_safety()
+                if await self._sense_obstacle():
+                    self._add_log("Kaffeehaus: Obstacle detected — holding position.")
+                    await self.ros_bridge.publish_velocity(0.0, 0.0)
+                    await asyncio.sleep(0.5)
+                    creep_time += 0.5
+                    continue
+                await self.ros_bridge.publish_velocity(linear_x=0.12, angular_z=0.0)
+                await asyncio.sleep(0.1)
+                creep_time += 0.1
+            await self.ros_bridge.publish_velocity(0.0, 0.0)
+            await asyncio.sleep(0.3)
+            self.progress = 80
+
+            # ── 6. Victory spin + fanfare ────────────────────────────────────
+            self._add_log("Kaffeehaus: Victory spin!")
+            await led_execute(None, operation="pattern", param1="patrol")
+            await voice_execute(None, operation="play", param1=5)  # victory sound
+            await display_execute(None, operation="scroll", param1="*** DANKE WIEN ***")
+            victory_time = 0.0
+            while victory_time < 4.0:
+                await self._check_critical_safety()
+                await self.ros_bridge.publish_velocity(linear_x=0.0, angular_z=1.2)
+                await asyncio.sleep(0.1)
+                victory_time += 0.1
+            await self.ros_bridge.publish_velocity(0.0, 0.0)
+            self.progress = 95
+
+            # ── 7. Idle ──────────────────────────────────────────────────────
+            self._add_log("Kaffeehaus: Demo complete.")
+            await led_execute(None, operation="set", param1=0, param2=60, param3=30)  # dim green idle
+            await display_execute(None, operation="write", param1="BOOMY  IDLE", param2=2)
+            self.status = "completed"
+            self.progress = 100
+
+        except asyncio.CancelledError:
+            self._add_log("Kaffeehaus mission cancelled.")
+            await self.ros_bridge.publish_velocity(0.0, 0.0)
+            await led_execute(None, operation="off")
+            raise
+        except Exception as e:
+            self.status = "error"
+            self.last_error = str(e)
+            self._add_log(f"Kaffeehaus error: {e}")
+            await self.ros_bridge.publish_velocity(0.0, 0.0)
+
     async def _morning_briefing_mission(self):
         try:
             self._add_log("Fetching news and sensor briefing...")
@@ -271,7 +385,7 @@ class MissionManager:
             # Simulated info
             briefing = "Today is sunny. Your battery is at 95 percent. The robot fleet is online."
             self._add_log("Broadcasting Audio Briefing...")
-            await voice_execute("say", param1=briefing)
+            await voice_execute(None, operation="say", param1=briefing)
 
             self._add_log("Executing morning stretch...")
             await self.ros_bridge.publish_velocity(linear_x=0.0, angular_z=0.5)

@@ -319,13 +319,15 @@ class ROS2Bridge:
         else:
             target_ssh = self.ssh_bridge
 
-        # Phase 1: Check for core hardware driver (Mcnamu_driver)
+        # Phase 1: Check for core hardware driver (Mcnamu_driver or driver_node)
         out, _, _ = await target_ssh.execute(
             "docker exec yahboom_ros2_final bash -c 'source /opt/ros/humble/setup.bash; source /root/yahboomcar_ws/install/setup.bash; ros2 node list'"
         )
+        critical_nodes = ["Mcnamu_driver", "driver_node"]
+        found_critical = any(node in out for node in critical_nodes)
 
-        if not out or "Mcnamu_driver" not in out:
-            logger.info("CRITICAL: Hardware driver (Mcnamu_driver) offline. Attempting SOTA V15 Recovery Bringup...")
+        if not out or not found_critical:
+            logger.info(f"CRITICAL: Hardware driver offline (Found: {out.replace('\n', ', ')}). Attempting SOTA V15 Recovery Bringup...")
             # Use setsid to ensure the process survives SSH disconnect
             launch_cmd = (
                 "docker exec yahboom_ros2_final bash -c '"
@@ -334,10 +336,10 @@ class ROS2Bridge:
                 "setsid ros2 launch yahboomcar_bringup yahboomcar_bringup.launch.py > /tmp/sota_launch.log 2>&1 &'"
             )
             await target_ssh.execute(launch_cmd)
-            await asyncio.sleep(8)
+            await asyncio.sleep(10) # Increased delay for Humble bringup stability
             logger.info("V14 Recovery Bringup triggered. Waiting for hardware stability...")
         else:
-            logger.info("Hardware driver (driver_node) confirmed active.")
+            logger.info("Hardware driver confirmed active.")
 
         # Phase 2: Check for Rosbridge (Webapp link)
         if "rosbridge_websocket" not in out:
@@ -393,8 +395,9 @@ class ROS2Bridge:
             return
 
         # 1. Map Topics (Hardcoded for Pi 5 Humble Registry - Resolved Sensory Blindness)
-        # Velocity
+        # Velocity — must advertise before publishing
         self.cmd_vel_topic = roslibpy.Topic(self.ros, "/cmd_vel", "geometry_msgs/Twist")
+        self.cmd_vel_topic.advertise()
 
         # IMU (override with YAHBOOM_IMU_TOPIC if your stack remaps e.g. /imu → /imu/data)
         self.imu_listener = roslibpy.Topic(
@@ -434,6 +437,7 @@ class ROS2Bridge:
         self.rgblight_topic = roslibpy.Topic(
             self.ros, rgblight_topic, "std_msgs/Int32MultiArray"
         )
+        self.rgblight_topic.advertise()
 
         # Camera (Compressed)
         image_topic = "/image_raw/compressed"
@@ -450,6 +454,7 @@ class ROS2Bridge:
         self.servo_topic = roslibpy.Topic(
             self.ros, "/servo", "yahboomcar_msgs/msg/ServoControl"
         )
+        self.servo_topic.advertise()
 
         logger.info(
             "Subscribed using Verified Humble Registry: IMU=%s, Bat=%s, Vision=%s, Line=%s, Ultrasonic=%s",
@@ -678,8 +683,10 @@ class ROS2Bridge:
         self, linear_x: float, angular_z: float, linear_y: float = 0.0
     ):
         """Send velocity command to the robot (including strafing for Mecanum wheels)."""
-        if not self.connected or not self.cmd_vel_topic:
-            logger.warning("Cannot publish velocity: Not connected")
+        ros_ok = self.ros and self.ros.is_connected
+        if not ros_ok or not self.cmd_vel_topic:
+            logger.warning("Cannot publish velocity: not connected (connected=%s, ros.is_connected=%s, cmd_vel=%s)",
+                           self.connected, ros_ok, self.cmd_vel_topic is not None)
             return False
 
         twist = {
@@ -690,15 +697,29 @@ class ROS2Bridge:
         logger.info(f"Published cmd_vel: x={linear_x}, y={linear_y}, z={angular_z}")
         return True
 
-    async def publish_servo(self, servo_id: int, angle: int):
-        """Send angle command to a specific servo channel."""
+    async def publish_servo(self, servo_s1: int, servo_s2: int) -> bool:
+        """
+        Send angle commands to both PTZ servo channels simultaneously.
+
+        ServoControl message fields:
+          servo_s1 — pan  servo (ID 1), horizontal
+          servo_s2 — tilt servo (ID 2), vertical
+
+        The driver callback always writes both:
+          Ctrl_Servo(1, msg.servo_s1)
+          Ctrl_Servo(2, msg.servo_s2)
+        Both angles must be supplied on every call; use current state for the
+        channel not being moved.
+        """
         if not self.connected or not self.servo_topic:
             logger.warning("Cannot publish servo: Not connected")
             return False
 
-        msg = {"id": servo_id, "angle": int(angle)}
+        s1 = max(0, min(180, int(servo_s1)))
+        s2 = max(0, min(180, int(servo_s2)))
+        msg = {"servo_s1": s1, "servo_s2": s2}
         self.servo_topic.publish(roslibpy.Message(msg))
-        logger.info(f"Published servo: id={servo_id}, angle={angle}")
+        logger.info(f"Published servo: servo_s1={s1} (pan), servo_s2={s2} (tilt)")
         return True
 
     # ─── Data access ─────────────────────────────────────────────────────────

@@ -21,6 +21,8 @@ import Onboarding from "./pages/onboarding/Onboarding";
 import SensorsPage from "./pages/sensors/Sensors";
 import Settings from "./pages/settings/Settings";
 import Tools from "./pages/tools/Tools";
+import Voice from "./pages/voice/Voice";
+import VoiceUpgrade from "./pages/voice/VoiceUpgrade";
 import Viz from "./pages/viz/Viz";
 
 function App() {
@@ -53,6 +55,9 @@ function App() {
           <Route path="/sensors" element={<SensorsPage />} />
           <Route path="/diagnostics" element={<DiagnosticsPage />} />
           <Route path="/peripherals" element={<Peripherals />} />
+
+          <Route path="/voice" element={<Voice />} />
+          <Route path="/voice-upgrade" element={<VoiceUpgrade />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

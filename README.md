@@ -45,6 +45,8 @@ This project clearly distinguishes between human-operable controls and machine-o
 | **[Setup & Installation](docs/ops/installation.md)** | Start Here | Launch commands, `uv run` usage, and baseline configuration. |
 | **[Software & Logic](docs/core/)** | Architecture | System design, ROS 2 node graphs, and state management. |
 | **[Hardware & Pinouts](docs/hardware/)** | Physical Layer | Wiring diagrams, I2C addresses, and sensor technical specs. |
+| **[ROS 2 Bridge](docs/hardware/ROSBRIDGE.md)** | Connectivity | Bridge architecture, topic map, state cache, env vars, known bugs. |
+| **[Voice & Audio](docs/hardware/VOICE_AUDIO.md)** | Sound System | CSK4002 module protocol, espeak-ng TTS, chatrobot architecture. |
 | **[Multi-Robot Integration](docs/fleet/)** | Ecosystem | Federated fleet standards and cross-robot communication protocols. |
 
 ---

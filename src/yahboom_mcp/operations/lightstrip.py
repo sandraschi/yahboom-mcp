@@ -23,11 +23,20 @@ PATTERNS = {
 _pattern_task: asyncio.Task | None = None
 
 
-async def _run_patrol_car(bridge, interval: float = 0.25):
-    """Red/blue alternating flash — police/patrol car effect."""
+def _get_rgblight_topic(bridge) -> roslibpy.Topic:
+    """Return the bridge's advertised /rgblight topic, creating+advertising it if missing."""
     topic = getattr(bridge, "rgblight_topic", None)
     if not topic:
+        logger.warning("rgblight_topic not found on bridge — creating and advertising ad-hoc")
         topic = roslibpy.Topic(bridge.ros, "/rgblight", "std_msgs/Int32MultiArray")
+        topic.advertise()
+        bridge.rgblight_topic = topic  # cache so next call reuses it
+    return topic
+
+
+async def _run_patrol_car(bridge, interval: float = 0.25):
+    """Red/blue alternating flash — police/patrol car effect."""
+    topic = _get_rgblight_topic(bridge)
     while True:
         topic.publish(roslibpy.Message({"data": [255, 0, 0]}))
         await asyncio.sleep(interval)
@@ -37,9 +46,7 @@ async def _run_patrol_car(bridge, interval: float = 0.25):
 
 async def _run_rainbow(bridge, interval: float = 0.08):
     """Cycle through hue wheel."""
-    topic = getattr(bridge, "rgblight_topic", None)
-    if not topic:
-        topic = roslibpy.Topic(bridge.ros, "/rgblight", "std_msgs/Int32MultiArray")
+    topic = _get_rgblight_topic(bridge)
     step = 0
     while True:
         h = (step % 360) / 360.0
@@ -61,9 +68,7 @@ async def _run_rainbow(bridge, interval: float = 0.08):
 async def _run_breathe(bridge, color=(0, 100, 255), period: float = 2.0):
     """Sine-wave brightness breathe on a base colour."""
     import math
-    topic = getattr(bridge, "rgblight_topic", None)
-    if not topic:
-        topic = roslibpy.Topic(bridge.ros, "/rgblight", "std_msgs/Int32MultiArray")
+    topic = _get_rgblight_topic(bridge)
     while True:
         t = time.time()
         brightness = (math.sin(2 * math.pi * t / period) + 1) / 2  # 0-1
@@ -77,9 +82,7 @@ async def _run_breathe(bridge, color=(0, 100, 255), period: float = 2.0):
 async def _run_fire(bridge):
     """Random orange/red flicker simulating fire."""
     import random
-    topic = getattr(bridge, "rgblight_topic", None)
-    if not topic:
-        topic = roslibpy.Topic(bridge.ros, "/rgblight", "std_msgs/Int32MultiArray")
+    topic = _get_rgblight_topic(bridge)
     while True:
         r = random.randint(200, 255)
         g = random.randint(30, 100)
@@ -135,7 +138,7 @@ async def execute(
     from ..state import _state
     bridge = _state.get("bridge")
 
-    if not bridge or not bridge.connected:
+    if not bridge or not (bridge.connected or (bridge.ros and bridge.ros.is_connected)):
         return {
             "success": False,
             "operation": operation,
@@ -143,9 +146,7 @@ async def execute(
             "correlation_id": correlation_id,
         }
 
-    topic = getattr(bridge, "rgblight_topic", None)
-    if not topic:
-        topic = roslibpy.Topic(bridge.ros, "/rgblight", "std_msgs/Int32MultiArray")
+    topic = _get_rgblight_topic(bridge)
 
     result: dict = {}
 

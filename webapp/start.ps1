@@ -70,7 +70,7 @@ foreach ($port in @($APP_PORT, $WEBAPP_PORT)) {
 
 # 2. Dependency sync
 Write-Host "[2/4] Syncing Python dependencies..." -ForegroundColor Cyan
-Push-Location ..
+Push-Location "$PSScriptRoot/.."
 uv sync --quiet
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] uv sync failed." -ForegroundColor Red
@@ -80,7 +80,7 @@ Pop-Location
 
 # 3. Start MCP backend (use splatting -- no backtick line continuation)
 Write-Host "[3/4] Starting Yahboom MCP Server on port $APP_PORT (dual mode)..." -ForegroundColor Green
-Push-Location ..
+Push-Location "$PSScriptRoot/.."
 $env:PYTHONPATH = "src"
 $serverArgs = @("run", "python", "-m", "yahboom_mcp.server", "--mode", "dual", "--host", "127.0.0.1", "--port", "$APP_PORT")
 $serverProc = Start-Process uv -ArgumentList $serverArgs -NoNewWindow -PassThru

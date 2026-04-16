@@ -77,7 +77,7 @@ async def yahboom_tool(
             from .operations import sensors
 
             return await sensors.execute(ctx, op_lower, param1, param2, payload)
-        elif op_lower in ["say", "play"]:
+        elif op_lower in ["say", "play", "play_beep", "play_file", "chat_and_say"]:
             from .operations import voice
 
             return await voice.execute(ctx, op_lower, param1, param2, payload)
@@ -136,6 +136,10 @@ async def yahboom_tool(
             from .operations import diagnostics
 
             return await diagnostics.execute(ctx, op_lower, param1, param2, payload)
+        elif op_lower == "stop_all":
+            from .operations import safety
+
+            return await safety.execute(ctx, "stop_all", param1, param2, payload)
     except Exception as e:
         logger.error(f"Operation {operation} failed: {e}", exc_info=True)
         return {

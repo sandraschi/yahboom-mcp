@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, isBridgeLiveTelemetry } from "../../lib/api";
 
 const STREAM_URL = "/stream";
@@ -66,7 +66,22 @@ export default function Dashboard() {
   const [llmResponse, setLlmResponse] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  // Voice Intelligence Logic
+  // Voice Intelligence Logic — defined before the useEffect that references it
+  const processVoiceCommand = useCallback(async (text: string) => {
+    if (!text.trim()) return;
+    try {
+      // Pipe text to robot for "chat_and_say" (Gemma 3 on Pi)
+      const res = await api.postTool("chat_and_say", text);
+      if (res?.result?.response) {
+        setLlmResponse(res.result.response);
+        // Clear response after 10 seconds
+        setTimeout(() => setLlmResponse(null), 10000);
+      }
+    } catch (err) {
+      console.error("Voice pipe failed:", err);
+    }
+  }, []);
+
   useEffect(() => {
     const SpeechRecognition =
       (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
@@ -107,21 +122,6 @@ export default function Dashboard() {
       setLlmResponse(null);
       recognitionRef.current?.start();
       setIsListening(true);
-    }
-  };
-
-  const processVoiceCommand = async (text: string) => {
-    if (!text.trim()) return;
-    try {
-      // Pipe text to robot for "chat_and_say" (Gemma 3 on Pi)
-      const res = await api.postTool("chat_and_say", text);
-      if (res?.result?.response) {
-        setLlmResponse(res.result.response);
-        // Clear response after 10 seconds
-        setTimeout(() => setLlmResponse(null), 10000);
-      }
-    } catch (err) {
-      console.error("Voice pipe failed:", err);
     }
   };
 
@@ -490,7 +490,7 @@ export default function Dashboard() {
 
               <div className="grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => api.postLightstrip("pattern", 10)}
+                  onClick={() => api.postLightstrip("pattern")}
                   className="col-span-2 h-12 rounded-2xl bg-gradient-to-r from-blue-600/20 to-red-600/20 border border-white/10 flex items-center justify-center text-xs font-black text-white uppercase tracking-widest"
                 >
                   Patrol Car Pattern
@@ -576,7 +576,7 @@ export default function Dashboard() {
 
                   <div className="grid grid-rows-2 gap-2">
                     <button
-                      onClick={() => api.postVoice("play_beep")}
+                    onClick={() => api.postTool("play_beep")}
                       disabled={!connected}
                       className="bg-white/5 border border-white/10 rounded-xl text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2 group"
                     >

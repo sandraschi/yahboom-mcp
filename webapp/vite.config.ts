@@ -16,13 +16,13 @@ export default defineConfig({
     host: true,
     proxy: {
       "/api": {
-        target: "http://localhost:10892",
+        target: "http://127.0.0.1:10892",
         changeOrigin: true,
         timeout: 60000,
         proxyTimeout: 60000,
       },
       "/stream": {
-        target: "http://localhost:10892",
+        target: "http://127.0.0.1:10892",
         changeOrigin: true,
         timeout: 0,
         proxyTimeout: 0,

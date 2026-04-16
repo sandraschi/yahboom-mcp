@@ -211,14 +211,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ messages }),
     }),
-  getDiagStack: () => request<DiagStackResponse>("/api/v1/diagnostics/stack"),
-  getDiagLogs: (lines: number = 50) =>
-    request<DiagLogsResponse>(`/api/v1/diagnostics/logs?lines=${lines}`),
-  postExecCommand: (command: string) =>
-    request<CommandResponse>("/api/v1/diagnostics/exec", {
-      method: "POST",
-      body: JSON.stringify({ command }),
-    }),
   /** Voice Module */
   postVoiceSay: (text: string) =>
     request<{ success: boolean }>("/api/v1/voice/say", {
@@ -318,6 +310,24 @@ export const api = {
       body: JSON.stringify({ operation: "off" }),
     }),
 
+  /** Convenience alias used by Dashboard: postLightstrip("off") | postLightstrip("pattern", 10) | postLightstrip("set", r, g, b) */
+  postLightstrip: (operation: string, r?: number, g?: number, b?: number) => {
+    if (operation === "off")
+      return request<{ success: boolean }>("/api/v1/control/lightstrip", {
+        method: "POST",
+        body: JSON.stringify({ operation: "off" }),
+      });
+    if (operation === "pattern")
+      return request<{ success: boolean }>("/api/v1/control/lightstrip", {
+        method: "POST",
+        body: JSON.stringify({ operation: "pattern", pattern: "patrol" }),
+      });
+    return request<{ success: boolean }>("/api/v1/control/lightstrip", {
+      method: "POST",
+      body: JSON.stringify({ operation: "set", r: r ?? 0, g: g ?? 0, b: b ?? 0 }),
+    });
+  },
+
   postVoice: (operation: "say" | "play" | "volume", text?: string, volume?: number, id?: number) =>
     request<{ success: boolean }>("/api/v1/control/voice", {
       method: "POST",
@@ -328,4 +338,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ operation, param1, param2, param3, payload }),
     }),
+  getDiagLogs: (lines: number = 80) =>
+    request<{ success: boolean; logs: string }>(`/api/v1/diagnostics/logs?lines=${lines}`),
+  getDiagStack: () =>
+    request<DiagStackResponse>("/api/v1/diagnostics/stack"),
+  postExecCommand: (command: string) =>
+    request<CommandResponse>("/api/v1/diagnostics/exec", {
+      method: "POST",
+      body: JSON.stringify({ command }),
+    }),
+  /** Returns the URL for the SSE log stream — use with EventSource */
+  logsStreamUrl: () => "/api/v1/logs/stream",
 };

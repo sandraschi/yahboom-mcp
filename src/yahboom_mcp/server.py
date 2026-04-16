@@ -109,6 +109,9 @@ async def lifespan(fastapi_app: FastAPI):
             _state["video_bridge"] = video_bridge
             logger.info("Components successfully re-synchronized with robot.")
 
+    # Store resync callback so reconnect_hardware() endpoint can call it
+    _state["resync_all_components"] = resync_all_components
+
     # Reconnection callback for watchdog
     async def on_reconnect():
         logger.info("Watchdog triggered RECONNECT sequence.")
@@ -119,18 +122,19 @@ async def lifespan(fastapi_app: FastAPI):
         nonlocal video_bridge, watchdog_task
         logger.info(f"Connecting to Yahboom robot at {robot_host} (Async)...")
 
-        # ROS/Bridge connection
-        connected = await bridge.connect(timeout=15.0)
-
-        # SSH connection (secondary)
+        # 1. SSH connection (Mandatory for hardware bringup/recovery)
+        ssh_success = False
         if ssh:
             ssh_success = await asyncio.to_thread(ssh.connect)
             if ssh_success:
-                logger.info("SSH Bridge established in background.")
+                logger.info("SSH Bridge established - enabling hardware recovery check.")
             else:
-                logger.warning("SSH Bridge failed (check password or connectivity).")
+                logger.warning("SSH Bridge failed (check YAHBOOM_PASSWORD or connectivity).")
 
-        # Initial video bridge activation if ROS is up
+        # 2. ROS/Bridge connection (will check for hardware nodes if SSH is up)
+        connected = await bridge.connect(timeout=15.0)
+
+        # 3. Initial video bridge activation if ROS is up
         if connected and getattr(bridge, "ros", None) and bridge.ros.is_connected:
             video_bridge = VideoBridge(bridge.ros, ssh_bridge=ssh)
             video_bridge.start()
@@ -196,6 +200,11 @@ async def get_health():
     ros_connected = False
     if bridge and getattr(bridge, "ros", None):
         ros_connected = bridge.ros.is_connected
+        # Keep bridge.connected flag in sync at query time
+        if ros_connected and not bridge.connected:
+            bridge.connected = True
+        elif not ros_connected and bridge.connected:
+            bridge.connected = False
 
     return {
         "status": "online",
@@ -745,17 +754,146 @@ async def snapshot():
     return Response(content=jpeg, media_type="image/jpeg")
 
 
-@app.get("/api/v1/health")
-async def health():
-    """Standardized SOTA health check."""
+# ─────────────────────────────────────────────────────────────────────────────
+# Diagnostic endpoints (stack info, SSH exec, live log stream)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# In-process log ring buffer — captures all yahboom-mcp log records
+import collections
+_log_ring: collections.deque = collections.deque(maxlen=500)
+
+class _RingHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        _log_ring.append(self.format(record))
+
+_ring_handler = _RingHandler()
+_ring_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s — %(message)s"))
+logging.getLogger("yahboom-mcp").addHandler(_ring_handler)
+
+
+@app.get("/api/v1/diagnostics/stack")
+async def get_diag_stack():
+    """ROS 2 node list + I2C/service status via SSH. Returns partial on failure."""
+    ssh = _state.get("ssh")
     bridge = _state.get("bridge")
 
+    ros_nodes: list[str] = []
+    service_status = "unknown"
+    i2c_bus_state = "unknown"
+    voice_module_state = "unknown"
+    recent_kernel_i2c_logs = ""
+
+    if ssh and ssh.connected:
+        try:
+            out, _, _ = await ssh.execute(
+                "docker exec yahboom_ros2_final bash -c "
+                "'source /opt/ros/humble/setup.bash; "
+                "source /root/yahboomcar_ws/install/setup.bash; "
+                "ros2 node list 2>/dev/null' 2>/dev/null || ros2 node list 2>/dev/null"
+            )
+            ros_nodes = [l.strip() for l in out.splitlines() if l.strip()]
+        except Exception as e:
+            ros_nodes = [f"[error: {e}]"]
+
+        try:
+            out2, _, _ = await ssh.execute("i2cdetect -y 1 2>/dev/null | head -5")
+            i2c_bus_state = out2.strip() or "no output"
+        except Exception:
+            i2c_bus_state = "i2cdetect unavailable"
+
+        try:
+            out3, _, _ = await ssh.execute("ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null")
+            voice_module_state = out3.strip() or "no serial devices"
+        except Exception:
+            voice_module_state = "unknown"
+
+        try:
+            out4, _, _ = await ssh.execute("dmesg | grep -i i2c | tail -5 2>/dev/null")
+            recent_kernel_i2c_logs = out4.strip()
+        except Exception:
+            recent_kernel_i2c_logs = ""
+    else:
+        ros_nodes = ["[SSH not connected — connect robot first]"]
+
+    ros_ok = bridge and bridge.ros and bridge.ros.is_connected
+    service_status = "rosbridge_connected" if ros_ok else "rosbridge_disconnected"
+
     return {
-        "status": "ok",
-        "service": "yahboom-mcp",
-        "connected": bridge.connected if bridge else False,
-        "timestamp": datetime.now().isoformat(),
+        "success": True,
+        "ros_nodes": ros_nodes,
+        "service_status": service_status,
+        "i2c_bus_state": i2c_bus_state,
+        "voice_module_state": voice_module_state,
+        "recent_kernel_i2c_logs": recent_kernel_i2c_logs,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
+
+
+@app.get("/api/v1/diagnostics/logs")
+async def get_diag_logs(lines: int = 80):
+    """Return recent in-process log lines from the ring buffer."""
+    lines = max(1, min(500, lines))
+    tail = list(_log_ring)[-lines:]
+    return {"success": True, "logs": "\n".join(tail)}
+
+
+class ExecRequest(BaseModel):
+    command: str
+
+
+@app.post("/api/v1/diagnostics/exec")
+async def exec_command(req: ExecRequest):
+    """Execute a shell command on the robot via SSH. Sandboxed to read-mostly ops."""
+    ssh = _state.get("ssh")
+    if not ssh or not ssh.connected:
+        raise HTTPException(status_code=503, detail="SSH not connected")
+
+    BLOCKED = ["rm ", "mkfs", "dd ", "shutdown", "reboot", "passwd", "> /dev", "| dd"]
+    cmd = req.command.strip()
+    for b in BLOCKED:
+        if b in cmd:
+            raise HTTPException(status_code=403, detail=f"Command blocked: contains '{b}'")
+
+    try:
+        stdout, stderr, exit_code = await ssh.execute(cmd)
+        return {
+            "success": exit_code == 0,
+            "stdout": stdout,
+            "stderr": stderr,
+            "exit_code": exit_code,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/logs/stream")
+async def stream_logs():
+    """Server-Sent Events stream of live log output from the ring buffer."""
+    async def generate():
+        sent = 0
+        # Drain existing buffer first
+        snapshot = list(_log_ring)
+        for line in snapshot:
+            yield f"data: {line}\n\n"
+        sent = len(snapshot)
+
+        # Then tail new entries
+        while True:
+            current = list(_log_ring)
+            if len(current) > sent:
+                for line in current[sent:]:
+                    yield f"data: {line}\n\n"
+                sent = len(current)
+            await asyncio.sleep(0.3)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.get("/api/v1/telemetry")
@@ -764,10 +902,10 @@ async def telemetry():
     Real-time telemetry from all connected ROS 2 sensors.
     """
     bridge = _state.get("bridge")
-    # logger.info(
-    #    f"Telemetry Check: bridge={bridge}, connected={bridge.connected if bridge else 'N/A'}"
-    # )
-    if bridge and bridge.connected:
+    ros_live = bridge and bridge.ros and bridge.ros.is_connected
+    if ros_live and not bridge.connected:
+        bridge.connected = True  # sync stale flag
+    if ros_live:
         data = bridge.get_full_telemetry()
         data["status"] = "live"
         data["source"] = "live"
@@ -897,6 +1035,9 @@ class LEDRequest(BaseModel):
 @app.post("/api/v1/led")
 async def set_led(req: LEDRequest):
     """Set Lightstrip RGB values."""
+    bridge = _state.get("bridge")
+    if not bridge or not (bridge.connected or (bridge.ros and bridge.ros.is_connected)):
+        raise HTTPException(status_code=503, detail="Bridge not connected")
     from .operations import lightstrip
 
     return await lightstrip.execute(
@@ -915,6 +1056,9 @@ class LightstripPatternRequest(BaseModel):
 @app.post("/api/v1/control/lightstrip")
 async def control_lightstrip(req: LightstripPatternRequest):
     """Lightstrip control: static colour, off, or named autochange pattern."""
+    bridge = _state.get("bridge")
+    if not bridge or not (bridge.connected or (bridge.ros and bridge.ros.is_connected)):
+        raise HTTPException(status_code=503, detail="Bridge not connected")
     from .operations import lightstrip as ls
     if req.operation == "pattern" and req.pattern:
         result = await ls.execute(operation="pattern", param1=req.pattern)
@@ -1008,6 +1152,10 @@ class EmergencyRequest(BaseModel):
 @app.post("/api/v1/emergency")
 async def toggle_emergency(req: EmergencyRequest):
     """Toggle the Emergency Mode background sequence."""
+    if req.active and not _sequencer.active:
+        _sequencer.start()
+    elif not req.active and _sequencer.active:
+        await _sequencer.stop()
     return {"active": _sequencer.active}
 
 
@@ -1043,14 +1191,20 @@ async def control_move(
 ):
     """Direct motion control endpoint for Dashboard UI and embodied loop."""
     bridge = _state.get("bridge")
-    if not bridge or not bridge.connected:
-        return {"error": "Bridge not connected"}
+    if not bridge or not (bridge.connected or (bridge.ros and bridge.ros.is_connected)):
+        raise HTTPException(status_code=503, detail="Bridge not connected")
+
+    # Sync flag if roslibpy says connected but flag is stale
+    if bridge.ros and bridge.ros.is_connected and not bridge.connected:
+        bridge.connected = True
 
     ok = await bridge.publish_velocity(
         linear_x=linear, angular_z=angular, linear_y=linear_y
     )
+    if not ok:
+        raise HTTPException(status_code=503, detail="publish_velocity failed — cmd_vel topic not ready")
     return {
-        "status": "success" if ok else "failed",
+        "status": "success",
         "command": {"linear": linear, "angular": angular, "linear_y": linear_y},
     }
 
@@ -1166,6 +1320,7 @@ async def get_capabilities():
         "status": "ok",
         "server": {"name": "yahboom-mcp", "version": "1.0.1", "fastmcp": "3.2.0"},
         "tool_surface": {"total": 4, "portmanteau_count": 1, "atomic_count": 3},
+        "available_missions": ["patrol", "alarm", "briefing", "kaffeehaus"],
         "available_operations": [
             "forward",
             "backward",

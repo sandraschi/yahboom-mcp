@@ -1,423 +1,495 @@
+/**
+ * Peripherals.tsx — Lightstrip FX + OLED Display
+ *
+ * Voice/audio controls have moved to /voice.
+ *
+ * What works:
+ *   Lightstrip — ROS /rgblight topic, fully functional after advertise() fix
+ *
+ * What needs Pi-side setup to work:
+ *   OLED — luma.oled via SSH. Works once `pip3 install luma.oled pillow`
+ *   is run on the Pi host and the ROS oled_node is not holding I2C.
+ *   Use get_status to diagnose. See docs/hardware/HARDWARE_DIAGNOSIS_VOICE_I2C.md
+ */
+
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowRightLeft,
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
   Loader2,
+  Mic,
   Palette,
-  Radio,
   RefreshCw,
   ScreenShare,
   Trash2,
-  Volume2,
-  Zap,
+  Type,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface OledStatus {
+  active: boolean;
+  detected_addresses: string[];
+  driver_responding: boolean;
+  driver: string;
+  note: string;
+}
+
+// ── Lightstrip data ───────────────────────────────────────────────────────────
 
 const PATTERNS = [
-  {
-    id: "patrol",
-    label: "Patrol Car",
-    sid: "patrol",
-    color: "bg-gradient-to-r from-red-600 via-zinc-200 to-blue-600",
-  },
-  {
-    id: "rainbow",
-    label: "Rainbow Flow",
-    sid: "rainbow",
-    color: "bg-gradient-to-r from-red-500 via-green-500 to-blue-500",
-  },
-  {
-    id: "breathe",
-    label: "Breathe RGB",
-    sid: "breathe",
-    color: "bg-gradient-to-r from-blue-600 to-cyan-400",
-  },
-  {
-    id: "fire",
-    label: "Fire Flicker",
-    sid: "fire",
-    color: "bg-gradient-to-r from-orange-600 to-red-500",
-  },
-  { id: "off", label: "Kill Lights", sid: "off", color: "bg-zinc-900" },
+  { id: "patrol",  label: "Patrol Car",   color: "bg-gradient-to-r from-red-600 via-zinc-200 to-blue-600" },
+  { id: "rainbow", label: "Rainbow Flow", color: "bg-gradient-to-r from-red-500 via-green-500 to-blue-500" },
+  { id: "breathe", label: "Breathe",      color: "bg-gradient-to-r from-blue-600 to-cyan-400" },
+  { id: "fire",    label: "Fire Flicker", color: "bg-gradient-to-r from-orange-600 to-red-500" },
+  { id: "off",     label: "Kill",         color: "bg-zinc-900" },
 ];
 
-const PRESET_MESSAGES = [
-  { id: "hello", label: "Hello World" },
-  { id: "ready", label: "Boomy Active" },
-  { id: "threat", label: "Threat Detected" },
-  { id: "intel", label: "Logic Initialized" },
+const COLORS: { label: string; r: number; g: number; b: number; cls: string }[] = [
+  { label: "Red",    r: 255, g: 0,   b: 0,   cls: "bg-red-600"     },
+  { label: "Green",  r: 0,   g: 255, b: 0,   cls: "bg-green-500"   },
+  { label: "Blue",   r: 0,   g: 0,   b: 255, cls: "bg-blue-600"    },
+  { label: "White",  r: 255, g: 255, b: 255, cls: "bg-white"       },
+  { label: "Amber",  r: 255, g: 160, b: 0,   cls: "bg-amber-500"   },
+  { label: "Purple", r: 160, g: 0,   b: 255, cls: "bg-purple-600"  },
 ];
 
-const SOUND_LIBRARY = [
-  { id: "startup", sid: 1, label: "System Start" },
-  { id: "alert", sid: 2, label: "Alert Chime" },
-  { id: "ping", sid: 3, label: "Sonar Pulse" },
-  { id: "success", sid: 4, label: "Success Jingle" },
-  { id: "failure", sid: 5, label: "Fault Alarm" },
-  { id: "mode", sid: 6, label: "Gear Shift" },
+// ── OLED quick messages ───────────────────────────────────────────────────────
+
+const OLED_PRESETS = [
+  { label: "Boomy Active",   text: "Boomy Active" },
+  { label: "Kaffeehaus",     text: "Kaffeehaus Mode" },
+  { label: "Patrol",         text: "Patrol Active" },
+  { label: "Low Battery",    text: "Low Battery!" },
+  { label: "System Status",  text: null },  // triggers the status dashboard op
 ];
 
-const StatusBadge = ({ detected, label }: { detected: boolean; label: string }) => (
-  <div
-    className={`px-4 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${
-      detected
-        ? "bg-green-500/10 border-green-500/20 text-green-500 shadow-lg shadow-green-500/10"
-        : "bg-zinc-900 border-white/5 text-zinc-600"
-    }`}
-  >
-    <div
-      className={`w-1 h-1 rounded-full ${detected ? "bg-green-500 animate-pulse" : "bg-zinc-800"}`}
-    />
-    {label}
-  </div>
-);
+// ── API helpers ───────────────────────────────────────────────────────────────
+
+async function post(path: string, body: object) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Peripherals() {
+  const navigate = useNavigate();
+
+  // Lightstrip
   const [ledLoading, setLedLoading] = useState<string | null>(null);
-  const [_oledLoading, setOledLoading] = useState<string | null>(null);
-  const [soundLoading, setSoundLoading] = useState<string | number | null>(null);
+  const [ledError, setLedError] = useState<string | null>(null);
+  const [rgbR, setRgbR] = useState(0);
+  const [rgbG, setRgbG] = useState(100);
+  const [rgbB, setRgbB] = useState(255);
+  const rgbDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // OLED States
-  const [voiceText, setVoiceText] = useState("");
-  const [volume, setVolume] = useState(20);
-  const [voiceDevice, setVoiceDevice] = useState<string | null>(null);
-  const [voiceStatus, setVoiceStatus] = useState(false);
-  const [displayNote, setDisplayNote] = useState<string | null>(null);
+  // OLED
+  const [oledStatus, setOledStatus] = useState<OledStatus | null>(null);
+  const [oledProbing, setOledProbing] = useState(false);
+  const [oledText, setOledText] = useState("");
+  const [oledLine, setOledLine] = useState(0);
+  const [oledBusy, setOledBusy] = useState<string | null>(null);
+  const [oledFeedback, setOledFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  useEffect(() => {
-    refreshVoiceStatus();
-  }, [refreshVoiceStatus]);
-
-  const refreshVoiceStatus = async () => {
+  const probeOled = useCallback(async () => {
+    setOledProbing(true);
     try {
-      const res = await fetch("/api/v1/control/voice/status");
-      const data = await res.json();
-      setVoiceStatus(data.success);
-      if (data.success) setVoiceDevice("USB AUDIO OK");
-    } catch (_e) {
-      setVoiceStatus(false);
+      const data = await post("/api/v1/control/display/status", {});
+      setOledStatus(data.result as OledStatus);
+    } catch {
+      setOledStatus(null);
+    } finally {
+      setOledProbing(false);
     }
-  };
+  }, []);
 
-  const handlePattern = async (sid: string) => {
-    setLedLoading(sid);
+  useEffect(() => { probeOled(); }, [probeOled]);
+
+  // ── Lightstrip handlers ───────────────────────────────────────────────────
+
+  const handlePattern = async (id: string) => {
+    setLedLoading(id);
+    setLedError(null);
     try {
-      await fetch("/api/v1/control/lightstrip", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          operation: sid === "off" ? "off" : "pattern",
-          pattern: sid,
-        }),
+      await post("/api/v1/control/lightstrip", {
+        operation: id === "off" ? "off" : "pattern",
+        pattern: id,
       });
+    } catch (e: any) {
+      setLedError(e.message ?? "Lightstrip error");
     } finally {
-      setTimeout(() => setLedLoading(null), 800);
+      setTimeout(() => setLedLoading(null), 600);
     }
   };
 
-  const handleOLED = async (action: string, text?: string) => {
-    setOledLoading(action);
+  const handleColor = async (r: number, g: number, b: number) => {
+    setLedLoading(`color-${r}-${g}-${b}`);
+    setLedError(null);
     try {
-      if (action === "clear") {
-        await fetch("/api/v1/control/lightstrip", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ operation: "off" }),
-        });
-        setDisplayNote(null);
-      } else {
-        await fetch("/api/v1/display/write", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: text || "Boomy System", line: 0 }),
-        });
-        if (action === "scroll") setDisplayNote(`OLED Transmission: ${text || "Active"}`);
-      }
+      await post("/api/v1/control/lightstrip", { operation: "set", r, g, b });
+    } catch (e: any) {
+      setLedError(e.message ?? "Lightstrip error");
     } finally {
-      setTimeout(() => setOledLoading(null), 600);
+      setTimeout(() => setLedLoading(null), 400);
     }
   };
 
-  const handleVoiceSay = async () => {
-    if (!voiceText.trim()) return;
-    setSoundLoading("tts");
+  const handleRgbSlider = (r: number, g: number, b: number) => {
+    setRgbR(r); setRgbG(g); setRgbB(b);
+    if (rgbDebounce.current) clearTimeout(rgbDebounce.current);
+    rgbDebounce.current = setTimeout(() => handleColor(r, g, b), 120);
+  };
+
+  // ── OLED handlers ─────────────────────────────────────────────────────────
+
+  const flashFeedback = (ok: boolean, msg: string) => {
+    setOledFeedback({ ok, msg });
+    setTimeout(() => setOledFeedback(null), 3000);
+  };
+
+  const handleOledWrite = async (text: string, line: number = oledLine) => {
+    if (!text.trim()) return;
+    setOledBusy("write");
     try {
-      await fetch("/api/v1/control/voice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operation: "say", text: voiceText }),
-      });
+      const res = await post("/api/v1/display/write", { text, line });
+      flashFeedback(res.success, res.success ? `Line ${line}: "${text}"` : res.result?.log || "Failed");
+    } catch (e: any) {
+      flashFeedback(false, e.message);
     } finally {
-      setSoundLoading(null);
+      setOledBusy(null);
     }
   };
 
-  const handleSoundPlay = async (sid: number) => {
-    setSoundLoading(sid);
+  const handleOledStatus = async () => {
+    setOledBusy("status");
     try {
-      await fetch("/api/v1/control/voice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operation: "play", id: sid }),
-      });
+      const res = await post("/api/v1/control/tool", { operation: "display", param1: "status" });
+      flashFeedback(res.success, res.success ? "System status shown on OLED" : res.result?.log || "Failed — check luma.oled on Pi");
+    } catch (e: any) {
+      flashFeedback(false, e.message);
     } finally {
-      setTimeout(() => setSoundLoading(null), 1000);
+      setOledBusy(null);
     }
   };
 
-  const handleSetVolume = async (val: number) => {
-    setVolume(val);
-    await fetch("/api/v1/control/voice", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ operation: "volume", volume: val }),
-    });
+  const handleOledClear = async () => {
+    setOledBusy("clear");
+    try {
+      const res = await post("/api/v1/display/clear", {});
+      flashFeedback(res.success, res.success ? "Display cleared" : res.result?.log || "Failed");
+    } catch (e: any) {
+      flashFeedback(false, e.message);
+    } finally {
+      setOledBusy(null);
+    }
   };
+
+  const handleOledScroll = async (text: string) => {
+    setOledBusy("scroll");
+    try {
+      const res = await post("/api/v1/display/scroll", { text });
+      flashFeedback(res.success, res.success ? `Scrolling: "${text}"` : "Failed");
+    } catch (e: any) {
+      flashFeedback(false, e.message);
+    } finally {
+      setOledBusy(null);
+    }
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 md:p-10 lg:p-20 font-sans selection:bg-blue-500/30">
-      <div className="max-w-[1400px] mx-auto space-y-20">
-        {/* ── LIGHTS: ILLUMINATION ARTIFACTS ─────────────────────────── */}
-        <section className="group relative overflow-hidden rounded-[3rem] border border-white/5 bg-zinc-900/40 p-10 backdrop-blur-2xl transition-all hover:bg-zinc-900/60 hover:border-white/10 shadow-2xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 blur-[100px] rounded-full -mr-20 -mt-20 pointer-events-none group-hover:bg-blue-500/10 transition-all duration-1000" />
-          <div className="relative z-10 space-y-10">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-black text-white flex items-center gap-3 tracking-tight">
-                  <Palette className="w-6 h-6 text-blue-500" />
-                  Lightstrip FX
-                </h2>
-                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] px-1">
-                  Chrono-RGB Core
-                </p>
-              </div>
-              <StatusBadge detected={true} label="LED OK" />
-            </div>
+    <div className="min-h-screen bg-black text-white p-6 md:p-10 font-sans">
+      <div className="max-w-[1400px] mx-auto space-y-10">
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {PATTERNS.map((pattern) => (
-                <button
-                  key={pattern.id}
-                  onClick={() => handlePattern(pattern.sid as string)}
-                  disabled={ledLoading !== null}
-                  className={`group relative h-32 rounded-[2rem] overflow-hidden transition-all active:scale-95 ${pattern.color} border border-white/5 hover:border-white/20 hover:shadow-2xl hover:shadow-white/5 disabled:opacity-40`}
-                >
-                  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm group-hover:bg-black/20 transition-all" />
-                  <div className="relative h-full flex flex-col justify-end p-6">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] mb-1 opacity-50">
-                      {pattern.id}
-                    </span>
-                    <span className="text-xs font-black tracking-widest uppercase">
-                      {pattern.label}
-                    </span>
-                    {ledLoading === pattern.sid && (
-                      <div className="absolute top-4 right-4">
-                        <Loader2 className="w-4 h-4 animate-spin text-white" />
-                      </div>
-                    )}
-                  </div>
-                </button>
-              ))}
+        {/* ── Header ───────────────────────────────────────────────────────── */}
+        <div>
+          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
+            <Palette className="w-8 h-8 text-blue-500" />
+            Peripherals
+          </h1>
+          <p className="text-zinc-500 text-xs mt-1 font-mono">Lightstrip FX · OLED Display</p>
+        </div>
+
+        {/* ── Voice redirect card ───────────────────────────────────────────── */}
+        <button
+          onClick={() => navigate("/voice")}
+          className="w-full flex items-center justify-between gap-4 p-5 rounded-2xl bg-purple-500/5 border border-purple-500/15 hover:bg-purple-500/10 hover:border-purple-500/25 transition-all group text-left"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center flex-shrink-0">
+              <Mic className="w-4 h-4 text-purple-400" />
+            </div>
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-widest text-purple-300">Voice & Audio →</p>
+              <p className="text-[10px] text-zinc-600 font-mono">CSK4002 preset phrases · espeak-ng TTS · recognition listen · volume</p>
             </div>
           </div>
-        </section>
+          <ArrowRight className="w-4 h-4 text-purple-500/50 group-hover:text-purple-400 group-hover:translate-x-1 transition-all flex-shrink-0" />
+        </button>
 
-        {/* ── DISPLAY: VISUAL TELEMETRY ─────────────────────────────── */}
-        <section className="group relative overflow-hidden rounded-[3rem] border border-white/5 bg-zinc-900/40 p-10 backdrop-blur-2xl transition-all hover:bg-zinc-900/60 hover:border-white/10 shadow-2xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/5 blur-[100px] rounded-full -mr-20 -mt-20 pointer-events-none group-hover:bg-green-500/10 transition-all duration-1000" />
-          <div className="relative z-10 space-y-10">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-black text-white flex items-center gap-3 tracking-tight">
-                  <ScreenShare className="w-6 h-6 text-green-500" />
-                  OLED Controller
-                </h2>
-                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] px-1">
-                  I2C Pixel Matrix
-                </p>
-              </div>
-              <StatusBadge detected={true} label="SSD1306 OK" />
-            </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-              {/* Terminal Input */}
-              <div className="space-y-6">
-                <label className="text-[11px] font-black text-zinc-600 uppercase tracking-[0.25em]">
-                  Flash Message
-                </label>
-                <div className="relative group/input">
-                  <input
-                    type="text"
-                    placeholder="Transmit signal..."
-                    className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-6 px-8 text-white placeholder-zinc-800 transition-all focus:border-green-500/30 focus:outline-none focus:ring-4 focus:ring-green-500/5 font-mono text-sm"
-                  />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-2">
-                    <button
-                      onClick={() => handleOLED("flash")}
-                      className="px-6 py-2 rounded-xl bg-green-500 text-black font-black text-[10px] uppercase tracking-widest hover:bg-green-400 transition-all active:scale-95 shadow-lg shadow-green-500/20"
-                    >
-                      Flash
-                    </button>
+          {/* ══════════════════════════════════════════════════════════════════
+              LIGHTSTRIP
+          ══════════════════════════════════════════════════════════════════ */}
+          <section className="relative overflow-hidden rounded-[2.5rem] border border-white/5 bg-zinc-900/40 p-8 backdrop-blur-xl">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/5 blur-[80px] rounded-full -mr-16 -mt-16 pointer-events-none" />
+            <div className="relative z-10 space-y-8">
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Palette className="w-5 h-5 text-blue-500" />
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-widest">Lightstrip</p>
+                    <p className="text-[9px] text-zinc-600 font-mono">ROS /rgblight · std_msgs/Int32MultiArray</p>
                   </div>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[9px] font-black text-emerald-500 uppercase tracking-wider">Live</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Presets */}
-                <div className="space-y-4">
-                  <label className="text-[11px] font-black text-zinc-600 uppercase tracking-[0.25em]">
-                    Quick Presets
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {PRESET_MESSAGES.map((msg) => (
-                      <button
-                        key={msg.id}
-                        onClick={() => handleOLED("scroll", msg.label)}
-                        className="px-4 py-2 rounded-xl bg-black/20 border border-white/5 text-[10px] font-bold text-zinc-500 hover:text-blue-400 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all uppercase tracking-wider"
-                      >
-                        {msg.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Controls */}
-                <div className="space-y-4">
-                  <label className="text-[11px] font-black text-zinc-600 uppercase tracking-[0.25em]">
-                    Mode Sequence
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => handleOLED("scroll")}
-                      className="py-3 rounded-2xl bg-zinc-800/30 border border-white/5 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-all flex items-center justify-center gap-2"
-                    >
-                      <ArrowRightLeft className="w-4 h-4" /> Scroll Env
-                    </button>
-                    <button
-                      onClick={() => handleOLED("clear")}
-                      className="py-3 rounded-2xl bg-red-500/5 border border-white/5 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center justify-center gap-2"
-                    >
-                      <Trash2 className="w-4 h-4" /> Purge
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {displayNote && (
-              <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10">
-                <p className="text-[10px] text-blue-400/60 font-medium leading-relaxed italic">
-                  System Note: {displayNote}
+              {ledError && (
+                <p className="text-xs text-red-400 font-mono bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 -mt-2">
+                  {ledError}
                 </p>
-              </div>
-            )}
-          </div>
-        </section>
+              )}
 
-        {/* ── AUDIO: SONIC COMMAND CENTER ───────────────────────────── */}
-        <section className="group relative overflow-hidden rounded-[3rem] border border-white/5 bg-zinc-900/40 p-10 backdrop-blur-2xl transition-all hover:bg-zinc-900/60 hover:border-white/10 shadow-2xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 blur-[100px] rounded-full -mr-20 -mt-20 pointer-events-none group-hover:bg-purple-500/10 transition-all duration-1000" />
-          <div className="relative z-10 space-y-10">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-black text-white flex items-center gap-3 tracking-tight">
-                  <Volume2 className="w-6 h-6 text-purple-500" />
-                  Sonic Command
-                </h2>
-                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] px-1">
-                  USB Voice Subsystem
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <StatusBadge detected={voiceStatus} label={voiceDevice || "VOICE OK"} />
-                <button
-                  onClick={refreshVoiceStatus}
-                  className="p-2 rounded-full bg-white/5 text-zinc-500 hover:bg-white/10 hover:text-white transition-all"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-              {/* Left: Conversational TTS */}
-              <div className="space-y-6">
-                <label className="text-[11px] font-black text-zinc-600 uppercase tracking-[0.25em]">
-                  Conversational TTS
-                </label>
-                <div className="space-y-4">
-                  <textarea
-                    rows={4}
-                    placeholder="Enter transmission text…"
-                    value={voiceText}
-                    onChange={(e) => setVoiceText(e.target.value)}
-                    className="w-full bg-black/40 border-2 border-white/5 rounded-[2rem] p-6 text-white placeholder-zinc-800 transition-all focus:border-purple-500/30 focus:outline-none focus:ring-4 focus:ring-purple-500/5 resize-none text-sm leading-relaxed"
-                  />
-                  <div className="flex items-center gap-4">
+              {/* Patterns */}
+              <div className="space-y-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Patterns</p>
+                <div className="grid grid-cols-5 gap-2">
+                  {PATTERNS.map(p => (
                     <button
-                      onClick={handleVoiceSay}
-                      disabled={!voiceText.trim()}
-                      className="flex-1 py-4 rounded-2xl bg-purple-500 text-black font-black hover:bg-purple-400 active:scale-95 transition-all text-xs uppercase tracking-widest disabled:opacity-20 shadow-lg shadow-purple-500/20"
+                      key={p.id}
+                      onClick={() => handlePattern(p.id)}
+                      disabled={ledLoading !== null}
+                      className={`group relative h-20 rounded-2xl overflow-hidden border border-white/5 hover:border-white/15 transition-all active:scale-95 disabled:opacity-40 ${p.color}`}
                     >
-                      Transmit Speech
-                    </button>
-                    <div className="w-32 space-y-1">
-                      <div className="flex justify-between text-[9px] text-zinc-500 font-black uppercase tracking-widest">
-                        <span>Gain</span>
-                        <span>{volume}</span>
+                      <div className="absolute inset-0 bg-black/50 group-hover:bg-black/20 transition-all" />
+                      <div className="relative h-full flex flex-col justify-end p-2">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-white leading-tight">{p.label}</span>
                       </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={volume}
-                        onChange={(e) => handleSetVolume(parseInt(e.target.value, 10))}
-                        className="w-full h-1.5 appearance-none bg-zinc-800 rounded-full accent-purple-400 cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: SFX Manifest */}
-              <div className="space-y-6">
-                <label className="text-[11px] font-black text-zinc-600 uppercase tracking-[0.25em]">
-                  SFX Manifest
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {SOUND_LIBRARY.map((sound) => (
-                    <button
-                      key={sound.id}
-                      onClick={() => handleSoundPlay(sound.sid as number)}
-                      disabled={soundLoading !== null}
-                      className="group/sfx relative overflow-hidden px-5 py-4 rounded-2xl bg-black/20 border border-white/5 text-[10px] font-black text-zinc-500 hover:text-white hover:border-purple-500/30 hover:bg-purple-500/5 transition-all uppercase tracking-widest flex items-center justify-between gap-3 disabled:opacity-40"
-                    >
-                      <span className="relative z-10">{sound.label}</span>
-                      <div className="relative z-10">
-                        {soundLoading === sound.sid ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
-                        ) : (
-                          <Zap className="w-4 h-4 text-zinc-700 group-hover/sfx:text-purple-500/50 transition-colors" />
-                        )}
-                      </div>
+                      {ledLoading === p.id && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                          <Loader2 className="w-4 h-4 animate-spin text-white" />
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
-                <div className="p-5 rounded-2xl bg-purple-500/5 border border-purple-500/10 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                    <Radio className="w-5 h-5 text-purple-400 animate-pulse" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[10px] text-white font-black tracking-widest uppercase">
-                      Direct Stream Active
-                    </p>
-                    <p className="text-[9px] text-zinc-500 font-medium">
-                      9600 Baud Serial Loopback
-                    </p>
-                  </div>
+              </div>
+
+              {/* Quick colours */}
+              <div className="space-y-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Quick Colours</p>
+                <div className="flex flex-wrap gap-2">
+                  {COLORS.map(c => (
+                    <button
+                      key={c.label}
+                      onClick={() => handleColor(c.r, c.g, c.b)}
+                      disabled={ledLoading !== null}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-900 border border-white/5 hover:border-white/15 transition-all active:scale-95 disabled:opacity-40"
+                    >
+                      <div className={`w-3 h-3 rounded-full ${c.cls} border border-white/20`} />
+                      <span className="text-[10px] font-bold text-zinc-400">{c.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
+
+              {/* RGB sliders */}
+              <div className="space-y-3 p-5 rounded-2xl bg-black/20 border border-white/5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Custom RGB</p>
+                <div className="flex items-center gap-4 mb-3">
+                  <div
+                    className="w-10 h-10 rounded-xl border border-white/10 flex-shrink-0 transition-all"
+                    style={{ backgroundColor: `rgb(${rgbR},${rgbG},${rgbB})` }}
+                  />
+                  <span className="text-[10px] font-mono text-zinc-500">
+                    rgb({rgbR}, {rgbG}, {rgbB})
+                  </span>
+                </div>
+                {(["R", "G", "B"] as const).map((ch, i) => {
+                  const val = [rgbR, rgbG, rgbB][i];
+                  const setter = [
+                    (v: number) => handleRgbSlider(v, rgbG, rgbB),
+                    (v: number) => handleRgbSlider(rgbR, v, rgbB),
+                    (v: number) => handleRgbSlider(rgbR, rgbG, v),
+                  ][i];
+                  const accentClass = ["accent-red-500", "accent-green-500", "accent-blue-500"][i];
+                  return (
+                    <div key={ch} className="flex items-center gap-3">
+                      <span className="text-[10px] font-black text-zinc-600 w-3">{ch}</span>
+                      <input
+                        type="range" min={0} max={255} value={val}
+                        onChange={e => setter(parseInt(e.target.value))}
+                        className={`flex-1 h-1 appearance-none rounded-full bg-zinc-800 cursor-pointer ${accentClass}`}
+                      />
+                      <span className="text-[10px] font-mono text-zinc-500 w-7 text-right">{val}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
             </div>
-          </div>
-        </section>
+          </section>
+
+          {/* ══════════════════════════════════════════════════════════════════
+              OLED DISPLAY
+          ══════════════════════════════════════════════════════════════════ */}
+          <section className="relative overflow-hidden rounded-[2.5rem] border border-white/5 bg-zinc-900/40 p-8 backdrop-blur-xl">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-green-500/5 blur-[80px] rounded-full -mr-16 -mt-16 pointer-events-none" />
+            <div className="relative z-10 space-y-7">
+
+              {/* Header + status */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <ScreenShare className="w-5 h-5 text-green-500" />
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-widest">OLED Display</p>
+                    <p className="text-[9px] text-zinc-600 font-mono">I2C via SSH · luma.oled · ssd1306</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {oledProbing ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-zinc-600" />
+                  ) : oledStatus?.driver_responding ? (
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                      <span className="text-[9px] font-black text-emerald-500 uppercase tracking-wider">
+                        {oledStatus.detected_addresses[0] ? `0x${oledStatus.detected_addresses[0]}` : "OK"}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+                      <AlertTriangle className="w-3 h-3 text-amber-500" />
+                      <span className="text-[9px] font-black text-amber-500 uppercase tracking-wider">
+                        {oledStatus ? "No luma" : "Not probed"}
+                      </span>
+                    </div>
+                  )}
+                  <button
+                    onClick={probeOled}
+                    className="p-1.5 rounded-lg bg-white/5 text-zinc-600 hover:text-zinc-300 hover:bg-white/10 transition-all"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Setup hint when luma not installed */}
+              {oledStatus && !oledStatus.driver_responding && (
+                <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/15 space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-500/70">Setup Required</p>
+                  <p className="text-[10px] text-zinc-500 font-mono leading-relaxed">{oledStatus.note}</p>
+                  <p className="text-[10px] text-amber-500/60 font-mono mt-1">
+                    On Pi: pip3 install luma.oled luma.core pillow
+                  </p>
+                </div>
+              )}
+
+              {/* Text write */}
+              <div className="space-y-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Write Line</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Text to display…"
+                    value={oledText}
+                    onChange={e => setOledText(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleOledWrite(oledText)}
+                    className="flex-1 bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-700 focus:outline-none focus:border-green-500/30 focus:ring-2 focus:ring-green-500/10 transition-all font-mono"
+                  />
+                  <select
+                    value={oledLine}
+                    onChange={e => setOledLine(parseInt(e.target.value))}
+                    className="bg-zinc-900 border border-white/5 rounded-xl px-3 py-3 text-[11px] font-black text-zinc-400 focus:outline-none cursor-pointer"
+                  >
+                    {[0, 1, 2, 3].map(n => (
+                      <option key={n} value={n}>L{n}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleOledWrite(oledText)}
+                    disabled={!oledText.trim() || oledBusy !== null}
+                    className="px-4 py-3 rounded-xl bg-green-500/15 border border-green-500/20 text-green-400 hover:bg-green-500/25 transition-all disabled:opacity-30 flex-shrink-0"
+                  >
+                    {oledBusy === "write" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Type className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick presets */}
+              <div className="space-y-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Presets</p>
+                <div className="flex flex-wrap gap-2">
+                  {OLED_PRESETS.map(p => (
+                    <button
+                      key={p.label}
+                      onClick={() => p.text ? handleOledWrite(p.text, 0) : handleOledStatus()}
+                      disabled={oledBusy !== null}
+                      className="px-3 py-2 rounded-xl bg-zinc-900 border border-white/5 text-[10px] font-bold text-zinc-500 hover:text-zinc-200 hover:border-white/10 transition-all disabled:opacity-30"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Scroll + clear */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => handleOledScroll(oledText || "Boomy Patrol Active")}
+                  disabled={oledBusy !== null}
+                  className="py-3 rounded-2xl bg-zinc-800/40 border border-white/5 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/70 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
+                >
+                  {oledBusy === "scroll" ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  Scroll Marquee
+                </button>
+                <button
+                  onClick={handleOledClear}
+                  disabled={oledBusy !== null}
+                  className="py-3 rounded-2xl bg-red-500/5 border border-white/5 text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
+                >
+                  {oledBusy === "clear" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Clear
+                </button>
+              </div>
+
+              {/* Feedback toast */}
+              <AnimatePresence>
+                {oledFeedback && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className={`p-3 rounded-xl border text-[10px] font-mono ${
+                      oledFeedback.ok
+                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                        : "bg-red-500/10 border-red-500/20 text-red-400"
+                    }`}
+                  >
+                    {oledFeedback.msg}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+            </div>
+          </section>
+
+        </div>
       </div>
     </div>
   );
