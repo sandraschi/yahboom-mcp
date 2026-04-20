@@ -1,3 +1,13 @@
+﻿Param([switch]$Headless)
+
+# --- SOTA Headless Standard ---
+if ($Headless -and ($Host.UI.RawUI.WindowTitle -notmatch 'Hidden')) {
+    Start-Process pwsh -ArgumentList '-NoProfile', '-File', $PSCommandPath, '-Headless' -WindowStyle Hidden
+    exit
+}
+$WindowStyle = if ($Headless) { 'Hidden' } else { 'Normal' }
+# ------------------------------
+
 # Yahboom ROS 2 MCP - SOTA 2026 Startup Script
 # Author: Sandra Schipal (v1.2.0 - 2026-03-04)
 
@@ -124,5 +134,6 @@ finally {
     Stop-Process -Id $dashboardProc.Id -Force -ErrorAction SilentlyContinue
     Write-Host "[DONE] Cleanup complete." -ForegroundColor Green
 }
+
 
 
