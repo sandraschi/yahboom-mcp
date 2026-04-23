@@ -1,5 +1,7 @@
 # Boomy's High-Cognition Software Stack (Raspberry Pi 5 16GB)
 
+For **boot order, Docker, rosbridge vs ROS 2, and Goliath ↔ Pi networking**, see **[Startup & bringup](STARTUP_AND_BRINGUP.md)**.
+
 This document maps Boomy's evolving software substrate, transitioning from a reactive robotics controller to a proactive, edge-compute reasoning hub.
 
 ---

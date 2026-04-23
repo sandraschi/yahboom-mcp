@@ -77,9 +77,7 @@ async def execute(
             "data": None,
         }
         status = "offline"
-        logger.warning(
-            f"Sensor '{operation}' failed: Robot is OFFLINE (No mock data fallback)"
-        )
+        logger.warning(f"Sensor '{operation}' failed: Robot is OFFLINE (No mock data fallback)")
 
     return {
         "success": True,

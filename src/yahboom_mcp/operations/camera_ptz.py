@@ -10,7 +10,7 @@ logger = logging.getLogger("yahboom-mcp.operations.camera_ptz")
 _camera_state = {"pan": 90, "tilt": 90}
 
 _SERVO_TOPIC = "/servo"
-_SERVO_MSG   = "yahboomcar_msgs/msg/ServoControl"
+_SERVO_MSG = "yahboomcar_msgs/msg/ServoControl"
 
 
 async def _publish_both(ros_bridge, pan: int, tilt: int) -> bool:
@@ -26,7 +26,7 @@ async def _publish_both(ros_bridge, pan: int, tilt: int) -> bool:
     the message default (0), which drives that servo to 0° — this was the
     original bug (wrong field names "id"/"angle" instead of "servo_s1"/"servo_s2").
     """
-    pan  = max(0, min(180, pan))
+    pan = max(0, min(180, pan))
     tilt = max(0, min(180, tilt))
 
     # Preferred: bridge helper (signature updated to match)
@@ -59,11 +59,11 @@ async def _ssh_servo_fallback(ssh_bridge, pan: int, tilt: int) -> bool:
     if not ssh_bridge or not ssh_bridge.connected:
         return False
 
-    pan  = max(0, min(180, pan))
+    pan = max(0, min(180, pan))
     tilt = max(0, min(180, tilt))
 
     py_cmd = (
-        f"python3 -c \""
+        f'python3 -c "'
         f"import sys; sys.path.insert(0, '/root/yahboomcar_ws/install/yahboomcar_bringup/lib/python3.10/site-packages/yahboomcar_bringup'); "
         f"from Rosmaster_Lib import Rosmaster; "
         f"bot = Rosmaster(); bot.create_receive_threading(); "
@@ -81,9 +81,7 @@ async def _ssh_servo_fallback(ssh_bridge, pan: int, tilt: int) -> bool:
     return ok
 
 
-async def camera_move(
-    ros_bridge, direction: str, step: int = 10, ssh_bridge=None
-) -> dict[str, Any]:
+async def camera_move(ros_bridge, direction: str, step: int = 10, ssh_bridge=None) -> dict[str, Any]:
     """
     Move camera incrementally.
     direction: 'up' | 'down' | 'left' | 'right'
@@ -100,7 +98,7 @@ async def camera_move(
     else:
         return {"success": False, "error": f"Invalid direction: {direction}"}
 
-    pan  = _camera_state["pan"]
+    pan = _camera_state["pan"]
     tilt = _camera_state["tilt"]
 
     ok = await _publish_both(ros_bridge, pan, tilt)
@@ -115,14 +113,12 @@ async def camera_move(
     }
 
 
-async def camera_set_pos(
-    ros_bridge, pan: int, tilt: int, ssh_bridge=None
-) -> dict[str, Any]:
+async def camera_set_pos(ros_bridge, pan: int, tilt: int, ssh_bridge=None) -> dict[str, Any]:
     """Set absolute camera angles (0–180°)."""
-    _camera_state["pan"]  = max(0, min(180, pan))
+    _camera_state["pan"] = max(0, min(180, pan))
     _camera_state["tilt"] = max(0, min(180, tilt))
 
-    pan  = _camera_state["pan"]
+    pan = _camera_state["pan"]
     tilt = _camera_state["tilt"]
 
     ok = await _publish_both(ros_bridge, pan, tilt)

@@ -103,7 +103,9 @@ export default function Peripherals() {
   const probeOled = useCallback(async () => {
     setOledProbing(true);
     try {
-      const data = await post("/api/v1/control/display/status", {});
+      const res = await fetch("/api/v1/control/display/status");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
       setOledStatus(data.result as OledStatus);
     } catch {
       setOledStatus(null);

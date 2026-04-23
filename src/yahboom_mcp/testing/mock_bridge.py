@@ -22,12 +22,16 @@ class MockROS2Bridge:
         self.connected = False
         self.cmd_vel_topic: object | None = None
         self.cmd_vel_history: list[dict[str, Any]] = []
-        self.servo_history:   list[dict[str, Any]] = []
+        self.servo_history: list[dict[str, Any]] = []
+        self.mission_history: list[dict[str, Any]] = []
 
         # Fake lightstrip topic — records published messages
         class _FakeTopic:
-            def __init__(self): self.published = []
-            def publish(self, msg): self.published.append(msg)
+            def __init__(self):
+                self.published = []
+
+            def publish(self, msg):
+                self.published.append(msg)
 
         self.rgblight_topic = _FakeTopic()
 
@@ -110,9 +114,13 @@ class MockROS2Bridge:
         self.cmd_vel_topic = None
         logger.info("MockROS2Bridge: disconnected")
 
-    async def publish_velocity(
-        self, linear_x: float, angular_z: float, linear_y: float = 0.0
-    ) -> bool:
+    async def publish_mission_json(self, plan: dict[str, Any]) -> bool:
+        if not self.connected:
+            return False
+        self.mission_history.append(dict(plan))
+        return True
+
+    async def publish_velocity(self, linear_x: float, angular_z: float, linear_y: float = 0.0) -> bool:
         if not self.connected:
             logger.warning("MockROS2Bridge: publish_velocity while disconnected")
             return False

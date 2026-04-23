@@ -53,8 +53,8 @@ _VOICE_USB_IDS = {"1a86:7522", "1a86:7523", "10c4:ea60", "0403:6001"}
 
 # Candidate device paths tried in order when YAHBOOM_VOICE_DEVICE is not set.
 _CANDIDATE_DEVICES = [
-    "/dev/ttyVOICE",   # udev symlink (preferred — see hardware doc)
-    "/dev/ttyUSB1",    # second USB serial (Rosmaster is usually ttyUSB0)
+    "/dev/ttyVOICE",  # udev symlink (preferred — see hardware doc)
+    "/dev/ttyUSB1",  # second USB serial (Rosmaster is usually ttyUSB0)
     "/dev/ttyUSB0",
     "/dev/ttyACM0",
 ]
@@ -66,6 +66,7 @@ _MAX_PHRASE_ID = 85
 # ---------------------------------------------------------------------------
 # Protocol helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_packet(value: int) -> bytes:
     """
@@ -80,6 +81,7 @@ def _make_packet(value: int) -> bytes:
 # Device resolution
 # ---------------------------------------------------------------------------
 
+
 async def _resolve_device(ssh) -> tuple[str | None, str]:
     """
     Return (device_path, note).
@@ -91,23 +93,17 @@ async def _resolve_device(ssh) -> tuple[str | None, str]:
     """
     forced = os.environ.get("YAHBOOM_VOICE_DEVICE", "").strip()
     if forced:
-        out, _, _ = await ssh.execute(
-            f"test -e {shlex.quote(forced)} && echo exists || echo missing"
-        )
+        out, _, _ = await ssh.execute(f"test -e {shlex.quote(forced)} && echo exists || echo missing")
         if "exists" in (out or ""):
             logger.info("Voice: using YAHBOOM_VOICE_DEVICE=%s", forced)
             return forced, "Using YAHBOOM_VOICE_DEVICE override."
         return None, f"YAHBOOM_VOICE_DEVICE={forced} not found on robot."
 
     for path in _CANDIDATE_DEVICES:
-        out, _, _ = await ssh.execute(
-            f"test -e {shlex.quote(path)} && echo exists || echo missing"
-        )
+        out, _, _ = await ssh.execute(f"test -e {shlex.quote(path)} && echo exists || echo missing")
         if "exists" in (out or ""):
             if path == "/dev/ttyUSB0":
-                ros_out, _, _ = await ssh.execute(
-                    "test -e /dev/ttyROSMASTER && echo exists || echo missing"
-                )
+                ros_out, _, _ = await ssh.execute("test -e /dev/ttyROSMASTER && echo exists || echo missing")
                 if "missing" in (ros_out or ""):
                     logger.warning(
                         "Voice: /dev/ttyROSMASTER udev symlink not set up — "
@@ -155,6 +151,7 @@ print("NOT_FOUND")
 # ---------------------------------------------------------------------------
 # SSH command builders
 # ---------------------------------------------------------------------------
+
 
 def _play_cmd(device: str, packet: bytes) -> str:
     """Open serial port on Pi and send a binary packet."""
@@ -208,11 +205,7 @@ except Exception as e:
 
 def _say_cmd(text: str, voice: str, speed: int, pitch: int) -> str:
     """Speak arbitrary text via espeak-ng on the Pi host."""
-    return (
-        f"espeak-ng -v {shlex.quote(voice)} "
-        f"-s {speed} -p {pitch} "
-        f"{shlex.quote(text)} 2>&1"
-    )
+    return f"espeak-ng -v {shlex.quote(voice)} -s {speed} -p {pitch} {shlex.quote(text)} 2>&1"
 
 
 def _check_espeak_cmd() -> str:
@@ -230,6 +223,7 @@ def _set_volume_cmd(level: int) -> str:
 # ---------------------------------------------------------------------------
 # Main execute
 # ---------------------------------------------------------------------------
+
 
 async def execute(
     ctx: Context | None = None,
@@ -274,6 +268,7 @@ async def execute(
     logger.info("Voice: %s", operation, extra={"correlation_id": correlation_id})
 
     from ..state import _state
+
     ssh = _state.get("ssh")
 
     if not ssh or not ssh.connected:
@@ -399,6 +394,7 @@ async def execute(
     # ── say_file ─────────────────────────────────────────────────────────────
     elif operation == "say_file":
         import asyncio
+
         local_path = str(param1).strip() if param1 else ""
         if not local_path or not os.path.exists(local_path):
             result = {"success": False, "error": f"Local file not found: {local_path!r}"}
@@ -408,9 +404,7 @@ async def execute(
                 await asyncio.to_thread(ssh.put_file, local_path, remote_tmp)
                 ext = os.path.splitext(local_path)[1].lower()
                 play_cmd = (
-                    f"mpg123 -q {shlex.quote(remote_tmp)}"
-                    if ext == ".mp3"
-                    else f"aplay -q {shlex.quote(remote_tmp)}"
+                    f"mpg123 -q {shlex.quote(remote_tmp)}" if ext == ".mp3" else f"aplay -q {shlex.quote(remote_tmp)}"
                 )
                 out, err, code = await ssh.execute(play_cmd)
                 result = {
@@ -426,14 +420,12 @@ async def execute(
     # ── chat_and_say ─────────────────────────────────────────────────────────
     elif operation == "chat_and_say":
         import json
+
         user_text = str(param1).strip() if param1 else "Tell me something."
         model = str(param2).strip() if param2 else "gemma3:1b"
         prompt = f"Give a short, friendly, robot-like response in one sentence to: {user_text}"
         payload_json = json.dumps({"model": model, "prompt": prompt, "stream": False})
-        curl_cmd = (
-            f"curl -sf -X POST http://localhost:11434/api/generate "
-            f"-d {shlex.quote(payload_json)}"
-        )
+        curl_cmd = f"curl -sf -X POST http://localhost:11434/api/generate -d {shlex.quote(payload_json)}"
         out, err, code = await ssh.execute(curl_cmd)
         if code != 0 or not (out or "").strip():
             result = {
@@ -488,6 +480,7 @@ async def execute(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _status_note(device: str | None, pyserial_ok: bool, espeak_ok: bool) -> str:
     parts = []

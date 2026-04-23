@@ -28,9 +28,7 @@ async def execute(
     bridge_connected = bridge.connected if bridge else False
 
     if operation == "health_check":
-        battery_data = (
-            await bridge.get_sensor_data("battery") if bridge_connected else {}
-        )
+        battery_data = await bridge.get_sensor_data("battery") if bridge_connected else {}
 
         return {
             "success": True,
@@ -39,9 +37,7 @@ async def execute(
                 "system": "OK",
                 "ros_bridge": "CONNECTED" if bridge_connected else "DISCONNECTED",
                 "stm32_link": "STABLE" if bridge_connected else "UNKNOWN",
-                "battery_health": "GOOD"
-                if battery_data.get("percentage", 0) > 20
-                else "LOW",
+                "battery_health": "GOOD" if battery_data.get("percentage", 0) > 20 else "LOW",
                 "live_mode": bridge_connected,
             },
             "correlation_id": correlation_id,

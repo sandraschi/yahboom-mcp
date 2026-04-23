@@ -17,14 +17,11 @@ async def yahboom_tool(
         str,
         Field(
             description="Operation: health_check, forward/backward, turn_left/right, strafe_left/right, stop/stop_all, read_imu/battery/encoders/lidar, say/play, display/clear_display, led/off/light_effect/patrol_car, camera_up/down/left/right, camera_reset, stack_inspect, execute_command."
-
         ),
     ] = "health_check",
     param1: Annotated[
         str | float | None,
-        Field(
-            description="First parameter: duration, speed, or basename depending on operation."
-        ),
+        Field(description="First parameter: duration, speed, or basename depending on operation."),
     ] = None,
     param2: Annotated[
         str | float | None,
@@ -32,9 +29,7 @@ async def yahboom_tool(
     ] = None,
     param3: Annotated[
         str | float | None,
-        Field(
-            description="Third parameter when required by operation (e.g. RGB Blue)."
-        ),
+        Field(description="Third parameter when required by operation (e.g. RGB Blue)."),
     ] = None,
     payload: Annotated[
         dict | None,
@@ -92,11 +87,7 @@ async def yahboom_tool(
             if op_lower == "patrol_car":
                 return await lightstrip.execute(ctx, "pattern", 10)
 
-            sub_op = (
-                "set"
-                if op_lower == "led"
-                else ("off" if op_lower == "led_off" else "pattern")
-            )
+            sub_op = "set" if op_lower == "led" else ("off" if op_lower == "led_off" else "pattern")
             # LED expects 3 params (r, g, b) inside execute.
             p3 = param3 if param3 is not None else (payload.get("b") if payload else 0)
             return await lightstrip.execute(ctx, sub_op, param1, param2, p3)

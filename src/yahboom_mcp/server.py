@@ -10,6 +10,7 @@ It supports native FastMCP 3.2.0 Prompts and formalized Claude Skills.
 """
 
 import asyncio
+import collections
 import logging
 import os
 import sys
@@ -24,15 +25,16 @@ from fastapi.responses import Response, StreamingResponse
 from fastmcp import FastMCP
 from pydantic import BaseModel
 
-start_time = time.time()
-
 from .core.esp32_bridge import ESP32Bridge
 from .core.ros2_bridge import ROS2Bridge
 from .core.ssh_bridge import SSHBridge
 from .core.video_bridge import VideoBridge
 from .operations import lightstrip, missions, voice
 from .operations.trajectory import TrajectoryManager
+from .stack_probe import build_stack_overview, driver_stack_snapshot, invalidate_stack_caches
 from .state import _state
+
+start_time = time.time()
 
 # SOTA 2026 Logging Configuration
 logging.basicConfig(
@@ -45,16 +47,24 @@ logging.basicConfig(
 class EndpointFilter(logging.Filter):
     """Filter out high-frequency polling from access logs."""
 
+    _QUIET_PATHS = (
+        "/api/v1/telemetry",
+        "/api/v1/health",
+        "/api/v1/sensors",
+        # Diagnostics hub polls these every 5s (see webapp Diagnostics.tsx)
+        "/api/v1/diagnostics/ros/topics",
+        "/api/v1/diagnostics/stack",
+    )
+
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
-        return not any(path in msg for path in ["/api/v1/telemetry", "/api/v1/health", "/api/v1/sensors"])
+        return not any(path in msg for path in self._QUIET_PATHS)
 
 
 logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 logger = logging.getLogger("yahboom-mcp")
 
 # --- SOTA 3.1.1 Unified Gateway Integration ---
-
 
 
 @asynccontextmanager
@@ -142,9 +152,7 @@ async def lifespan(fastapi_app: FastAPI):
             logger.info("Initial VideoBridge activation successful.")
 
         # Start autonomous connection watchdog
-        watchdog_task = asyncio.create_task(
-            bridge.monitor_connection(interval=5.0, on_reconnect=on_reconnect)
-        )
+        watchdog_task = asyncio.create_task(bridge.monitor_connection(interval=5.0, on_reconnect=on_reconnect))
         logger.info("Connection watchdog active.")
 
     # Start the connection process but don't AWAIT it here
@@ -183,12 +191,13 @@ app.add_middleware(
 mcp = FastMCP.from_fastapi(app, name="Yahboom ROS 2")
 
 # --- SOTA 3.2.0 Prompt Registration ---
-from .prompts import register_prompts
+from .prompts import register_prompts  # noqa: E402
 
 register_prompts(mcp)
 
 
 # --- SOTA 3.1.1 Unified Gateway Routes ---
+
 
 @app.get("/api/v1/health")
 async def get_health():
@@ -206,19 +215,44 @@ async def get_health():
         elif not ros_connected and bridge.connected:
             bridge.connected = False
 
+    cmd_ready = bool(bridge and ros_connected and getattr(bridge, "cmd_vel_topic", None) is not None)
+    robot_host = os.environ.get("YAHBOOM_IP", "192.168.1.11")
+    bridge_port = int(os.environ.get("YAHBOOM_BRIDGE_PORT", "9090"))
+    stack = await build_stack_overview(ssh, bridge, video, robot_host, bridge_port)
+    driver_stack_public = stack.get("ros_graph_in_container") or {}
+    ds_status = driver_stack_public.get("status")
+    hint = None
+    if ros_connected and not cmd_ready:
+        hint = (
+            "ROS websocket up but cmd_vel missing: wait for topics or tap Re-Sync. "
+            "Motion/lightstrip need rosbridge; OLED/voice need SSH."
+        )
+    if ds_status == "absent" and (ssh and ssh.connected):
+        hint = (hint + " " if hint else "") + (
+            f"Driver stack inside {driver_stack_public.get('container')} reports no hardware driver nodes — "
+            "check bringup in that container."
+        )
+    if ds_status == "running" and driver_stack_public.get("rosbridge_node_seen") is False:
+        hint = (hint + " " if hint else "") + (
+            "Driver nodes run in docker but rosbridge_websocket not in that graph — "
+            "web telemetry may still need rosbridge on the robot."
+        )
+
     return {
         "status": "online",
         "robot_connection": {
             "ros": "connected" if ros_connected else "disconnected",
             "video": "active" if video and video.active else "inactive",
             "ssh": "connected" if ssh and ssh.connected else "disconnected",
-            "ip": os.environ.get("YAHBOOM_IP", "192.168.1.11")
+            "ip": robot_host,
+            "cmd_vel_ready": cmd_ready,
+            "driver_stack": driver_stack_public,
+            "hint": hint,
         },
-        "system": {
-            "uptime": time.time() - start_time,
-            "version": "2.0.0-alpha.1"
-        }
+        "stack": stack,
+        "system": {"uptime": time.time() - start_time, "version": "2.0.0-alpha.1"},
     }
+
 
 # --- Ollama / LLM (webapp Settings + Chat) ---
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
@@ -249,8 +283,8 @@ async def _ollama_post(path: str, json: dict) -> dict | None:
     return None
 
 
-
 # --- SOTA 2026 Main Robot Tools ---
+
 
 @mcp.tool()
 async def yahboom_tool(
@@ -350,11 +384,7 @@ async def ros_resync() -> str:
         return "Error: Bridge not initialized"
 
     success = await bridge.resync_metadata()
-    return (
-        "Total Synchronization triggered: Topics re-mapped."
-        if success
-        else "Resync failed."
-    )
+    return "Total Synchronization triggered: Topics re-mapped." if success else "Resync failed."
 
 
 @mcp.tool()
@@ -391,9 +421,7 @@ class LLMSettingsUpdate(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    messages: list[
-        dict[str, str]
-    ]  # [{ "role": "user"|"assistant"|"system", "content": "..." }]
+    messages: list[dict[str, str]]  # [{ "role": "user"|"assistant"|"system", "content": "..." }]
 
 
 # System preprompt so the chat LLM talks intelligently about Yahboom (hardware, tools, workflows).
@@ -422,16 +450,12 @@ class EmergencySequencer:
     async def _loop(self):
         while self._active:
             # Phase 1: Red Strobe + Siren
-            await lightstrip.execute(
-                None, operation="set", param1=255, param2=0, param3=0
-            )
+            await lightstrip.execute(None, operation="set", param1=255, param2=0, param3=0)
             await voice.execute(None, operation="play", param1=2)  # Siren ID 2
             await asyncio.sleep(0.5)
 
             # Phase 2: Blue Strobe
-            await lightstrip.execute(
-                None, operation="set", param1=0, param2=0, param3=255
-            )
+            await lightstrip.execute(None, operation="set", param1=0, param2=0, param3=255)
             await asyncio.sleep(0.5)
 
             if not self._active:
@@ -453,9 +477,7 @@ class EmergencySequencer:
                 pass
             self._task = None
             # Reset LEDs to OFF
-            await lightstrip.execute(
-                None, operation="set", param1=0, param2=0, param3=0
-            )
+            await lightstrip.execute(None, operation="set", param1=0, param2=0, param3=0)
             logger.info("Emergency Mode deactivated")
 
     @property
@@ -583,9 +605,7 @@ async def yahboom_help(
         return {
             "category": category,
             "description": cat["description"],
-            "topics": {
-                k: v[:80] + "…" if len(v) > 80 else v for k, v in cat["topics"].items()
-            },
+            "topics": {k: v[:80] + "…" if len(v) > 80 else v for k, v in cat["topics"].items()},
             "hint": f"Add topic= with one of: {', '.join(cat['topics'].keys())}",
         }
 
@@ -619,6 +639,7 @@ async def post_ros_resync():
     if not bridge:
         return {"success": False, "error": "Bridge not initialized"}
     success = await bridge.resync_metadata()
+    invalidate_stack_caches()
     return {"success": success}
 
 
@@ -664,6 +685,7 @@ async def restart_ros_bringup():
         'ros2 launch yahboomcar_bringup yahboomcar_bringup_launch.py"'
     )
     await ssh.execute(launch_cmd)
+    invalidate_stack_caches()
     return {"success": True, "message": "Docker bringup triggered"}
 
 
@@ -725,11 +747,7 @@ async def video_feed():
 
                 try:
                     frame_bytes = base64.b64decode(img_data)
-                    yield (
-                        b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
-                        + frame_bytes
-                        + b"\r\n"
-                    )
+                    yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n")
                 except Exception:
                     pass
             await asyncio.sleep(0.1)  # 10 FPS
@@ -759,12 +777,13 @@ async def snapshot():
 # ─────────────────────────────────────────────────────────────────────────────
 
 # In-process log ring buffer — captures all yahboom-mcp log records
-import collections
 _log_ring: collections.deque = collections.deque(maxlen=500)
+
 
 class _RingHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         _log_ring.append(self.format(record))
+
 
 _ring_handler = _RingHandler()
 _ring_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s — %(message)s"))
@@ -783,17 +802,24 @@ async def get_diag_stack():
     voice_module_state = "unknown"
     recent_kernel_i2c_logs = ""
 
+    snap = await driver_stack_snapshot(ssh)
+    container = (os.environ.get("YAHBOOM_ROS2_CONTAINER") or "yahboom_ros2_final").strip()
+
     if ssh and ssh.connected:
-        try:
-            out, _, _ = await ssh.execute(
-                "docker exec yahboom_ros2_final bash -c "
-                "'source /opt/ros/humble/setup.bash; "
-                "source /root/yahboomcar_ws/install/setup.bash; "
-                "ros2 node list 2>/dev/null' 2>/dev/null || ros2 node list 2>/dev/null"
-            )
-            ros_nodes = [l.strip() for l in out.splitlines() if l.strip()]
-        except Exception as e:
-            ros_nodes = [f"[error: {e}]"]
+        cached = snap.get("node_lines")
+        if isinstance(cached, list) and cached:
+            ros_nodes = [str(line).strip() for line in cached if str(line).strip()]
+        else:
+            try:
+                out, _, _ = await ssh.execute(
+                    f"docker exec {container} bash -c "
+                    "'source /opt/ros/humble/setup.bash; "
+                    "source /root/yahboomcar_ws/install/setup.bash; "
+                    "ros2 node list 2>/dev/null' 2>/dev/null || ros2 node list 2>/dev/null"
+                )
+                ros_nodes = [ln.strip() for ln in out.splitlines() if ln.strip()]
+            except Exception as e:
+                ros_nodes = [f"[error: {e}]"]
 
         try:
             out2, _, _ = await ssh.execute("i2cdetect -y 1 2>/dev/null | head -5")
@@ -818,10 +844,13 @@ async def get_diag_stack():
     ros_ok = bridge and bridge.ros and bridge.ros.is_connected
     service_status = "rosbridge_connected" if ros_ok else "rosbridge_disconnected"
 
+    driver_stack_public = {k: v for k, v in snap.items() if k != "node_lines"}
+
     return {
         "success": True,
         "ros_nodes": ros_nodes,
         "service_status": service_status,
+        "driver_stack": driver_stack_public,
         "i2c_bus_state": i2c_bus_state,
         "voice_module_state": voice_module_state,
         "recent_kernel_i2c_logs": recent_kernel_i2c_logs,
@@ -863,12 +892,13 @@ async def exec_command(req: ExecRequest):
             "exit_code": exit_code,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/api/v1/logs/stream")
 async def stream_logs():
     """Server-Sent Events stream of live log output from the ring buffer."""
+
     async def generate():
         sent = 0
         # Drain existing buffer first
@@ -1040,17 +1070,15 @@ async def set_led(req: LEDRequest):
         raise HTTPException(status_code=503, detail="Bridge not connected")
     from .operations import lightstrip
 
-    return await lightstrip.execute(
-        operation="set", param1=req.r, param2=req.g, param3=req.b
-    )
+    return await lightstrip.execute(operation="set", param1=req.r, param2=req.g, param3=req.b)
 
 
 class LightstripPatternRequest(BaseModel):
-    operation: str = "set"   # set | off | pattern | stop_pattern | get_status
+    operation: str = "set"  # set | off | pattern | stop_pattern | get_status
     r: int = 0
     g: int = 0
     b: int = 0
-    pattern: str | None = None   # patrol | rainbow | breathe | fire
+    pattern: str | None = None  # patrol | rainbow | breathe | fire
 
 
 @app.post("/api/v1/control/lightstrip")
@@ -1060,6 +1088,7 @@ async def control_lightstrip(req: LightstripPatternRequest):
     if not bridge or not (bridge.connected or (bridge.ros and bridge.ros.is_connected)):
         raise HTTPException(status_code=503, detail="Bridge not connected")
     from .operations import lightstrip as ls
+
     if req.operation == "pattern" and req.pattern:
         result = await ls.execute(operation="pattern", param1=req.pattern)
     elif req.operation in ("off", "stop_pattern"):
@@ -1069,13 +1098,15 @@ async def control_lightstrip(req: LightstripPatternRequest):
     else:
         result = await ls.execute(
             operation="set",
-            param1=req.r, param2=req.g, param3=req.b,
+            param1=req.r,
+            param2=req.g,
+            param3=req.b,
         )
     return result
 
 
 class VoiceControlRequest(BaseModel):
-    operation: str = "say"   # say | play | volume | get_status
+    operation: str = "say"  # say | play | volume | get_status
     text: str | None = None
     id: int | None = None
     volume: int | None = None
@@ -1085,6 +1116,7 @@ class VoiceControlRequest(BaseModel):
 async def control_voice(req: VoiceControlRequest):
     """Voice module: say text, play sound ID, set volume, or probe status."""
     from .operations import voice as v
+
     if req.operation == "say":
         return await v.execute(operation="say", param1=req.text or "")
     elif req.operation == "play":
@@ -1100,6 +1132,7 @@ async def control_voice(req: VoiceControlRequest):
 async def get_voice_status():
     """Probe voice module USB device."""
     from .operations import voice as v
+
     return await v.execute(operation="get_status")
 
 
@@ -1107,6 +1140,15 @@ async def get_voice_status():
 async def get_display_status():
     """Probe OLED display via I2C."""
     from .operations import display as d
+
+    return await d.execute(operation="get_status")
+
+
+@app.post("/api/v1/control/display/status")
+async def post_display_status_control_alias():
+    """POST alias (Dashboard used to call POST here; GET is preferred)."""
+    from .operations import display as d
+
     return await d.execute(operation="get_status")
 
 
@@ -1114,6 +1156,7 @@ async def get_display_status():
 async def post_display_status():
     """Probe OLED display via I2C (POST alias for webapp)."""
     from .operations import display as d
+
     return await d.execute(operation="get_status")
 
 
@@ -1121,6 +1164,7 @@ async def post_display_status():
 async def display_write_v2(req: DisplayRequest):
     """Write text to OLED (line param supported)."""
     from .operations import display as d
+
     return await d.execute(
         operation="write",
         param1=req.text,
@@ -1139,7 +1183,6 @@ async def legacy_backlight(req: LegacyBacklightRequest):
     """Legacy alias mapping back_light (bool) to Lightstrip RGB."""
     val = req.brightness if req.on else 0
     return await lightstrip.execute(operation="set", param1=val, param2=val, param3=val)
-
 
 
 # LightstripRequest and SpeakRequest are already defined above or simplified below.
@@ -1174,6 +1217,7 @@ async def reconnect_hardware():
         if resync:
             await resync()
 
+    invalidate_stack_caches()
     return {"success": connected, "status": "online" if connected else "offline"}
 
 
@@ -1186,9 +1230,7 @@ async def post_stop_all():
 
 
 @app.post("/api/v1/control/move")
-async def control_move(
-    linear: float = 0.0, angular: float = 0.0, linear_y: float = 0.0
-):
+async def control_move(linear: float = 0.0, angular: float = 0.0, linear_y: float = 0.0):
     """Direct motion control endpoint for Dashboard UI and embodied loop."""
     bridge = _state.get("bridge")
     if not bridge or not (bridge.connected or (bridge.ros and bridge.ros.is_connected)):
@@ -1198,9 +1240,7 @@ async def control_move(
     if bridge.ros and bridge.ros.is_connected and not bridge.connected:
         bridge.connected = True
 
-    ok = await bridge.publish_velocity(
-        linear_x=linear, angular_z=angular, linear_y=linear_y
-    )
+    ok = await bridge.publish_velocity(linear_x=linear, angular_z=angular, linear_y=linear_y)
     if not ok:
         raise HTTPException(status_code=503, detail="publish_velocity failed — cmd_vel topic not ready")
     return {
@@ -1275,17 +1315,13 @@ async def chat_completion(body: ChatRequest):
     # Prepend system message so Ollama gets Yahboom context (dashboard chat has no MCP tools).
     preprompt = {"role": "system", "content": YAHBOOM_CHAT_PREPROMPT}
     if messages and messages[0].get("role") == "system":
-        messages[0]["content"] = (
-            YAHBOOM_CHAT_PREPROMPT + "\n\n" + (messages[0].get("content") or "")
-        )
+        messages[0]["content"] = YAHBOOM_CHAT_PREPROMPT + "\n\n" + (messages[0].get("content") or "")
     else:
         messages.insert(0, preprompt)
     payload = {"model": model, "messages": messages, "stream": False}
     data = await _ollama_post("/api/chat", payload)
     if data is None:
-        raise HTTPException(
-            status_code=502, detail="Ollama unreachable or request failed"
-        )
+        raise HTTPException(status_code=502, detail="Ollama unreachable or request failed")
     msg = data.get("message")
     if not msg:
         raise HTTPException(status_code=502, detail="Ollama returned no message")
@@ -1295,6 +1331,149 @@ async def chat_completion(body: ChatRequest):
             "content": msg.get("content", ""),
         }
     }
+
+
+class AgentMissionRequest(BaseModel):
+    """Natural-language goal → structured mission JSON (Ollama and/or Gemini)."""
+
+    goal: str
+    provider: str = "auto"
+    publish_to_ros: bool = True
+    speak: bool = False
+
+
+async def _run_agent_mission(req: AgentMissionRequest) -> dict:
+    """
+    Shared implementation for HTTP POST /api/v1/agent/mission and MCP tool yahboom_agent_mission.
+
+    Returns the same JSON shape as the HTTP 200 body. On validation / planner failure returns
+    {"success": False, "error": "...", "_http_status": 400|502} (MCP clients inspect success).
+    """
+    from . import agent_mission
+
+    goal = (req.goal or "").strip()
+    if not goal:
+        return {"success": False, "error": "goal is required", "_http_status": 400}
+    prov = (req.provider or "auto").strip().lower()
+    if prov not in ("auto", "ollama", "gemini"):
+        return {
+            "success": False,
+            "error": "provider must be auto, ollama, or gemini",
+            "_http_status": 400,
+        }
+
+    gemini_key = (os.environ.get("YAHBOOM_GEMINI_API_KEY") or "").strip()
+    gemini_model = (os.environ.get("YAHBOOM_GEMINI_MISSION_MODEL") or "gemini-2.0-flash").strip()
+
+    async def _ollama_chat(payload: dict) -> dict | None:
+        return await _ollama_post("/api/chat", payload)
+
+    try:
+        plan, used = await agent_mission.plan_mission(
+            goal,
+            provider=prov,
+            ollama_model=(_llm_settings.get("model") or "").strip(),
+            ollama_post_chat=_ollama_chat,
+            gemini_api_key=gemini_key or None,
+            gemini_model=gemini_model,
+        )
+    except RuntimeError as e:
+        return {"success": False, "error": str(e), "_http_status": 502}
+    except ValueError as e:
+        return {
+            "success": False,
+            "error": f"Model returned invalid JSON: {e}",
+            "_http_status": 502,
+        }
+
+    bridge = _state.get("bridge")
+    mission_topic = (os.environ.get("YAHBOOM_MISSION_TOPIC") or "/boomy/mission").strip()
+    if bridge and getattr(bridge, "mission_topic_name", None):
+        mission_topic = bridge.mission_topic_name
+
+    published = False
+    publish_error: str | None = None
+    if req.publish_to_ros:
+        pub = getattr(bridge, "publish_mission_json", None)
+        if pub and callable(pub):
+            try:
+                published = await pub(plan)
+            except Exception as e:
+                publish_error = str(e)
+                logger.warning("publish_mission_json failed: %s", e)
+        elif not bridge:
+            publish_error = "bridge not initialized"
+        else:
+            publish_error = "mission publish requires ROS2Bridge (rosbridge mode)"
+
+    spoke = False
+    if req.speak and (plan.get("voice_feedback") or "").strip():
+        from .operations import voice as voice_op
+
+        vf = str(plan["voice_feedback"]).strip()[:240]
+        try:
+            r = await voice_op.execute(operation="say", param1=vf)
+            spoke = bool(r and r.get("success"))
+        except Exception as e:
+            logger.warning("agent mission speak failed: %s", e)
+
+    return {
+        "success": True,
+        "provider": used,
+        "plan": plan,
+        "published_to_ros": published,
+        "mission_topic": mission_topic,
+        "publish_error": publish_error,
+        "spoke": spoke,
+    }
+
+
+@app.post("/api/v1/agent/mission")
+async def agent_mission_plan(req: AgentMissionRequest):
+    """
+    Plan an embodied mission from free text (e.g. \"find Benny\").
+
+    - **provider** ``auto``: uses Gemini when ``YAHBOOM_GEMINI_API_KEY`` is set, else Ollama.
+    - **provider** ``ollama`` / ``gemini``: force that backend (Gemini requires API key).
+    - **publish_to_ros**: publish JSON on ``std_msgs/String`` (default ``YAHBOOM_MISSION_TOPIC`` = ``/boomy/mission``).
+    - **speak**: if true, speak ``voice_feedback`` via the voice module (SSH), truncated.
+    """
+    result = await _run_agent_mission(req)
+    if not result.get("success", True):
+        status = int(result.get("_http_status") or 502)
+        detail = str(result.get("error") or "mission planning failed")
+        raise HTTPException(status_code=status, detail=detail)
+    result.pop("_http_status", None)
+    return result
+
+
+@mcp.tool()
+async def yahboom_agent_mission(
+    goal: str,
+    provider: str = "auto",
+    publish_to_ros: bool = True,
+    speak: bool = False,
+) -> dict:
+    """
+    LLM mission planner: natural-language goal (e.g. \"find Benny\") → structured JSON plan
+    (intent, behavior, target_description, optional nav2_goal, …). Same logic as
+    POST /api/v1/agent/mission.
+
+    When publish_to_ros is true (default), publishes the plan as JSON on std_msgs/String
+    (YAHBOOM_MISSION_TOPIC, default /boomy/mission) for boomy_mission_executor on the Pi.
+
+    provider: auto | ollama | gemini (auto prefers Gemini if YAHBOOM_GEMINI_API_KEY is set).
+    speak: if true, speaks voice_feedback from the plan via SSH voice module.
+    """
+    req = AgentMissionRequest(
+        goal=goal,
+        provider=provider,
+        publish_to_ros=publish_to_ros,
+        speak=speak,
+    )
+    out = await _run_agent_mission(req)
+    out.pop("_http_status", None)
+    return out
 
 
 # --- Entry Points ---
@@ -1319,8 +1498,9 @@ async def get_capabilities():
     return {
         "status": "ok",
         "server": {"name": "yahboom-mcp", "version": "1.0.1", "fastmcp": "3.2.0"},
-        "tool_surface": {"total": 4, "portmanteau_count": 1, "atomic_count": 3},
+        "tool_surface": {"total": 5, "portmanteau_count": 1, "atomic_count": 4},
         "available_missions": ["patrol", "alarm", "briefing", "kaffeehaus"],
+        "agent_mission": "MCP tool yahboom_agent_mission(goal, provider, publish_to_ros, speak) or POST /api/v1/agent/mission — LLM JSON plan; optional publish std_msgs/String on YAHBOOM_MISSION_TOPIC; Ollama or YAHBOOM_GEMINI_API_KEY",
         "available_operations": [
             "forward",
             "backward",
@@ -1360,7 +1540,7 @@ def main():
         default="stdio",
         help="Transport mode: stdio (MCP only), http (Dashboard+SSE), dual (Both)",
     )
-    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--host", default="0.0.0.0")  # noqa: S104
     parser.add_argument("--port", type=int, default=10892)
     parser.add_argument("--robot-ip", help="IP address of the Yahboom robot")
     parser.add_argument("--debug", action="store_true")

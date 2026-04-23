@@ -19,6 +19,7 @@ import {
   Play,
   Rocket,
   ScanLine,
+  ScrollText,
   Settings,
   Shield,
   Sparkles,
@@ -74,6 +75,7 @@ const navGroups = [
     icon: Wrench,
     items: [
       { path: "/diagnostics", label: "Diagnostic Hub", icon: Shield },
+      { path: "/logs", label: "Server logs", icon: ScrollText },
       { path: "/tools", label: "MCP Tools", icon: Wrench },
       { path: "/apps", label: "Apps Hub", icon: Box },
       { path: "/settings", label: "Settings", icon: Settings },

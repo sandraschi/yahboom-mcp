@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import math
 import os
@@ -29,9 +30,7 @@ def _quat_to_euler_deg(q: dict) -> dict:
 
     # Pitch (y-axis rotation)
     sinp = 2.0 * (w * y - z * x)
-    pitch = math.degrees(
-        math.copysign(math.pi / 2, sinp) if abs(sinp) >= 1 else math.asin(sinp)
-    )
+    pitch = math.degrees(math.copysign(math.pi / 2, sinp) if abs(sinp) >= 1 else math.asin(sinp))
 
     # Yaw (z-axis rotation) → normalised to 0–360
     siny_cosp = 2.0 * (w * z + x * y)
@@ -98,9 +97,7 @@ _UI_PROXIMITY_KEYS = [
 ]
 
 
-def _scan_to_obstacle_summary(
-    ranges: list, angle_min: float, angle_increment: float
-) -> dict:
+def _scan_to_obstacle_summary(ranges: list, angle_min: float, angle_increment: float) -> dict:
     """
     Collapse a full LaserScan ranges[] array into nearest obstacle per sector.
     Returns a dict of {sector_name: distance_metres} for 8 sectors.
@@ -159,6 +156,7 @@ class ROS2Bridge:
             "last_update": 0,
         }
         self.on_reconnect_callback = None
+        self._skip_rosapi_topics_and_types = False
 
         _imu = (os.environ.get("YAHBOOM_IMU_TOPIC") or "/imu/data").strip()
         self.imu_topic = _imu if _imu else "/imu/data"
@@ -166,10 +164,10 @@ class ROS2Bridge:
         self.ultrasonic_topic = _ult if _ult else "/ultrasonic"
         _lt = (os.environ.get("YAHBOOM_LINE_TOPIC") or "/line_sensor").strip()
         self.line_topic = _lt if _lt else "/line_sensor"
-        _lmt = (
-            os.environ.get("YAHBOOM_LINE_MSG_TYPE") or "std_msgs/msg/Int32MultiArray"
-        ).strip()
+        _lmt = (os.environ.get("YAHBOOM_LINE_MSG_TYPE") or "std_msgs/msg/Int32MultiArray").strip()
         self.line_msg_type = _lmt if _lmt else "std_msgs/msg/Int32MultiArray"
+        _mt = (os.environ.get("YAHBOOM_MISSION_TOPIC") or "/boomy/mission").strip()
+        self.mission_topic_name = _mt if _mt.startswith("/") else f"/{_mt}"
 
         # Topics
         self.cmd_vel_topic: roslibpy.Topic | None = None
@@ -181,6 +179,7 @@ class ROS2Bridge:
         self.line_status_listener: roslibpy.Topic | None = None
         self.button_listener: roslibpy.Topic | None = None
         self.image_listener: roslibpy.Topic | None = None
+        self.mission_topic: roslibpy.Topic | None = None
 
     async def _tcp_reachable(self, host: str, port: int, timeout: float = 0.8) -> bool:
         """True if something accepts TCP on host:port (quick rosbridge preflight)."""
@@ -219,6 +218,30 @@ class ROS2Bridge:
         )
         return hosts[0]
 
+    def _dispose_failed_ros_client(self) -> None:
+        """
+        Drop a failed Ros client without stopping the Twisted reactor.
+
+        roslibpy's Ros.terminate() calls reactor.stop(); Twisted's reactor is not
+        restartable, so a second connect() in the same process would raise
+        ReactorNotRestartable. Use this on handshake/timeout failures only.
+        """
+        ros = self.ros
+        self.ros = None
+        self.connected = False
+        self._skip_rosapi_topics_and_types = False
+        if ros is None:
+            return
+        try:
+            factory = getattr(ros, "factory", None)
+            stop = getattr(factory, "stopTrying", None) if factory is not None else None
+            if callable(stop):
+                stop()
+            if getattr(ros, "is_connected", False):
+                ros.close()
+        except Exception:
+            logger.debug("dispose failed ros client cleanup", exc_info=True)
+
     async def connect(self, timeout: float = 15.0) -> bool:
         """Establish connection to the ROSBridge server (non-blocking).
         Picks primary or fallback using a TCP probe, then a single roslibpy Ros.run()
@@ -226,6 +249,8 @@ class ROS2Bridge:
         """
         if self.ros and self.ros.is_connected:
             return True
+
+        self._skip_rosapi_topics_and_types = False
 
         hosts_to_try = [self.host]
         if self.fallback_host and self.fallback_host != self.host:
@@ -250,9 +275,7 @@ class ROS2Bridge:
             )
             self.ros.on(
                 "error",
-                lambda *args: logger.error(
-                    "ROSBridge Handshake Error: %s", args[0] if args else "unknown"
-                ),
+                lambda *args: logger.error("ROSBridge Handshake Error: %s", args[0] if args else "unknown"),
             )
 
             loop = asyncio.get_event_loop()
@@ -260,9 +283,7 @@ class ROS2Bridge:
 
             handshake_timeout = 5.0
             handshake_start = time.time()
-            while not self.ros.is_connected and (
-                time.time() - handshake_start < handshake_timeout
-            ):
+            while not self.ros.is_connected and (time.time() - handshake_start < handshake_timeout):
                 await asyncio.sleep(0.5)
 
             if self.ros.is_connected:
@@ -276,8 +297,8 @@ class ROS2Bridge:
                 except Exception as e:
                     logger.error("Partial telemetry failure: %s", e)
 
-                if self.on_reconnect_callback:
-                    self.on_reconnect_callback()
+                # Do not call on_reconnect_callback here: it is async and callers
+                # (watchdog, /api/v1/reconnect) run resync/video after connect().
                 return True
 
             logger.warning(
@@ -285,31 +306,18 @@ class ROS2Bridge:
                 current_host,
                 self.port,
             )
-            if self.ros:
-                self.ros.terminate()
-            self.connected = False
+            self._dispose_failed_ros_client()
             self.host = original_host
             return False
         except Exception as e:
-            logger.error(
-                "Critical failure during bridge initialization at %s: %s", current_host, e
-            )
-            if self.ros:
-                try:
-                    self.ros.terminate()
-                except Exception:
-                    pass
+            logger.error("Critical failure during bridge initialization at %s: %s", current_host, e)
+            self._dispose_failed_ros_client()
             self.host = original_host
-            self.connected = False
             return False
 
     async def _ensure_ros_running(self):
         """Verify ROS 2 nodes via SSH and trigger bringup if missing."""
-        if (
-            not hasattr(self, "ssh_bridge")
-            or not self.ssh_bridge
-            or not self.ssh_bridge.connected
-        ):
+        if not hasattr(self, "ssh_bridge") or not self.ssh_bridge or not self.ssh_bridge.connected:
             # Fallback check for 'ssh' attribute if named differently
             ssh = getattr(self, "ssh", None)
             if not ssh or not ssh.connected:
@@ -327,7 +335,9 @@ class ROS2Bridge:
         found_critical = any(node in out for node in critical_nodes)
 
         if not out or not found_critical:
-            logger.info(f"CRITICAL: Hardware driver offline (Found: {out.replace('\n', ', ')}). Attempting SOTA V15 Recovery Bringup...")
+            logger.info(
+                f"CRITICAL: Hardware driver offline (Found: {out.replace('\n', ', ')}). Attempting SOTA V15 Recovery Bringup..."
+            )
             # Use setsid to ensure the process survives SSH disconnect
             launch_cmd = (
                 "docker exec yahboom_ros2_final bash -c '"
@@ -336,16 +346,90 @@ class ROS2Bridge:
                 "setsid ros2 launch yahboomcar_bringup yahboomcar_bringup.launch.py > /tmp/sota_launch.log 2>&1 &'"
             )
             await target_ssh.execute(launch_cmd)
-            await asyncio.sleep(10) # Increased delay for Humble bringup stability
+            await asyncio.sleep(10)  # Increased delay for Humble bringup stability
             logger.info("V14 Recovery Bringup triggered. Waiting for hardware stability...")
         else:
             logger.info("Hardware driver confirmed active.")
 
         # Phase 2: Check for Rosbridge (Webapp link)
         if "rosbridge_websocket" not in out:
-            logger.warning("TELEMETRY BLACKOUT: rosbridge_websocket is missing from the node list. Webapp will remain disconnected.")
+            logger.warning(
+                "TELEMETRY BLACKOUT: rosbridge_websocket is missing from the node list. Webapp will remain disconnected."
+            )
             # We don't block here, as the MCP can still use SSH-fallback if we implement it,
             # but we warn the user via logs.
+
+    def _ros_ssh_client(self):
+        """SSH used for on-robot `ros2` commands (server sets `.ssh` or legacy `.ssh_bridge`)."""
+        sb = getattr(self, "ssh_bridge", None)
+        if sb and getattr(sb, "connected", False):
+            return sb
+        s = getattr(self, "ssh", None)
+        if s and getattr(s, "connected", False):
+            return s
+        return None
+
+    @staticmethod
+    def _parse_ros2_topic_list_t(text: str) -> list[dict[str, str]]:
+        """Parse output of `ros2 topic list -t` into {name, type} dicts."""
+        rows: list[dict[str, str]] = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split(None, 1)
+            if len(parts) == 2 and parts[0].startswith("/"):
+                rows.append({"name": parts[0], "type": parts[1]})
+            elif len(parts) == 1 and parts[0].startswith("/"):
+                rows.append({"name": parts[0], "type": "unknown"})
+        return rows
+
+    async def _get_topics_via_ssh(self) -> list[dict[str, str]]:
+        """When rosbridge has no rosapi, list topics from the robot container over SSH."""
+        ssh = self._ros_ssh_client()
+        if not ssh:
+            return []
+        container = (os.environ.get("YAHBOOM_ROS2_CONTAINER") or "yahboom_ros2_final").strip()
+        cmd = (
+            f"docker exec {container} bash -c "
+            f"'source /opt/ros/humble/setup.bash; "
+            f"source /root/yahboomcar_ws/install/setup.bash; "
+            f"ros2 topic list -t'"
+        )
+        stdout, stderr, code = await ssh.execute(cmd)
+        if code != 0:
+            logger.debug("SSH ros2 topic list failed (exit=%s): %s", code, stderr or stdout or "")
+            return []
+        topics = self._parse_ros2_topic_list_t(stdout)
+        if topics:
+            logger.debug("Topic list via SSH: %d topics", len(topics))
+        return topics
+
+    @staticmethod
+    def _looks_like_missing_rosapi(exc: BaseException) -> bool:
+        """True when rosbridge has no rosapi (wording varies by rosbridge/roslibpy)."""
+        parts = [str(exc).lower()]
+        if getattr(exc, "args", None):
+            for a in exc.args:
+                parts.append(str(a).lower())
+        text = " ".join(parts)
+        if "topics_and_types" in text or "/rosapi/" in text:
+            if any(
+                x in text
+                for x in (
+                    "does not exist",
+                    "does_not_exist",
+                    "not found",
+                    "unavailable",
+                    "unknown service",
+                    "no such service",
+                    "service not listed",
+                )
+            ):
+                return True
+        if "rosapi" in text and "exist" in text:
+            return True
+        return False
 
     async def get_all_topics(self) -> list[dict[str, str]]:
         """
@@ -355,39 +439,58 @@ class ROS2Bridge:
         if not self.ros or not self.ros.is_connected:
             return []
 
-        try:
-            # SOTA ROS 2 Introspection via rosapi Service
-            service = roslibpy.Service(
-                self.ros, "/rosapi/topics_and_types", "rosapi/TopicsAndTypes"
-            )
-            request = roslibpy.ServiceRequest()
+        if not self._skip_rosapi_topics_and_types:
+            try:
+                service = roslibpy.Service(self.ros, "/rosapi/topics_and_types", "rosapi/TopicsAndTypes")
+                request = roslibpy.ServiceRequest()
 
-            future = asyncio.Future()
-            service.call(
-                request,
-                lambda response: future.set_result(response),
-                lambda err: future.set_exception(Exception(err)),
-            )
+                future = asyncio.Future()
+                service.call(
+                    request,
+                    lambda response: future.set_result(response),
+                    lambda err: future.set_exception(Exception(err)),
+                )
 
-            result = await asyncio.wait_for(future, timeout=5.0)
+                result = await asyncio.wait_for(future, timeout=5.0)
 
-            # Map result (topics, types) to list of dicts
-            enriched = []
-            if "topics" in result and "types" in result:
-                for name, t_type in zip(result["topics"], result["types"], strict=False):
-                    enriched.append({"name": name, "type": t_type})
+                enriched = []
+                if "topics" in result and "types" in result:
+                    for name, t_type in zip(result["topics"], result["types"], strict=False):
+                        enriched.append({"name": name, "type": t_type})
 
-            return enriched
-        except Exception as e:
-            logger.error(f"Failed to fetch detailed topic list: {e}")
-            # Fallback to simple topics if service fails
+                return enriched
+            except TimeoutError:
+                logger.debug("rosapi /topics_and_types call timed out")
+            except Exception as e:
+                if self._looks_like_missing_rosapi(e):
+                    self._skip_rosapi_topics_and_types = True
+                    logger.warning(
+                        "ROSBridge has no rosapi (/rosapi/topics_and_types missing). "
+                        "Skipping rosapi for this session; topic list uses `ros2 topic list -t` "
+                        "over SSH when available. To list via rosbridge only, add rosapi to your "
+                        "launch. (This warning is once per reconnect.)"
+                    )
+                else:
+                    logger.warning(
+                        "rosapi /topics_and_types failed (non-fatal): %s — falling back to SSH/get_topics",
+                        e,
+                    )
+
+        via_roslib: list[dict[str, str]] = []
+        if not self._skip_rosapi_topics_and_types:
             try:
                 future_names = asyncio.Future()
                 self.ros.get_topics(lambda names: future_names.set_result(names))
                 names = await asyncio.wait_for(future_names, timeout=2.0)
-                return [{"name": n, "type": "unknown"} for n in names]
+                via_roslib = [{"name": n, "type": "unknown"} for n in names]
             except Exception:
-                return []
+                pass
+
+        if via_roslib:
+            return via_roslib
+
+        ssh_topics = await self._get_topics_via_ssh()
+        return ssh_topics
 
     async def _setup_topics(self):
         """Initialize publishers and subscribers with Verified Humble Registry."""
@@ -400,16 +503,12 @@ class ROS2Bridge:
         self.cmd_vel_topic.advertise()
 
         # IMU (override with YAHBOOM_IMU_TOPIC if your stack remaps e.g. /imu → /imu/data)
-        self.imu_listener = roslibpy.Topic(
-            self.ros, self.imu_topic, "sensor_msgs/Imu"
-        )
+        self.imu_listener = roslibpy.Topic(self.ros, self.imu_topic, "sensor_msgs/Imu")
         self.imu_listener.subscribe(self._imu_callback)
 
         # Battery
         bat_topic = "/battery_state"
-        self.battery_listener = roslibpy.Topic(
-            self.ros, bat_topic, "sensor_msgs/BatteryState"
-        )
+        self.battery_listener = roslibpy.Topic(self.ros, bat_topic, "sensor_msgs/BatteryState")
         self.battery_listener.subscribe(self._battery_callback)
 
         # Odometry
@@ -421,29 +520,21 @@ class ROS2Bridge:
         self.scan_listener.subscribe(self._scan_callback)
 
         # Ultrasonic ranger (std_msgs/msg/Float32) — Observed in Mcnamu_driver bridge
-        self.sonar_listener = roslibpy.Topic(
-            self.ros, self.ultrasonic_topic, "std_msgs/msg/Float32"
-        )
+        self.sonar_listener = roslibpy.Topic(self.ros, self.ultrasonic_topic, "std_msgs/msg/Float32")
         self.sonar_listener.subscribe(self._sonar_callback)
 
         # Line follower (Int32MultiArray: typically 3–5 binary channels, 0/1)
-        self.line_status_listener = roslibpy.Topic(
-            self.ros, self.line_topic, self.line_msg_type
-        )
+        self.line_status_listener = roslibpy.Topic(self.ros, self.line_topic, self.line_msg_type)
         self.line_status_listener.subscribe(self._line_callback)
 
         # RGB Lightstrip
         rgblight_topic = "/rgblight"
-        self.rgblight_topic = roslibpy.Topic(
-            self.ros, rgblight_topic, "std_msgs/Int32MultiArray"
-        )
+        self.rgblight_topic = roslibpy.Topic(self.ros, rgblight_topic, "std_msgs/Int32MultiArray")
         self.rgblight_topic.advertise()
 
         # Camera (Compressed)
         image_topic = "/image_raw/compressed"
-        self.image_topic = roslibpy.Topic(
-            self.ros, image_topic, "sensor_msgs/CompressedImage"
-        )
+        self.image_topic = roslibpy.Topic(self.ros, image_topic, "sensor_msgs/CompressedImage")
         self.image_topic.subscribe(self._image_callback)
 
         # KEY Button
@@ -451,19 +542,39 @@ class ROS2Bridge:
         self.button_listener.subscribe(self._button_callback)
 
         # Servo Control (Verified yahboomcar_msgs for Humble)
-        self.servo_topic = roslibpy.Topic(
-            self.ros, "/servo", "yahboomcar_msgs/msg/ServoControl"
-        )
+        self.servo_topic = roslibpy.Topic(self.ros, "/servo", "yahboomcar_msgs/msg/ServoControl")
         self.servo_topic.advertise()
 
+        self.mission_topic = roslibpy.Topic(self.ros, self.mission_topic_name, "std_msgs/String")
+        self.mission_topic.advertise()
+
         logger.info(
-            "Subscribed using Verified Humble Registry: IMU=%s, Bat=%s, Vision=%s, Line=%s, Ultrasonic=%s",
+            "Subscribed using Verified Humble Registry: IMU=%s, Bat=%s, Vision=%s, Line=%s, Ultrasonic=%s, mission=%s",
             self.imu_topic,
             bat_topic,
             image_topic,
             self.line_topic,
             self.ultrasonic_topic,
+            self.mission_topic_name,
         )
+
+    async def publish_mission_json(self, plan: dict[str, Any]) -> bool:
+        """Publish a JSON mission plan on ``std_msgs/String`` (see ``YAHBOOM_MISSION_TOPIC``)."""
+        ros_ok = self.ros and self.ros.is_connected
+        if not ros_ok or not self.mission_topic:
+            logger.warning(
+                "publish_mission_json: ros_ok=%s mission_topic=%s",
+                ros_ok,
+                self.mission_topic is not None,
+            )
+            return False
+        try:
+            payload = json.dumps(plan, ensure_ascii=False)
+        except (TypeError, ValueError) as e:
+            logger.warning("publish_mission_json: JSON encode failed: %s", e)
+            return False
+        self.mission_topic.publish(roslibpy.Message({"data": payload}))
+        return True
 
     async def resync_metadata(self):
         """Force a re-discovery of topics and re-subscribe to telemetry."""
@@ -534,9 +645,7 @@ class ROS2Bridge:
         volt = message.get("voltage", None)
         self.state["battery"] = {
             "voltage": round(volt, 2) if volt is not None else None,
-            "percentage": round(pct * 100, 1)
-            if pct is not None
-            else None,  # ROS sends 0–1
+            "percentage": round(pct * 100, 1) if pct is not None else None,  # ROS sends 0–1
             "power_supply_status": message.get("power_supply_status"),
         }
 
@@ -627,10 +736,18 @@ class ROS2Bridge:
         if self.ros:
             logger.info("Closing ROSBridge connection...")
             try:
+                factory = getattr(self.ros, "factory", None)
+                stop = getattr(factory, "stopTrying", None) if factory is not None else None
+                if callable(stop):
+                    stop()
+            except Exception:
+                pass
+            try:
                 self.ros.terminate()
             except Exception:
                 pass
             self.ros = None
+            self._skip_rosapi_topics_and_types = False
 
     async def monitor_connection(self, interval: float = 10.0, on_reconnect=None):
         """Background task to ensure the ROSBridge connection stays alive."""
@@ -644,9 +761,7 @@ class ROS2Bridge:
 
                 if not current_status:
                     if self.connected:
-                        logger.warning(
-                            "ROSBridge connection lost. Attempting reconnection..."
-                        )
+                        logger.warning("ROSBridge connection lost. Attempting reconnection...")
                         self.connected = False
 
                     # Try to reconnect
@@ -660,9 +775,7 @@ class ROS2Bridge:
                 else:
                     # Sync internal flag
                     if not self.connected:
-                        logger.info(
-                            "ROSBridge connection restored manually/autonomously."
-                        )
+                        logger.info("ROSBridge connection restored manually/autonomously.")
                     self.connected = True
             except Exception as e:
                 logger.debug(f"Watchdog iteration error: {e}")
@@ -671,22 +784,20 @@ class ROS2Bridge:
 
     # ─── Publish helpers ─────────────────────────────────────────────────────
 
-    async def move(
-        self, linear: float = 0.0, angular: float = 0.0, linear_y: float = 0.0
-    ):
+    async def move(self, linear: float = 0.0, angular: float = 0.0, linear_y: float = 0.0):
         """SOTA Proxy method for publish_velocity, providing a standard 'move' interface."""
-        return await self.publish_velocity(
-            linear_x=linear, angular_z=angular, linear_y=linear_y
-        )
+        return await self.publish_velocity(linear_x=linear, angular_z=angular, linear_y=linear_y)
 
-    async def publish_velocity(
-        self, linear_x: float, angular_z: float, linear_y: float = 0.0
-    ):
+    async def publish_velocity(self, linear_x: float, angular_z: float, linear_y: float = 0.0):
         """Send velocity command to the robot (including strafing for Mecanum wheels)."""
         ros_ok = self.ros and self.ros.is_connected
         if not ros_ok or not self.cmd_vel_topic:
-            logger.warning("Cannot publish velocity: not connected (connected=%s, ros.is_connected=%s, cmd_vel=%s)",
-                           self.connected, ros_ok, self.cmd_vel_topic is not None)
+            logger.warning(
+                "Cannot publish velocity: not connected (connected=%s, ros.is_connected=%s, cmd_vel=%s)",
+                self.connected,
+                ros_ok,
+                self.cmd_vel_topic is not None,
+            )
             return False
 
         twist = {
@@ -711,8 +822,13 @@ class ROS2Bridge:
         Both angles must be supplied on every call; use current state for the
         channel not being moved.
         """
-        if not self.connected or not self.servo_topic:
-            logger.warning("Cannot publish servo: Not connected")
+        ros_ok = self.ros and self.ros.is_connected
+        if not ros_ok or not self.servo_topic:
+            logger.warning(
+                "Cannot publish servo: ros_ok=%s, servo_topic=%s",
+                ros_ok,
+                self.servo_topic is not None,
+            )
             return False
 
         s1 = max(0, min(180, int(servo_s1)))

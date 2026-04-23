@@ -37,9 +37,7 @@ class TrajectoryManager:
 
     def add_point(self, x: float, y: float, z: float, heading: float):
         if self.is_recording:
-            self.active_recording.append(
-                TrajectoryPoint(timestamp=time.time(), x=x, y=y, z=z, heading=heading)
-            )
+            self.active_recording.append(TrajectoryPoint(timestamp=time.time(), x=x, y=y, z=z, heading=heading))
 
     def stop_recording(self, name: str) -> str | None:
         if not self.is_recording:

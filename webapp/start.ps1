@@ -1,4 +1,15 @@
-﻿Param([switch]$Headless)
+﻿# Yahboom ROS 2 MCP - SOTA 2026 Startup Script
+# Author: Sandra Schipal (v1.2.0 - 2026-03-04)
+
+Param(
+    [Parameter(Position = 0)]
+    [string]$RobotIP = "192.168.1.11",
+    [Parameter(Position = 1)]
+    [int]$BridgePort = 9090,
+    [Parameter(Position = 2)]
+    [string]$FallbackIP = "",
+    [switch]$Headless
+)
 
 # --- SOTA Headless Standard ---
 if ($Headless -and ($Host.UI.RawUI.WindowTitle -notmatch 'Hidden')) {
@@ -7,15 +18,6 @@ if ($Headless -and ($Host.UI.RawUI.WindowTitle -notmatch 'Hidden')) {
 }
 $WindowStyle = if ($Headless) { 'Hidden' } else { 'Normal' }
 # ------------------------------
-
-# Yahboom ROS 2 MCP - SOTA 2026 Startup Script
-# Author: Sandra Schipal (v1.2.0 - 2026-03-04)
-
-Param(
-    [string]$RobotIP = "192.168.1.11",
-    [int]$BridgePort = 9090,
-    [string]$FallbackIP = ""
-)
 
 $env:YAHBOOM_IP = $RobotIP
 $env:YAHBOOM_BRIDGE_PORT = [string]$BridgePort
@@ -96,12 +98,12 @@ $serverArgs = @("run", "python", "-m", "yahboom_mcp.server", "--mode", "dual", "
 $serverProc = Start-Process uv -ArgumentList $serverArgs -NoNewWindow -PassThru
 Pop-Location
 
-# 4. Start Vite dashboard
-if (-not (Test-Path "node_modules")) {
+# 4. Start Vite dashboard (always use webapp folder — npm cwd was wrong when script invoked from repo root)
+if (-not (Test-Path (Join-Path $PSScriptRoot "node_modules"))) {
     Write-Host "      node_modules missing -- running npm install..." -ForegroundColor Yellow
-    cmd /c npm install --quiet --legacy-peer-deps
+    Start-Process cmd -WorkingDirectory $PSScriptRoot -ArgumentList "/c", "npm", "install", "--quiet", "--legacy-peer-deps" -Wait -NoNewWindow
 }
-$dashboardProc = Start-Process cmd -ArgumentList "/c", "npm", "run", "dev" -NoNewWindow -PassThru
+$dashboardProc = Start-Process cmd -WorkingDirectory $PSScriptRoot -ArgumentList "/c", "npm", "run", "dev" -NoNewWindow -PassThru
 
 Write-Host ""
 Write-Host "[SUCCESS] Yahboom ROS 2 Fleet Integration Active." -ForegroundColor Green

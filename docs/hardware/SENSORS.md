@@ -4,6 +4,8 @@
 **Platform**: Yahboom G1 (ROSMASTER series, Mecanum wheel, Raspberry Pi 5)  
 **Server**: `yahboom-mcp` — ROS 2 Humble + ROSBridge WebSocket (port 9090)
 
+**Physical hardware inventory (Raspbot v2):** **[RASPBOT_V2_HARDWARE_STACK.md](RASPBOT_V2_HARDWARE_STACK.md)**.
+
 ---
 
 ## 1. Sensor Inventory

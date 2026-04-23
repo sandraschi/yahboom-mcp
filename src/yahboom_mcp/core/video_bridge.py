@@ -50,6 +50,7 @@ class VideoBridge:
         self._ros_start_time: float | None = None
 
         import os
+
         self._force_direct = os.environ.get("YAHBOOM_CAMERA_DIRECT", "0") == "1"
         self._device = int(os.environ.get("YAHBOOM_CAMERA_DEVICE", "0"))
 
@@ -76,6 +77,7 @@ class VideoBridge:
     def _start_ros_topic(self):
         """Subscribe to the ROS compressed image topic."""
         import time
+
         self._ros_start_time = time.time()
         topic_type = "sensor_msgs/CompressedImage"
         try:
@@ -87,26 +89,42 @@ class VideoBridge:
         self.topic.subscribe(self._image_callback)
         logger.info(f"VideoBridge: subscribed to {self.topic_name}")
 
+    def _remote_robot_ssh(self) -> bool:
+        """True if SSH target looks like a robot (not this host) — skip local /dev/video0."""
+        ssh = getattr(self, "ssh", None) or getattr(self, "ssh_bridge", None)
+        if not ssh or not getattr(ssh, "connected", False):
+            return False
+        host = (getattr(ssh, "host", None) or "").strip().lower()
+        if not host:
+            return False
+        return host not in ("127.0.0.1", "localhost", "::1")
+
     def _ros_fallback_watchdog(self):
-        """After FALLBACK_TIMEOUT_S with no frames, try the direct stream fallback."""
+        """After FALLBACK_TIMEOUT_S with no frames, try direct capture only on sensible hosts."""
         time.sleep(self.FALLBACK_TIMEOUT_S)
         if self.frame_count == 0 and self.active:
+            if self._remote_robot_ssh() and not self._force_direct:
+                logger.warning(
+                    "VideoBridge: no frames from %s after %ss — direct /dev/video0 "
+                    "is disabled while SSH targets a remote robot (would open the PC "
+                    "webcam). Set YAHBOOM_CAMERA_DIRECT=1 to force local capture, or fix "
+                    "ROS image topic / rosbridge.",
+                    self.topic_name,
+                    self.FALLBACK_TIMEOUT_S,
+                )
+                return
             logger.warning(
                 f"VideoBridge: no frames from {self.topic_name} after "
                 f"{self.FALLBACK_TIMEOUT_S}s — trying direct USB camera mode..."
             )
             self._start_direct()
 
-
-
     def _start_direct(self):
         """Open the camera device directly via cv2 in a background thread."""
         if self._direct_active:
             return
         self._direct_active = True
-        self._direct_thread = threading.Thread(
-            target=self._direct_capture_loop, daemon=True
-        )
+        self._direct_thread = threading.Thread(target=self._direct_capture_loop, daemon=True)
         self._direct_thread.start()
         logger.info(f"VideoBridge: direct capture started on device {self._device}")
 
@@ -115,8 +133,7 @@ class VideoBridge:
         cap = cv2.VideoCapture(self._device)
         if not cap.isOpened():
             logger.error(
-                f"VideoBridge: cannot open camera device {self._device}. "
-                "Check /dev/video0 exists and is accessible."
+                f"VideoBridge: cannot open camera device {self._device}. Check /dev/video0 exists and is accessible."
             )
             self._direct_active = False
             return
@@ -132,6 +149,7 @@ class VideoBridge:
                     self.frame_count += 1
             else:
                 import time
+
                 time.sleep(0.05)
 
         cap.release()
@@ -162,20 +180,14 @@ class VideoBridge:
 
                 if width and height:
                     if encoding in ("rgb8", "bgr8"):
-                        frame = np.frombuffer(image_bytes, dtype=np.uint8).reshape(
-                            (height, width, 3)
-                        )
+                        frame = np.frombuffer(image_bytes, dtype=np.uint8).reshape((height, width, 3))
                         if encoding == "rgb8":
                             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                     elif encoding == "mono8":
-                        frame = np.frombuffer(image_bytes, dtype=np.uint8).reshape(
-                            (height, width)
-                        )
+                        frame = np.frombuffer(image_bytes, dtype=np.uint8).reshape((height, width))
                         frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
                     elif encoding == "yuv422":
-                        frame = np.frombuffer(image_bytes, dtype=np.uint8).reshape(
-                            (height, width, 2)
-                        )
+                        frame = np.frombuffer(image_bytes, dtype=np.uint8).reshape((height, width, 2))
                         frame = cv2.cvtColor(frame, cv2.COLOR_YUV2BGR_YUYV)
 
             if frame is not None:
@@ -197,9 +209,7 @@ class VideoBridge:
         with self.frame_lock:
             if self.last_frame is None:
                 return None
-            ret, buffer = cv2.imencode(
-                ".jpg", self.last_frame, [cv2.IMWRITE_JPEG_QUALITY, 85]
-            )
+            ret, buffer = cv2.imencode(".jpg", self.last_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
             if ret:
                 return buffer.tobytes()
         return None
@@ -233,4 +243,3 @@ class VideoBridge:
                 await asyncio.sleep(0.05)
                 continue
             await asyncio.sleep(0.05)
-

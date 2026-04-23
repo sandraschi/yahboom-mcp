@@ -4,9 +4,7 @@ import os
 import sys
 
 # Add src to path
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
-)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
 from yahboom_mcp.core.ros2_bridge import ROS2Bridge
 from yahboom_mcp.core.ssh_bridge import SSHBridge
@@ -43,12 +41,12 @@ async def test_sync():
     if await bridge.connect(timeout_sec=15.0):
         logger.info("[SUCCESS] ROS 2 Bridge connected.")
         # Discovery should have happened. Let's check what it mapped.
-        logger.info(
-            f"Mapped Topics: IMU={getattr(bridge, 'imu_listener', None).name if getattr(bridge, 'imu_listener', None) else 'None'}"
-        )
-        logger.info(
-            f"Mapped Topics: RGB={getattr(bridge, 'rgblight_topic', None).name if getattr(bridge, 'rgblight_topic', None) else 'None'}"
-        )
+        imu = getattr(bridge, "imu_listener", None)
+        imu_n = imu.name if imu else "None"
+        logger.info("Mapped Topics: IMU=%s", imu_n)
+        rgb = getattr(bridge, "rgblight_topic", None)
+        rgb_n = rgb.name if rgb else "None"
+        logger.info("Mapped Topics: RGB=%s", rgb_n)
 
         # 3. Lightstrip Test
         logger.info("Running Lightstrip Test (RED)...")

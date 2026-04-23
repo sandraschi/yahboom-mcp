@@ -13,9 +13,7 @@ async def test_bridge_connectivity():
     """Verify that we have a real ROS 2 bridge and it identifies as connected."""
     bridge = _state.get("bridge")
     assert bridge is not None, "ROS 2 Bridge not initialized in server state"
-    assert bridge.connected is True, (
-        "ROS 2 Bridge failed to connect to robot (Check IP/Port)"
-    )
+    assert bridge.connected is True, "ROS 2 Bridge failed to connect to robot (Check IP/Port)"
 
 
 @pytest.mark.asyncio
@@ -29,9 +27,7 @@ async def test_sensors_no_mock():
     assert result["success"] is True
     # If the bridge is connected, results must match real robot state, not hardcoded mock defaults.
     # In Pure Reality mode, if it's mock it will return an 'offline' status.
-    assert result["status"] != "mock_data", (
-        "FATAL: Sensors module is still returning 'Mock Central' data!"
-    )
+    assert result["status"] != "mock_data", "FATAL: Sensors module is still returning 'Mock Central' data!"
 
     data = result.get("result")
     if result["status"] == "live_data":
@@ -53,9 +49,7 @@ async def test_display_closed_loop():
     result = await display.execute(operation="write", param1=heartbeat, param2=0)
 
     assert result["success"] is True
-    assert result["status"] == "applied", (
-        f"OLED Verification failed: {result.get('log')}"
-    )
+    assert result["status"] == "applied", f"OLED Verification failed: {result.get('log')}"
 
 
 @pytest.mark.asyncio
@@ -79,6 +73,4 @@ async def test_camera_frame_received():
 
     # Wait a moment for a frame to arrive (Auto-Discovery takes a moment)
     await asyncio.sleep(2.0)
-    assert video.frame_count > 0, (
-        "VideoBridge is active but 0 frames received (Check Topic/Auto-Discovery)"
-    )
+    assert video.frame_count > 0, "VideoBridge is active but 0 frames received (Check Topic/Auto-Discovery)"

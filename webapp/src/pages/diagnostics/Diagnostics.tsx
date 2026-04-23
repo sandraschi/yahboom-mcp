@@ -12,8 +12,10 @@ import {
   Trash2,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
-import { api, type DiagStackResponse } from "../../lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import StackStatusTable from "../../components/StackStatusTable";
+import { api, type DiagStackResponse, type DriverStackSnapshot, type Health } from "../../lib/api";
 
 interface RosTopic {
   name: string;
@@ -27,23 +29,37 @@ const Diagnostics: React.FC = () => {
   const [shellOutput, setShellOutput] = useState<string[]>([]);
   const [command, setCommand] = useState("");
   const [executing, setExecuting] = useState(false);
+  const [health, setHealth] = useState<Health | null>(null);
+  const [topicFetchError, setTopicFetchError] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const [stackData, topicData] = await Promise.all([api.getDiagStack(), api.getRosTopics()]);
+      const [stackData, topicData, healthData] = await Promise.all([
+        api.getDiagStack(),
+        api.getRosTopics(),
+        api.getHealth(),
+      ]);
       setStack(stackData);
-      if (topicData.success) {
+      setHealth(healthData);
+      if (topicData.success && topicData.topics) {
+        setTopicFetchError(null);
         const formattedTopics = topicData.topics.map((t: any) => ({
           name: Array.isArray(t) ? t[0] : t.name,
           type: Array.isArray(t) ? t[1] : t.type,
         }));
         setTopics(formattedTopics);
+      } else {
+        setTopics([]);
+        setTopicFetchError(
+          topicData.success ? null : (topicData.error ?? "Topic list unavailable"),
+        );
       }
     } catch (error) {
       console.error("Diagnostic fetch failed:", error);
+      setTopicFetchError("Request failed — is the backend on :10892 running?");
     }
-  };
+  }, []);
 
   const handleRestartBringup = async () => {
     if (!confirm("This will force a native ROS 2 bringup via SSH. Continue?")) return;
@@ -101,6 +117,13 @@ const Diagnostics: React.FC = () => {
       t.type.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
+  const rosLive =
+    health?.robot_connection?.ros === "connected" ||
+    stack?.service_status === "rosbridge_connected";
+
+  const driverStack: DriverStackSnapshot | undefined =
+    health?.robot_connection?.driver_stack ?? stack?.driver_stack;
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
       {/* Header */}
@@ -110,8 +133,32 @@ const Diagnostics: React.FC = () => {
             <Activity className="w-8 h-8 text-blue-500" />
             ROS 2 Insight Hub
           </h1>
-          <p className="text-gray-400 mt-1 font-mono text-sm">
-            Empirical Hardware Verification @ 192.168.0.250
+          <p className="text-gray-400 mt-1 text-sm flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="font-mono text-gray-300">
+              Robot {health?.robot_connection.ip ?? "—"}
+            </span>
+            <span className="text-slate-600">·</span>
+            <span className={rosLive ? "text-emerald-400 font-mono" : "text-amber-400 font-mono"}>
+              ROS {health?.robot_connection.ros ?? stack?.service_status ?? "…"}
+            </span>
+            <span className="text-slate-600">·</span>
+            <span
+              className={
+                health?.robot_connection.ssh === "connected"
+                  ? "text-emerald-400 font-mono"
+                  : "text-amber-400 font-mono"
+              }
+            >
+              SSH {health?.robot_connection?.ssh ?? "…"}
+            </span>
+            {!rosLive && (
+              <>
+                <span className="text-slate-600">·</span>
+                <Link to="/logs" className="text-indigo-400 hover:underline text-xs font-sans">
+                  Server logs
+                </Link>
+              </>
+            )}
           </p>
         </div>
         <div className="flex gap-3">
@@ -133,6 +180,64 @@ const Diagnostics: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {health?.stack ? (
+        <div className="rounded-xl border border-slate-700/80 bg-gray-900/40 p-4">
+          <h2 className="text-sm font-black text-white uppercase tracking-wide mb-3 flex items-center gap-2">
+            <HardDrive className="w-4 h-4 text-indigo-400" />
+            Full stack status
+          </h2>
+          <StackStatusTable stack={health.stack} />
+        </div>
+      ) : (
+        driverStack && (
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm ${
+              driverStack.status === "running"
+                ? "border-emerald-500/35 bg-emerald-950/30"
+                : driverStack.status === "absent"
+                  ? "border-amber-500/40 bg-amber-950/35"
+                  : driverStack.status === "ssh_offline"
+                    ? "border-slate-600/50 bg-slate-900/50"
+                    : "border-red-500/35 bg-red-950/30"
+            }`}
+          >
+            <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-white">
+              <HardDrive className="w-4 h-4 text-indigo-400 shrink-0" />
+              <span className="font-black tracking-tight">Docker driver stack</span>
+              <span className="text-slate-500">({driverStack.container})</span>
+              <span
+                className={
+                  driverStack.status === "running"
+                    ? "text-emerald-400"
+                    : driverStack.status === "absent"
+                      ? "text-amber-300"
+                      : "text-slate-400"
+                }
+              >
+                {driverStack.status.toUpperCase().replace("_", " ")}
+              </span>
+              <span className="text-slate-500">
+                nodes: {driverStack.ros_node_line_count}
+                {driverStack.matched_nodes?.length
+                  ? ` · drivers: ${driverStack.matched_nodes.join(", ")}`
+                  : " · drivers: —"}
+              </span>
+              <span className="text-slate-500">
+                rosbridge in graph:{" "}
+                {driverStack.rosbridge_node_seen === null
+                  ? "—"
+                  : driverStack.rosbridge_node_seen
+                    ? "yes"
+                    : "no"}
+              </span>
+            </div>
+            {driverStack.detail && (
+              <p className="mt-2 text-xs text-slate-400 leading-relaxed">{driverStack.detail}</p>
+            )}
+          </div>
+        )
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Topic Explorer (Main Panel) */}
@@ -175,8 +280,51 @@ const Diagnostics: React.FC = () => {
                   ))}
                   {filteredTopics.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="px-4 py-20 text-center text-gray-600 italic">
-                        No matching topics found in current ROS 2 context.
+                      <td colSpan={3} className="px-4 py-12 align-top">
+                        {topicFetchError ? (
+                          <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 text-left">
+                            <p className="text-red-400 font-semibold text-sm">Topic list error</p>
+                            <p className="text-red-300/80 font-mono text-xs mt-1">{topicFetchError}</p>
+                          </div>
+                        ) : topics.length > 0 ? (
+                          <p className="text-center text-gray-500 italic">
+                            No topics match &quot;{searchTerm}&quot;.
+                          </p>
+                        ) : !rosLive ? (
+                          <div className="max-w-xl mx-auto space-y-3 text-left">
+                            <p className="text-amber-400 font-semibold text-sm">
+                              ROS bridge is not connected
+                            </p>
+                            <p className="text-gray-400 text-xs leading-relaxed">
+                              The topic table stays empty until{" "}
+                              <span className="font-mono text-gray-300">roslibpy</span> can reach
+                              WebSocket rosbridge on the Pi (default{" "}
+                              <span className="font-mono">YAHBOOM_BRIDGE_PORT=9090</span>
+                              ). The hub is still talking to this PC&apos;s gateway; the Raspberry
+                              at <span className="font-mono">{health?.robot_connection.ip ?? "—"}</span>{" "}
+                              is not on the graph.
+                            </p>
+                            <ul className="text-gray-500 text-xs list-disc list-inside space-y-1">
+                              <li>Robot powered, same LAN, correct IP in start script / YAHBOOM_IP</li>
+                              <li>On the Pi: rosbridge running (e.g. rosbridge_websocket launch)</li>
+                              <li>Firewall allows TCP to the bridge port from this host</li>
+                            </ul>
+                            <p className="text-xs text-slate-500">
+                              Host-side errors (SSH, connect timeout) appear in{" "}
+                              <Link to="/logs" className="text-indigo-400 hover:underline">
+                                Server logs
+                              </Link>
+                              .
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-center text-gray-500 text-sm">
+                            ROS reports connected but no topics were returned (no rosapi on
+                            rosbridge, SSH down, or no publishers). Try{" "}
+                            <span className="font-mono">System Re-Sync</span>, ensure SSH to the
+                            Pi works for topic fallback, or add rosapi to your rosbridge launch.
+                          </p>
+                        )}
                       </td>
                     </tr>
                   )}

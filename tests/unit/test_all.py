@@ -3,6 +3,7 @@ Unit tests — motion, lightstrip, servo, sensors, display, voice.
 All tests use MockROS2Bridge + mock SSH; no hardware required.
 Run: pytest tests/unit/ -v
 """
+
 import pytest
 
 from yahboom_mcp.operations import display, lightstrip, motion, voice
@@ -10,6 +11,7 @@ from yahboom_mcp.operations.camera_ptz import camera_move, camera_reset, camera_
 from yahboom_mcp.portmanteau import yahboom_tool
 
 # ── Motion ───────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_motion_forward(mock_bridge):
@@ -81,6 +83,7 @@ async def test_motion_disconnected(disconnected_bridge):
 
 # ── Lightstrip ───────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_lightstrip_set(mock_bridge):
     result = await lightstrip.execute(operation="set", param1=255, param2=0, param3=128)
@@ -129,6 +132,7 @@ async def test_lightstrip_disconnected(disconnected_bridge):
 
 # ── Servo / PTZ ──────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_servo_camera_move_up(mock_bridge_with_servo):
     result = await camera_move(mock_bridge_with_servo, direction="up", step=15)
@@ -149,7 +153,7 @@ async def test_servo_camera_move_left(mock_bridge_with_servo):
 async def test_servo_camera_set_pos(mock_bridge_with_servo):
     result = await camera_set_pos(mock_bridge_with_servo, pan=45, tilt=135)
     assert result["success"]
-    pan_cmd  = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 1)
+    pan_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 1)
     tilt_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 2)
     assert pan_cmd["angle"] == 45
     assert tilt_cmd["angle"] == 135
@@ -159,7 +163,7 @@ async def test_servo_camera_set_pos(mock_bridge_with_servo):
 async def test_servo_camera_reset(mock_bridge_with_servo):
     result = await camera_reset(mock_bridge_with_servo)
     assert result["success"]
-    pan_cmd  = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 1)
+    pan_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 1)
     tilt_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 2)
     assert pan_cmd["angle"] == 90
     assert tilt_cmd["angle"] == 90
@@ -169,9 +173,9 @@ async def test_servo_camera_reset(mock_bridge_with_servo):
 async def test_servo_clamp_bounds(mock_bridge_with_servo):
     result = await camera_set_pos(mock_bridge_with_servo, pan=-50, tilt=999)
     assert result["success"]
-    pan_cmd  = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 1)
+    pan_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 1)
     tilt_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 2)
-    assert pan_cmd["angle"] == 0    # clamped
+    assert pan_cmd["angle"] == 0  # clamped
     assert tilt_cmd["angle"] == 180  # clamped
 
 
@@ -182,6 +186,7 @@ async def test_servo_invalid_direction(mock_bridge_with_servo):
 
 
 # ── Sensors ──────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_portmanteau_health(mock_bridge):
@@ -205,6 +210,7 @@ async def test_portmanteau_read_imu(mock_bridge):
 
 
 # ── Display ──────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_display_no_ssh(disconnected_bridge):
@@ -253,6 +259,7 @@ async def test_display_get_status_found(mock_bridge, mock_ssh):
 
 # ── Voice ────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_voice_no_ssh(disconnected_bridge):
     result = await voice.execute(operation="get_status")
@@ -287,7 +294,7 @@ async def test_voice_say(mock_bridge, mock_ssh):
     # Device found, serial write succeeds
     mock_ssh.execute.side_effect = [
         ("/dev/ttyUSB0", "", 0),  # _resolve_device
-        ("OK", "", 0),             # serial write
+        ("OK", "", 0),  # serial write
     ]
     result = await voice.execute(operation="say", param1="Hello Boomy")
     assert result["success"]

@@ -25,6 +25,8 @@ The yahboom-mcp system implements a **Distributed Bridge Pattern** with exceptio
 └─────────────────┘                   └─────────────────┘                   └─────────────────┘
 ```
 
+> **2026-04-22 correction:** Port **9090** in production is **rosbridge_suite on the Raspberry Pi**, not the MCP client transport. MCP clients use **stdio** or **HTTP/SSE** to **yahboom-mcp** (e.g. **10892**). The diagram above is schematic only. For boot order, Docker/systemd on the Pi, and **ROS 2 vs rosbridge vs USB controller tier under the Pi**, see **[Startup & bringup](../ops/STARTUP_AND_BRINGUP.md)**. For operator-facing UI: **Dashboard** = basic link status; **Diagnostic Hub** = ROS topic / node detail.
+
 ---
 
 ## 🧩 Portmanteau Pattern Analysis

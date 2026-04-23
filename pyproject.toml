@@ -77,7 +77,14 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "S", "UP", "RUF"]
-ignore = ["S101", "B008"]
+# S110: intentional bare except+pass in disconnect/teardown paths.
+# S311: random used for LED/visual effects, not cryptography.
+# RUF001–RUF003: typographic punctuation in operator-facing strings/comments.
+ignore = ["S101", "B008", "S108", "S110", "S311", "RUF001", "RUF002", "RUF003"]
+
+# Legacy: allow >120 columns in application code until wrapped incrementally.
+[tool.ruff.lint.per-file-ignores]
+"src/**/*.py" = ["E501"]
 
 [tool.ruff.format]
 quote-style = "double"

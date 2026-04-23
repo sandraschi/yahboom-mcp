@@ -30,7 +30,25 @@ The bridge does **not** SSH into the Pi for normal operation. SSH is used only f
 
 ---
 
-## 2. Connection Lifecycle
+## 2. Terminology: ROS 2 vs rosbridge (software) vs USB hardware under the Pi
+
+Three different layers are easy to merge in conversation:
+
+| Name | Meaning |
+|------|--------|
+| **ROS 2 graph** | DDS nodes on the Pi (drivers, sensors, `cmd_vel`, etc.) — often inside **Docker**. |
+| **rosbridge_suite** | **Python/ROS packages** exposing a **WebSocket** (e.g. port **9090**) so non-ROS programs (`roslibpy` on Goliath) can publish/subscribe. This is **not** a PCB. |
+| **Lower motion/sensor hardware** | Yahboom stack: a **controller tier physically under** the Raspberry Pi, linked by **USB** (`/dev/ttyUSB*`, etc.). It participates in ROS 2 through onboard drivers. People sometimes say “rosbridge board” — that is **misleading**; the WebSocket server is **software on the Pi**. Prefer **ROSMASTER / driver board** vs **rosbridge_suite**. |
+
+**Why it matters:** if Goliath cannot ping the network path to the Pi, **both** SSH and WebSocket fail — no amount of dashboard clicking starts Docker or the USB-attached controller. After power and link are good, **rosbridge** must be running for `ROS2Bridge`, and **ROS bringup** must be running for topics to exist.
+
+**Rosbridge does not implement Micro-ROS.** Micro-ROS is **MCU firmware + agent** for the **Pi ↔ Rosmaster board** serial link; rosbridge is **JSON/WebSocket** for the **PC ↔ Pi** link. Full definitions: **[RASPBOT_V2_HARDWARE_STACK.md §1](RASPBOT_V2_HARDWARE_STACK.md#1-terms-and-layers-read-this-first)** and **§9.3**.
+
+Operator starter (boot order, systemd scripts, webapp buttons): [`../ops/STARTUP_AND_BRINGUP.md`](../ops/STARTUP_AND_BRINGUP.md).
+
+---
+
+## 3. Connection Lifecycle
 
 ### 2.1 Startup (lifespan in `server.py`)
 
@@ -66,7 +84,7 @@ The bridge does not auto-reconnect by default. If `on_reconnect_callback` is set
 
 ---
 
-## 3. State Cache
+## 4. State Cache
 
 All sensor data is cached in `bridge.state` — a plain dict updated by ROS callbacks. The `/api/v1/telemetry` endpoint returns a snapshot of this dict (no blocking ROS call). Freshness is indicated by `last_update` (Unix timestamp).
 
@@ -85,7 +103,7 @@ bridge.state = {
 
 ---
 
-## 4. Topic Map
+## 5. Topic Map
 
 ### 4.1 Subscriptions (bridge reads from ROS)
 
@@ -115,7 +133,7 @@ Topic names for IMU, ultrasonic, and line sensor can be overridden via environme
 
 ---
 
-## 5. Sensor Callback Details
+## 6. Sensor Callback Details
 
 ### 5.1 IMU (`_imu_callback`)
 
@@ -196,7 +214,7 @@ Dashboard Safety panel shows `nearest_m` and turns text red below 0.4 m.
 
 ---
 
-## 6. Publisher Method Details
+## 7. Publisher Method Details
 
 ### 6.1 `publish_cmd_vel(linear_x, linear_y, angular_z)`
 
@@ -236,7 +254,7 @@ await bridge.publish_servo(servo_s1=60, servo_s2=90)   # pan left, tilt unchange
 
 ---
 
-## 7. Environment Variables
+## 8. Environment Variables
 
 All read at startup from the process environment or `.env` file.
 
@@ -254,7 +272,7 @@ All read at startup from the process environment or `.env` file.
 
 ---
 
-## 8. Known Behaviour Notes
+## 9. Known Behaviour Notes
 
 **Why servos went to 0° on previous code:**  
 `_publish_servo(servo_id, angle)` used `{"id": servo_id, "angle": angle}` — both wrong field names. ROSBridge silently accepted the message (it doesn't validate field names for custom message types), published it with `servo_s1=0, servo_s2=0` defaults. Driver ran `Ctrl_Servo(1, 0)` and `Ctrl_Servo(2, 0)`. Fixed by `_publish_both(pan, tilt)` with `{"servo_s1": pan, "servo_s2": tilt}`.
@@ -270,7 +288,7 @@ roslibpy runs its event loop in a background thread via `ros.run()`. All callbac
 
 ---
 
-## 9. Data Flow Diagram
+## 10. Data Flow Diagram
 
 ```
                     ┌─────────────────────────────────────┐
@@ -306,8 +324,10 @@ roslibpy runs its event loop in a background thread via `ros.run()`. All callbac
 
 ---
 
-## 10. See Also
+## 11. See Also
 
+- [`STARTUP_AND_BRINGUP.md`](../ops/STARTUP_AND_BRINGUP.md) — boot order, Docker/systemd on Pi, webapp restart vs reconnect
+- [`RASPBOT_V2_HARDWARE_STACK.md`](RASPBOT_V2_HARDWARE_STACK.md) — physical stack, expansion board vs rosbridge software
 - [`ROSBRIDGE_AT_BOOT.md`](../ops/ROSBRIDGE_AT_BOOT.md) — systemd service setup (run once on Pi)
 - [`HARDWARE_AND_ROS2.md`](HARDWARE_AND_ROS2.md) — hardware tier overview, Pi vs Pi-less
 - [`SENSORS.md`](SENSORS.md) — individual sensor technical specs (IMU, odometry, LIDAR, battery)

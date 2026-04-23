@@ -1,5 +1,7 @@
 # ROSBridge at boot (one-time setup on the robot)
 
+Full stack context (ROS vs rosbridge, Docker bringup, dashboard): **[STARTUP_AND_BRINGUP.md](STARTUP_AND_BRINGUP.md)**.
+
 The **Raspbot v2 image already includes ROS 2 and rosbridge_suite**. You do not install packages on the bot; you only make ROSBridge **start automatically at boot**. Run the steps below once on the Pi; after that, power on the robot and ROSBridge is already running.
 
 ## One-time install on the robot (enables at-boot only)

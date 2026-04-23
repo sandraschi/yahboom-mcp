@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, isBridgeLiveTelemetry } from "../../lib/api";
+import { Link } from "react-router-dom";
+import StackStatusTable from "../../components/StackStatusTable";
+import { api, isBridgeLiveTelemetry, type Health } from "../../lib/api";
 
 const STREAM_URL = "/stream";
 
@@ -9,6 +11,7 @@ import {
   AlertTriangle,
   Camera,
   CameraOff,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -18,9 +21,11 @@ import {
   Loader2,
   MessageSquare,
   Monitor,
+  Radio,
   Navigation,
   Shield,
   Square,
+  Unplug,
   Volume2,
   Zap,
 } from "lucide-react";
@@ -56,6 +61,7 @@ interface Telemetry {
 
 export default function Dashboard() {
   const [telemetry, setTelemetry] = useState<Telemetry | null>(null);
+  const [health, setHealth] = useState<Health | null>(null);
   const [connected, setConnected] = useState(false);
   const [keysHeld, setKeysHeld] = useState<Record<string, boolean>>({});
   const [wasdActive, setWasdActive] = useState(false);
@@ -125,22 +131,26 @@ export default function Dashboard() {
     }
   };
 
-  // REST telemetry (Unified Gateway has no /api/v1/ws/telemetry — Mission Control uses this pattern)
+  // REST telemetry + health (robot ROS / SSH / video vs configured IP)
   useEffect(() => {
     let alive = true;
     const poll = async () => {
       try {
-        const t = await api.getTelemetry();
+        const [t, h] = await Promise.all([api.getTelemetry(), api.getHealth()]);
         if (!alive) return;
         setTelemetry(t as Telemetry);
         setConnected(isBridgeLiveTelemetry(t));
+        setHealth(h);
         setError(null);
         setIsReconnecting(false);
       } catch {
-        if (alive) {
-          setConnected(false);
-          setError("Telemetry unavailable — is the MCP backend running?");
-        }
+        if (!alive) return;
+        setConnected(false);
+        setTelemetry(null);
+        setHealth(null);
+        setError(
+          "Control gateway unreachable — start yahboom-mcp on this PC (dashboard proxies to port 10892).",
+        );
       }
     };
     poll();
@@ -211,8 +221,198 @@ export default function Dashboard() {
     }
   };
 
+  const rc = health?.robot_connection;
+  const gatewayDown = !!error;
+  const waitingHealth = !gatewayDown && !health;
+  const allGood = !gatewayDown && !!health && connected;
+  const partialRobot = !gatewayDown && !!health && !connected && rc?.ssh === "connected";
+  const noRobotPath = !gatewayDown && !!health && !connected && rc?.ssh !== "connected";
+  const robotIp = rc?.ip ?? "—";
+
   return (
     <div className="flex flex-col gap-6 p-4 lg:p-8 animate-in fade-in duration-700">
+      {/* Robot link — first thing on the dashboard (Goliath ↔ Pi) */}
+      <motion.section
+        layout
+        className={`rounded-3xl border p-5 lg:p-6 ${
+          gatewayDown
+            ? "border-red-500/35 bg-red-950/45"
+            : waitingHealth
+              ? "border-slate-600/40 bg-slate-900/50"
+              : allGood
+                ? "border-emerald-500/30 bg-emerald-950/35"
+                : partialRobot
+                  ? "border-amber-500/35 bg-amber-950/40"
+                  : "border-red-500/35 bg-red-950/45"
+        }`}
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-3 min-w-0">
+            <div className="flex items-center gap-3">
+              {gatewayDown ? (
+                <AlertTriangle className="w-8 h-8 text-red-400 shrink-0" />
+              ) : waitingHealth ? (
+                <Loader2 className="w-8 h-8 text-slate-400 shrink-0 animate-spin" />
+              ) : allGood ? (
+                <CheckCircle2 className="w-8 h-8 text-emerald-400 shrink-0" />
+              ) : partialRobot ? (
+                <Radio className="w-8 h-8 text-amber-400 shrink-0" />
+              ) : (
+                <Unplug className="w-8 h-8 text-red-400 shrink-0" />
+              )}
+              <div>
+                <h2 className="text-lg font-black text-white tracking-tight">
+                  {gatewayDown
+                    ? "No link to control gateway"
+                    : waitingHealth
+                      ? "Checking robot link…"
+                      : allGood
+                        ? "Robot connected"
+                        : partialRobot
+                          ? "Pi reachable — ROS bridge down"
+                          : "No connection to robot"}
+                </h2>
+                <p className="text-[11px] font-mono text-slate-500 mt-0.5">
+                  Target <span className="text-indigo-300">{robotIp}</span>
+                  {health && (
+                    <>
+                      {" · "}
+                      <span className={rc?.ros === "connected" ? "text-emerald-400" : "text-slate-500"}>
+                        ROS {rc?.ros ?? "—"}
+                      </span>
+                      {" · "}
+                      <span className={rc?.ssh === "connected" ? "text-emerald-400" : "text-slate-500"}>
+                        SSH {rc?.ssh ?? "—"}
+                      </span>
+                      {" · "}
+                      <span className={rc?.video === "active" ? "text-emerald-400" : "text-slate-500"}>
+                        Video {rc?.video ?? "—"}
+                      </span>
+                      {typeof rc?.cmd_vel_ready === "boolean" && (
+                        <>
+                          {" · "}
+                          <span className={rc.cmd_vel_ready ? "text-emerald-400" : "text-amber-400"}>
+                            cmd_vel {rc.cmd_vel_ready ? "ready" : "not ready"}
+                          </span>
+                        </>
+                      )}
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {rc?.hint && (
+              <p className="text-[10px] text-amber-200/85 max-w-3xl leading-relaxed">{rc.hint}</p>
+            )}
+
+            {health?.stack && (
+              <div className="max-w-4xl">
+                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                  Full stack status
+                </h3>
+                <StackStatusTable stack={health.stack} />
+              </div>
+            )}
+
+            {gatewayDown && (
+              <p className="text-sm text-red-200/90 leading-relaxed max-w-3xl">{error}</p>
+            )}
+
+            {waitingHealth && (
+              <p className="text-sm text-slate-400 leading-relaxed max-w-3xl">
+                Contacting this PC&apos;s yahboom-mcp gateway and reading robot health…
+              </p>
+            )}
+
+            {allGood && (
+              <p className="text-sm text-emerald-100/80 leading-relaxed max-w-3xl">
+                ROS bridge is live — driving, telemetry, and stream use the Raspbot at{" "}
+                <span className="font-mono text-white">{robotIp}</span>.
+              </p>
+            )}
+
+            {partialRobot && (
+              <div className="text-sm text-amber-100/85 leading-relaxed max-w-3xl space-y-2">
+                <p>
+                  SSH reaches the Pi, but the WebSocket ROS bridge is not connected (rosbridge not
+                  running, wrong <span className="font-mono">YAHBOOM_BRIDGE_PORT</span>, or ROS still
+                  starting).
+                </p>
+                <p className="text-xs text-amber-200/70">
+                  On the robot: launch rosbridge (e.g.{" "}
+                  <span className="font-mono text-amber-200/90">
+                    ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+                  </span>
+                  ).
+                </p>
+              </div>
+            )}
+
+            {noRobotPath && (
+              <div className="text-sm text-red-100/85 leading-relaxed max-w-3xl space-y-3">
+                <p className="rounded-xl border border-red-500/25 bg-red-950/50 p-3 text-red-50/95 text-sm">
+                  <span className="font-semibold text-white">Hey — start with the robot and the link.</span>{" "}
+                  Turn the Raspbot on and wait for it to boot. Join the Raspbot Wi‑Fi access point on
+                  this PC, <span className="font-semibold">or</span> connect an Ethernet cable between
+                  Goliath and the Pi. Until that path exists, Docker, systemd, and Yahboom bringup on
+                  the Pi are not in play for this dashboard — there is nothing here to &quot;wake&quot;
+                  the robot remotely. After power + network are good, use{" "}
+                  <span className="font-mono text-red-100/90">Reconnect</span> (header) or Diagnostics{" "}
+                  <span className="font-mono text-red-100/90">Hard Reset</span> if ROS still does not attach.
+                </p>
+                <p>
+                  This PC cannot reach the configured robot address — both{" "}
+                  <span className="font-mono">ROS</span> (rosbridge) and <span className="font-mono">SSH</span>{" "}
+                  are down. The gateway on Goliath is running; the Pi is not participating.
+                </p>
+                <ul className="list-disc list-inside text-xs text-red-200/80 space-y-1.5">
+                  <li>
+                    <span className="font-semibold text-red-100/90">Robot off or booting</span> — Raspbot
+                    power / SD / wait for AP or Ethernet to come up.
+                  </li>
+                  <li>
+                    <span className="font-semibold text-red-100/90">Goliath not on the robot network</span>{" "}
+                    — join Wi‑Fi to the <span className="font-mono">Raspbot</span> access point{" "}
+                    <span className="inline-flex items-center gap-1">
+                      <Radio className="w-3 h-3 inline" />
+                    </span>{" "}
+                    <span className="font-semibold text-red-100/90">and</span> no Ethernet cable is
+                    plugged between Goliath and the Raspberry Pi.
+                  </li>
+                  <li>
+                    Wrong <span className="font-mono">YAHBOOM_IP</span> in{" "}
+                    <span className="font-mono">webapp/start.ps1</span> (or env) — must match the Pi
+                    on the link you use (AP vs home LAN vs Ethernet).
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row lg:flex-col gap-2 shrink-0">
+            <Link
+              to="/logs"
+              className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-center text-xs font-bold text-slate-200 hover:bg-white/10 transition-colors"
+            >
+              Server logs
+            </Link>
+            <Link
+              to="/diagnostics"
+              className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-center text-xs font-bold text-slate-200 hover:bg-white/10 transition-colors"
+            >
+              Diagnostics
+            </Link>
+            <Link
+              to="/help"
+              className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-center text-xs font-bold text-slate-200 hover:bg-white/10 transition-colors"
+            >
+              Help
+            </Link>
+          </div>
+        </div>
+      </motion.section>
+
       {/* Header / Status Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -237,7 +437,7 @@ export default function Dashboard() {
               className={`w-2 h-2 rounded-full ${connected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
             />
             <span className="text-[10px] font-black uppercase tracking-widest">
-              {connected ? "Hardware Connected" : "Link Offline"}
+              {connected ? "ROS bridge live" : "ROS bridge offline"}
             </span>
           </div>
 
@@ -293,7 +493,9 @@ export default function Dashboard() {
             {/* Stream Overlay Details */}
             <div className="absolute top-6 left-6 flex flex-col gap-2">
               <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-xl border border-white/10 flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <div
+                  className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
+                />
                 <span className="text-[9px] font-bold text-white uppercase tracking-widest">
                   Live Feed
                 </span>

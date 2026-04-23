@@ -135,9 +135,7 @@ async def _read_raw_scan(correlation_id: str, source: str) -> dict:
     }
 
 
-async def _read_dreame_map(
-    correlation_id: str, param1: Any, payload: dict | None
-) -> dict:
+async def _read_dreame_map(correlation_id: str, param1: Any, payload: dict | None) -> dict:
     """Fetch LIDAR/map data from Dreame D20 Pro scan if DREAME_MAP_URL is configured."""
     url = os.environ.get("DREAME_MAP_URL", "").strip()
     if not url:
@@ -162,9 +160,7 @@ async def _read_dreame_map(
                     "correlation_id": correlation_id,
                 }
             data = (
-                r.json()
-                if r.headers.get("content-type", "").startswith("application/json")
-                else {"raw": r.text[:2000]}
+                r.json() if r.headers.get("content-type", "").startswith("application/json") else {"raw": r.text[:2000]}
             )
     except Exception as e:
         logger.debug("Dreame map fetch failed: %s", e)

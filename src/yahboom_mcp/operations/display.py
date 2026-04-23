@@ -10,9 +10,7 @@ logger = logging.getLogger("yahboom-mcp.operations.display")
 _OLED_ADDRS = ["0x3c", "0x3d"]
 
 
-def _build_luma_script(
-    driver: str, address: str, width: int, height: int, body: str
-) -> str:
+def _build_luma_script(driver: str, address: str, width: int, height: int, body: str) -> str:
     """Generate a self-contained Python script for luma-based display ops."""
     return f"""
 import sys
@@ -66,8 +64,7 @@ async def _maybe_pause_ros_oled(ssh) -> None:
     if flag in ("0", "false", "no", "off"):
         return
     await ssh.execute(
-        "pkill -f '[y]ahboomcar_apriltag.*oled' 2>/dev/null || "
-        "pkill -f '[o]led_node' 2>/dev/null || true"
+        "pkill -f '[y]ahboomcar_apriltag.*oled' 2>/dev/null || pkill -f '[o]led_node' 2>/dev/null || true"
     )
 
 
@@ -95,6 +92,7 @@ async def execute(
     logger.info(f"Display: {operation}", extra={"correlation_id": correlation_id})
 
     from ..state import _state
+
     ssh = _state.get("ssh")
 
     if not ssh or not ssh.connected:
@@ -106,10 +104,10 @@ async def execute(
             "correlation_id": correlation_id,
         }
 
-    driver  = (payload or {}).get("driver", "ssd1306")
+    driver = (payload or {}).get("driver", "ssd1306")
     address = (payload or {}).get("address", "0x3c")
-    width   = int((payload or {}).get("width",  128))
-    height  = int((payload or {}).get("height",  64))
+    width = int((payload or {}).get("width", 128))
+    height = int((payload or {}).get("height", 64))
 
     result: dict = {}
 
@@ -124,12 +122,13 @@ async def execute(
         if active:
             probe_addr = f"0x{detected[0]}"
             probe_script = _build_luma_script(
-                driver, probe_addr, width, height,
-                "with canvas(device) as draw: draw.text((0,0), 'OK', fill='white', font=font)"
+                driver,
+                probe_addr,
+                width,
+                height,
+                "with canvas(device) as draw: draw.text((0,0), 'OK', fill='white', font=font)",
             )
-            out, _, _code = await ssh.execute(
-                _python3_c_command(__import__("shlex").quote(probe_script))
-            )
+            out, _, _code = await ssh.execute(_python3_c_command(__import__("shlex").quote(probe_script)))
             driver_ok = "VERIFIED" in out
 
         result = {
@@ -139,9 +138,13 @@ async def execute(
             "driver_responding": driver_ok,
             "driver": driver,
             "note": (
-                "Display found and responding" if driver_ok
-                else ("Display found at I2C but driver not responding — check luma.oled install" if active
-                      else "No OLED detected on I2C bus 1 — check wiring and address (0x3c/0x3d)")
+                "Display found and responding"
+                if driver_ok
+                else (
+                    "Display found at I2C but driver not responding — check luma.oled install"
+                    if active
+                    else "No OLED detected on I2C bus 1 — check wiring and address (0x3c/0x3d)"
+                )
             ),
         }
 
@@ -152,9 +155,7 @@ async def execute(
         await _maybe_pause_ros_oled(ssh)
         body = "with canvas(device) as draw: pass  # blank frame"
         script = _build_luma_script(driver, address, width, height, body)
-        out, err, _ = await ssh.execute(
-            _python3_c_command(__import__("shlex").quote(script))
-        )
+        out, err, _ = await ssh.execute(_python3_c_command(__import__("shlex").quote(script)))
         ok = "VERIFIED" in out
         result = {
             "success": ok,
@@ -167,14 +168,12 @@ async def execute(
         await _maybe_pause_ros_oled(ssh)
         text = str(param1) if param1 is not None else ""
         line = int(param2) if param2 is not None else 0
-        y    = line * 14   # ~14px per line at default font
+        y = line * 14  # ~14px per line at default font
         # Escape braces and quotes for embedding in the script body
         safe_text = text.replace("\\", "\\\\").replace('"', '\\"').replace("'", "\\'")
         body = f'with canvas(device) as draw: draw.text((0, {y}), "{safe_text}", fill="white", font=font)'
         script = _build_luma_script(driver, address, width, height, body)
-        out, err, _ = await ssh.execute(
-            _python3_c_command(__import__("shlex").quote(script))
-        )
+        out, err, _ = await ssh.execute(_python3_c_command(__import__("shlex").quote(script)))
         ok = "VERIFIED" in out
         result = {
             "success": ok,
@@ -207,9 +206,7 @@ with canvas(device) as draw:
     draw.text((0, 42), f"TEMP: {temp:.1f}C", fill='white', font=font)
 """
         script = _build_luma_script(driver, address, width, height, body)
-        out, err, _ = await ssh.execute(
-            _python3_c_command(__import__("shlex").quote(script))
-        )
+        out, err, _ = await ssh.execute(_python3_c_command(__import__("shlex").quote(script)))
         ok = "VERIFIED" in out
         result = {
             "success": ok,
@@ -225,6 +222,7 @@ with canvas(device) as draw:
         # Kill previous scroll
         await ssh.execute("pkill -f 'display_scroll_loop' 2>/dev/null || true")
         import shlex
+
         scroll_script = f"""
 # display_scroll_loop
 import time, sys

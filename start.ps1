@@ -9,7 +9,11 @@ $WindowStyle = if ($Headless) { 'Hidden' } else { 'Normal' }
 # ------------------------------
 
 $env:FASTMCP_LOG_LEVEL = 'WARNING'
-# yahboom-mcp Start - Standards-Compliant SOTA
-Write-Host 'Starting yahboom-mcp...' -ForegroundColor Cyan
+# yahboom-mcp Start — HTTP + MCP SSE on 10892 (same as webapp\start.ps1 backend).
+# Do not use `python -m yahboom_mcp` here: there is no __main__, and stdio-only mode has no REST for the dashboard.
+Write-Host 'Starting yahboom-mcp Unified Gateway (dual) on http://127.0.0.1:10892 ...' -ForegroundColor Cyan
 
-uv run -m yahboom_mcp
+Push-Location $PSScriptRoot
+$env:PYTHONPATH = "src"
+uv run python -m yahboom_mcp.server --mode dual --host 127.0.0.1 --port 10892
+Pop-Location

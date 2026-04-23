@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🤖 Agent mission planner API (2026-04-22)
+- **`POST /api/v1/agent/mission`** — Natural-language **goal** → structured **JSON** (`intent`, `behavior`, `target_description`, ROS topic hints, `voice_feedback`, etc.) via **Ollama** (dashboard LLM model) or **Google Gemini** (`YAHBOOM_GEMINI_API_KEY`, `YAHBOOM_GEMINI_MISSION_MODEL`). Optional **`publish_to_ros`** publishes **`std_msgs/String`** on **`YAHBOOM_MISSION_TOPIC`** (default **`/boomy/mission`**); optional **`speak`** uses the voice module over SSH.
+- **`src/yahboom_mcp/agent_mission.py`** — Prompt, JSON parse, Gemini `generateContent` with `responseMimeType: application/json`.
+- **`ROS2Bridge.publish_mission_json`** — Advertises mission publisher during topic setup.
+- **`webapp/src/lib/api.ts`** — `postAgentMission`, `MissionPlanV1`, `AgentMissionResponse`.
+- **`tests/unit/test_agent_mission.py`** — JSON extraction and Pydantic validation.
+- **`ros2/boomy_mission_executor/`** — **ament_python** ROS 2 package: **`mission_executor`** node subscribes to **`/boomy/mission`**, parses JSON, publishes conservative search motion on **`/cmd_vel`** for `search` / `room_search` / `spin_scan`; optional **`detections_json_topic`** stops search on label match vs **`target_description`**; optional Nav2 **`NavigateToPose`** when **`use_nav2`** and **`nav2_goal`** in JSON; **`/boomy/mission_status`** JSON feedback. **`mission_executor.launch.py`** included; **`nav2_msgs`** in **`package.xml`**. See package **README.md** for `colcon` build on the Pi.
+- **`agent_mission` / `MissionPlanV1`** — Optional **`nav2_goal`** in planner schema and system prompt.
+- **Docs** — **`docs/ops/AGENT_MISSION_AND_MCP.md`**: end-to-end agent missions (HTTP + MCP **`yahboom_agent_mission`**, Pi executor, env vars, troubleshooting). Cross-links from **`STARTUP_AND_BRINGUP.md`**, **`STACK_HEALTH_PROBE.md`**, **`README.md`**, **`docs/core/structure.md`**.
+
+### 🔭 Stack health, lifecycle, and Docker log preview (2026-04-22)
+- **`src/yahboom_mcp/stack_probe.py`** — TTL-cached **full stack** probe (TCP, SSH, Pi hostname/IPs/Wi‑Fi, Docker engine, **`docker inspect`** on **`YAHBOOM_ROS2_CONTAINER`**, driver graph / rosbridge-in-graph hints, PC WebSocket, cmd_vel, video). Exposed on **`GET /api/v1/health`** as **`stack`** (`YAHBOOM_STACK_PROBE_SECS`).
+- **`ros_container` fields** — **`lifecycle`** (`phase` / `label` / `detail`: never started vs ran then exited vs running, restart loop, etc.), **`restart_loop`**, **`docker_logs_preview`** (and **`docker_logs_error`**, **`docker_logs_truncated`**, **`docker_logs_lines_fetched`**) when the container is unhealthy: server runs **`docker logs --tail N`** over SSH with **`YAHBOOM_DOCKER_LOGS_TAIL`** and **`YAHBOOM_DOCKER_LOGS_MAX_CHARS`**, plus best-effort **redaction** (tokens/passwords/PEM blocks). **`remediation_steps`**, **`alternate_running_container`**, **`docker_ps_preview`**, inspect exit/OOM fields.
+- **Webapp** — **`StackStatusTable`**: layered table, **restart loop** banner and row highlight, **Run history**, **Docker log preview** panel; types in **`webapp/src/lib/api.ts`**.
+- **Docs** — **`docs/ops/STACK_HEALTH_PROBE.md`** (this feature set); **`docs/ops/STARTUP_AND_BRINGUP.md`** and **`README.md`** cross-links. **MCP Central Docs** holds **full-text** **`docs/robotics/yahboom/STARTUP_AND_BRINGUP.md`** and **`STACK_HEALTH_PROBE.md`** for RAG in the fleet docs webapp (keep in sync when changing bringup or **`health.stack`**).
+
+### 📚 Startup / bringup documentation (2026-04-22)
+- **`docs/hardware/RASPBOT_V2_HARDWARE_STACK.md`** — Full **Yahboom Raspbot v2** hardware stack plus **§1** definitions (**MCU** = Rosmaster-tier microcontroller under Pi; **rosbridge** = Pi software for PC; **Micro-ROS** ≠ rosbridge; **Pi OS / Docker / Humble**); **§9.3** comparison table; **§15 assembly** placeholder (planned fleet build guide; Yahboom printed instructions called out as often insufficient). **`docs/ops/STARTUP_AND_BRINGUP.md`**, **`docs/hardware/ROSBRIDGE.md`** — cross-links to §1/§9.3.
+- **`docs/ops/STARTUP_AND_BRINGUP.md`** — Canonical operator doc: Goliath ↔ Pi path, **ROS 2** vs **rosbridge_suite** vs USB-linked controller tier under the Pi (misnamed “rosbridge board”), Docker + `setup-autostart.sh` / `install-rosbridge-at-boot.sh`, webapp **Reconnect** vs **Hard Reset**, **Dashboard** (basic status) vs **Diagnostic Hub** (topics/nodes) vs **Server logs**.
+- **`docs/hardware/ROSBRIDGE.md`** — New terminology section + renumbered headings; link to startup doc.
+- **`docs/ops/installation.md`** — Rewritten for Python 3.12, ports **10892/10893**, `dual` mode, pointer to startup doc.
+- **`docs/ops/ROSBRIDGE_AT_BOOT.md`** — Cross-link to startup doc.
+- **`docs/core/ARCHITECTURE_REVIEW.md`** — Note correcting schematic port 9090 vs MCP transports; link to startup doc.
+- **`README.md`** — Documentation pillar + webapp status surfaces (dashboard / diagnostics / logs).
+
 ## [2.3.3] - 2026-04-13
 ### 🎨 3D Visualization Refinement (SOTA v16.12)
 - **Geometry Correction**: Re-oriented the 3D model (Y-up) and applied -90° X-axis rotation to the chassis.

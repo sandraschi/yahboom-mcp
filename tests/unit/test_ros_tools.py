@@ -28,6 +28,7 @@ async def test_ros_restart_bringup_tool(mock_bridge, mock_ssh):
 async def test_ros_diagnostics_api(mock_bridge):
     """Verify FastAPI diagnostics endpoint matches the bridge state."""
     from httpx import ASGITransport
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         response = await ac.get("/api/v1/diagnostics/ros/topics")
         assert response.status_code == 200

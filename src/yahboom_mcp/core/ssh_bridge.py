@@ -1,10 +1,13 @@
 import logging
 import os
 import threading
+import time
 
 import paramiko
 
 logger = logging.getLogger("yahboom-mcp.ssh-bridge")
+
+_EXEC_ERROR_LOG_INTERVAL_S = 5.0
 
 
 class SSHBridge:
@@ -15,6 +18,24 @@ class SSHBridge:
         self.client = None
         self.connected = False
         self.lock = threading.Lock()
+        self._last_exec_error_log: float | None = None
+        self._exec_error_suppressed = 0
+
+    def _log_exec_failure(self, prefix: str, exc: Exception) -> None:
+        """Log SSH exec failures; cap ERROR lines to once per interval."""
+        msg = str(exc)
+        now = time.monotonic()
+        prev = self._last_exec_error_log
+        if prev is None or now - prev >= _EXEC_ERROR_LOG_INTERVAL_S:
+            suffix = ""
+            if self._exec_error_suppressed:
+                suffix = f" ({self._exec_error_suppressed} more in the last {_EXEC_ERROR_LOG_INTERVAL_S:.0f}s)"
+                self._exec_error_suppressed = 0
+            self._last_exec_error_log = now
+            logger.error(f"{prefix}: {msg}{suffix}")
+        else:
+            self._exec_error_suppressed += 1
+            logger.debug(f"{prefix}: {msg}")
 
     def connect(self) -> bool:
         """Establish SSH connection with timeout and robust error trapping."""
@@ -38,7 +59,7 @@ class SSHBridge:
         except paramiko.AuthenticationException:
             logger.error(f"SSH Authentication failed for {self.user}@{self.host}. Check YAHBOOM_PASSWORD.")
             return False
-        except socket.timeout:
+        except TimeoutError:
             logger.error(f"SSH Connection timed out to {self.host}. Is the robot powered on?")
             return False
         except Exception as e:
@@ -48,6 +69,7 @@ class SSHBridge:
     async def execute(self, command: str) -> tuple[str, str, int]:
         """Execute a standard command asynchronously and return (stdout, stderr, exit_code)."""
         import asyncio
+
         return await asyncio.to_thread(self._execute_sync, command)
 
     def _execute_sync(self, command: str) -> tuple[str, str, int]:
@@ -70,12 +92,13 @@ class SSHBridge:
                 code = stdout.channel.recv_exit_status()
                 return out, err, code
             except Exception as e:
-                logger.error(f"SSH execution failed: {e}")
+                self._log_exec_failure("SSH execution failed", e)
                 return "", str(e), -1
 
     async def sudo_execute(self, command: str) -> tuple[str, str, int]:
         """Execute a command with sudo asynchronously, providing the password via stdin."""
         import asyncio
+
         return await asyncio.to_thread(self._sudo_execute_sync, command)
 
     def _sudo_execute_sync(self, command: str) -> tuple[str, str, int]:
@@ -110,7 +133,7 @@ class SSHBridge:
 
                 return out, err, code
             except Exception as e:
-                logger.error(f"SSH sudo execution failed: {e}")
+                self._log_exec_failure("SSH sudo execution failed", e)
                 return "", str(e), -1
 
     def put_file(self, local_path: str, remote_path: str):

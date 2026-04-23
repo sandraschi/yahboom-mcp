@@ -1,34 +1,36 @@
 # Installation & Setup
 
-This guide covers the technical setup and operational commands for the Yahboom Raspbot v2 (Boomy).
+This guide covers **developer** setup on Goliath. For **operators** (power, Wi‑Fi AP, Ethernet, Docker/bringup on the Pi, and what the dashboard can do), read **[Startup & bringup](STARTUP_AND_BRINGUP.md)** first.
 
-## 📊 Prerequisites
+## Prerequisites
 
-*   **Environment**: Python 3.10+
-*   **Dependency Manager**: `uv` (recommended) or `pip`
-*   **Hardware**: Raspberry Pi 5 core with a ROSMASTER ESP32 expansion board.
+- **Python**: 3.12+ (see `pyproject.toml`).
+- **Dependency manager**: `uv` (recommended).
+- **Hardware**: Raspberry Pi 5 on the Raspbot; optional ESP32 ROSMASTER tier (USB to Pi).
 
-## 🚀 Launching the Gateway
+## Launching the unified gateway
 
-The project utilizes a dual-mode FastMCP gateway that bridges human controls (Webapp) and machine controls (AI Agents).
+The gateway serves **REST + MCP (SSE)** on one port; the Vite dashboard proxies `/api` to it.
 
-### Standard Execution
-To start the unified server on the default port:
+### Standard (fleet ports)
+
+From repo root:
+
 ```powershell
-uv run python -m yahboom_mcp.server --mode dual --port 10792
+uv run python -m yahboom_mcp.server --mode dual --host 127.0.0.1 --port 10892
 ```
 
-### Modes of Operation
-*   `--mode web`: Launch only the React/Vite telemetry dashboard.
-*   `--mode mcp`: Launch only the MCP server for AI agent orchestration.
-*   `--mode dual`: (Default) Launch both interfaces simultaneously.
+Or use **`webapp/start.ps1`**, which runs **`uv sync`**, starts the server on **10892**, and **`npm run dev`** on **10893** with the correct working directory.
 
----
+### Modes
 
-## 🛠️ Configuration
+- **`--mode stdio`** — MCP over stdio (e.g. Cursor); no HTTP dashboard.
+- **`--mode dual`** / **`http`** — FastAPI + MCP SSE (Unified Gateway); use with the webapp.
 
-Operational parameters are managed via `mcp_config.json`. Key fields include:
-*   `YAHBOOM_IP`: The static IP address of the Raspbot v2.
-*   `ROS_DOMAIN_ID`: Standard ROS 2 domain identifier for network participation.
+### Configuration (env)
 
-For detailed hardware setup, refer to [Hardware Technicals](../hardware/).
+- **`YAHBOOM_IP`** — Pi address (default in scripts often `192.168.1.11`).
+- **`YAHBOOM_BRIDGE_PORT`** — rosbridge WebSocket port (default **9090**).
+- **`YAHBOOM_FALLBACK_IP`** — Optional second address (e.g. Ethernet) when the robot exposes two paths.
+
+Further reading: [ROSBRIDGE.md](../hardware/ROSBRIDGE.md), [ROSBRIDGE_AT_BOOT.md](ROSBRIDGE_AT_BOOT.md).

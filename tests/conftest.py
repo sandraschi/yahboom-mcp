@@ -6,6 +6,7 @@ Modes:
                    needs_robot or e2e.
   Hardware E2E   : YAHBOOM_E2E=1  YAHBOOM_IP=<ip>  pytest tests/e2e/
 """
+
 from __future__ import annotations
 
 import os
@@ -19,6 +20,7 @@ from yahboom_mcp.state import _state
 from yahboom_mcp.testing.mock_bridge import MockROS2Bridge
 
 # ── Core fixtures ────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def mock_bridge() -> MockROS2Bridge:
@@ -61,6 +63,7 @@ def mock_bridge_with_servo(mock_bridge) -> MockROS2Bridge:
 
 
 # ── Marker handling ──────────────────────────────────────────────────────────
+
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     if os.environ.get("YAHBOOM_E2E") == "1":

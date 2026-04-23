@@ -40,13 +40,11 @@ def test_real_ssh_recovery_command():
 
     try:
         # Check that the critical setup files exist
-        out, err, code = ssh.execute("ls /home/pi/yahboomcar_ws/install/setup.bash")
+        _out, err, code = ssh.execute("ls /home/pi/yahboomcar_ws/install/setup.bash")
         assert code == 0, f"ROS workspace not found on Pi: {err}"
 
         # Verify ROS nodes can be listed (even if none are running)
-        _out, err, code = ssh.execute(
-            "source /opt/ros/foxy/setup.bash && ros2 node list"
-        )
+        _out, err, code = ssh.execute("source /opt/ros/foxy/setup.bash && ros2 node list")
         assert code == 0, f"ROS 2 environment issue on Pi: {err}"
     finally:
         ssh.disconnect()

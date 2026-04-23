@@ -2,6 +2,10 @@
 
 This document covers: the ROSMASTER board (no OS), Pi tiers (minimal vs full), how you interact with ROS 2, optional terminal/shell tools, and how to integrate a small cheap LIDAR.
 
+**Full mechanical + electrical inventory (chassis → Pi):** **[RASPBOT_V2_HARDWARE_STACK.md](RASPBOT_V2_HARDWARE_STACK.md)**.
+
+**Boot order, Docker, rosbridge *software* vs ROS 2, and dashboard surfaces:** see **[Startup & bringup](../ops/STARTUP_AND_BRINGUP.md)**.
+
 ---
 
 ## 1. ROSMASTER board (STM32)
@@ -101,6 +105,7 @@ Yahboom’s **MS200 TOF LIDAR** is the recommended addon for Raspbot v2. It is n
 
 ## 6. See also
 
+- [RASPBOT_V2_HARDWARE_STACK.md](RASPBOT_V2_HARDWARE_STACK.md) — Chassis, sensors, expansion board, Pi ports, battery.
 - [Pi-less Setup](PI_LESS_SETUP.md) — PC-as-brain, ESP32 bridge, ~\$100 bot.
 - [Connectivity Guide](CONNECTIVITY.md) — WiFi and robot IP.
 - [AI & Vision Capabilities](AI_CAPABILITIES.md) — Local LLMs and vision on Pi 5.

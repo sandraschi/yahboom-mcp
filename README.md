@@ -44,12 +44,24 @@ This project clearly distinguishes between human-operable controls and machine-o
 
 | Pillar | Focus | Key Topics |
 | :--- | :--- | :--- |
-| **[Setup & Installation](docs/ops/installation.md)** | Start Here | Launch commands, `uv run` usage, and baseline configuration. |
+| **[Startup & bringup](docs/ops/STARTUP_AND_BRINGUP.md)** | **Start here (robot + Goliath)** | ROS 2 vs **rosbridge_suite** (software) vs USB controller tier under the Pi; boot order; Docker/systemd on the Pi; what the webapp can restart; dashboard vs diagnostics. |
+| **[Agent missions & MCP](docs/ops/AGENT_MISSION_AND_MCP.md)** | **LLM → Pi missions** | **`yahboom_agent_mission`** (MCP) and **`POST /api/v1/agent/mission`** (HTTP); **`MissionPlanV1`**; env vars; **`boomy_mission_executor`**; Nav2 and **`/boomy/detections_json`**; troubleshooting vs **`yahboom_agentic_workflow`**. |
+| **[Stack health probe](docs/ops/STACK_HEALTH_PROBE.md)** | **`health.stack`** | TTL SSH/TCP probes, **`YAHBOOM_ROS2_CONTAINER`**, lifecycle (never started vs exited vs **restart loop**), optional **`docker logs`** preview (redacted). |
+| **[Setup & Installation](docs/ops/installation.md)** | Dev install | `uv`, modes, baseline env vars. |
 | **[Software & Logic](docs/core/)** | Architecture | System design, ROS 2 node graphs, and state management. |
 | **[Hardware & Pinouts](docs/hardware/)** | Physical Layer | Wiring diagrams, I2C addresses, and sensor technical specs. |
+| **[Raspbot v2 hardware stack](docs/hardware/RASPBOT_V2_HARDWARE_STACK.md)** | **Boomy chassis** | Chassis, mecanum, motors, lightstrip, PTZ, camera, IMU, ultrasonic, line/cliff, **expansion board vs rosbridge software**, Pi ports, I2C, battery, switch. |
 | **[ROS 2 Bridge](docs/hardware/ROSBRIDGE.md)** | Connectivity | Bridge architecture, topic map, state cache, env vars, known bugs. |
 | **[Voice & Audio](docs/hardware/VOICE_AUDIO.md)** | Sound System | CSK4002 module protocol, espeak-ng TTS, chatrobot architecture. |
 | **[Multi-Robot Integration](docs/fleet/)** | Ecosystem | Federated fleet standards and cross-robot communication protocols. |
+
+---
+
+### Webapp status surfaces
+
+- **Dashboard (`/dashboard`)** — First page: basic **robot link** (gateway, target IP, ROS · SSH · video) and operator hints when the Raspbot is off or Goliath has no AP/Ethernet path.
+- **Diagnostic Hub (`/diagnostics`)** — Detail: ROS topic explorer, node list, resync / hard reset, SSH shell, **stack health** table (same **`stack`** payload as the dashboard when available).
+- **Server logs (`/logs`)** — Live **yahboom-mcp** log stream (SSE) on Goliath.
 
 ---
 

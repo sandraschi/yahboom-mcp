@@ -11,6 +11,7 @@ import MissionControl from "./pages/dashboard/MissionControl";
 import Peripherals from "./pages/dashboard/Peripherals";
 import Workflows from "./pages/dashboard/Workflows";
 import DiagnosticsPage from "./pages/diagnostics/Diagnostics";
+import Logger from "./pages/logs/Logger";
 import Help from "./pages/help/Help";
 import LidarAddonPage from "./pages/lidar/LidarAddon";
 import LidarMapPage from "./pages/lidar/LidarMap";
@@ -54,6 +55,7 @@ function App() {
           <Route path="/movement" element={<MovementPage />} />
           <Route path="/sensors" element={<SensorsPage />} />
           <Route path="/diagnostics" element={<DiagnosticsPage />} />
+          <Route path="/logs" element={<Logger />} />
           <Route path="/peripherals" element={<Peripherals />} />
 
           <Route path="/voice" element={<Voice />} />

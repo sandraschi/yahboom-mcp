@@ -11,12 +11,12 @@ logger = logging.getLogger("yahboom-mcp.operations.lightstrip")
 # Built-in autochange patterns
 # ──────────────────────────────────────────────────────────────────
 PATTERNS = {
-    "patrol":      "patrol_car",    # red/blue alternating flash
-    "patrol_car":  "patrol_car",
-    "rainbow":     "rainbow",
-    "breathe":     "breathe",
-    "fire":        "fire",
-    "off":         "off",
+    "patrol": "patrol_car",  # red/blue alternating flash
+    "patrol_car": "patrol_car",
+    "rainbow": "rainbow",
+    "breathe": "breathe",
+    "fire": "fire",
+    "off": "off",
 }
 
 # Active background pattern task (one at a time)
@@ -56,8 +56,12 @@ async def _run_rainbow(bridge, interval: float = 0.08):
         q = int((1 - f) * 255)
         t = int(f * 255)
         colors = [
-            (255, t, 0), (q, 255, 0), (0, 255, t),
-            (0, q, 255), (t, 0, 255), (255, 0, q),
+            (255, t, 0),
+            (q, 255, 0),
+            (0, 255, t),
+            (0, q, 255),
+            (t, 0, 255),
+            (255, 0, q),
         ]
         r, g, b = colors[i % 6]
         topic.publish(roslibpy.Message({"data": [r, g, b]}))
@@ -68,6 +72,7 @@ async def _run_rainbow(bridge, interval: float = 0.08):
 async def _run_breathe(bridge, color=(0, 100, 255), period: float = 2.0):
     """Sine-wave brightness breathe on a base colour."""
     import math
+
     topic = _get_rgblight_topic(bridge)
     while True:
         t = time.time()
@@ -82,6 +87,7 @@ async def _run_breathe(bridge, color=(0, 100, 255), period: float = 2.0):
 async def _run_fire(bridge):
     """Random orange/red flicker simulating fire."""
     import random
+
     topic = _get_rgblight_topic(bridge)
     while True:
         r = random.randint(200, 255)
@@ -93,9 +99,9 @@ async def _run_fire(bridge):
 
 _PATTERN_RUNNERS = {
     "patrol_car": _run_patrol_car,
-    "rainbow":    _run_rainbow,
-    "breathe":    _run_breathe,
-    "fire":       _run_fire,
+    "rainbow": _run_rainbow,
+    "breathe": _run_breathe,
+    "fire": _run_fire,
 }
 
 
@@ -136,6 +142,7 @@ async def execute(
     logger.info(f"Lightstrip: {operation}", extra={"correlation_id": correlation_id})
 
     from ..state import _state
+
     bridge = _state.get("bridge")
 
     if not bridge or not (bridge.connected or (bridge.ros and bridge.ros.is_connected)):

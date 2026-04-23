@@ -29,9 +29,7 @@ class MissionManager:
     def get_instance(cls, ros_bridge: ROS2Bridge | None = None) -> "MissionManager":
         if cls._instance is None:
             if ros_bridge is None:
-                raise ValueError(
-                    "MissionManager requires a ROS2Bridge for the first initialization"
-                )
+                raise ValueError("MissionManager requires a ROS2Bridge for the first initialization")
             cls._instance = cls(ros_bridge)
         return cls._instance
 
@@ -115,9 +113,7 @@ class MissionManager:
         await self.ros_bridge.publish_velocity(0.0, 0.0)
 
         # 2. Alert
-        await led_execute(
-            None, operation="set", param1=100, param2=0, param3=0
-        )  # Flash Red
+        await led_execute(None, operation="set", param1=100, param2=0, param3=0)  # Flash Red
         await voice_execute(None, operation="say", param1="PARDON")
         await asyncio.sleep(1)
 
@@ -139,9 +135,7 @@ class MissionManager:
         await asyncio.sleep(1.0)
         await self.ros_bridge.publish_velocity(0.0, 0.0)
 
-        await led_execute(
-            None, operation="set", param1=0, param2=0, param3=100
-        )  # Resume Blue
+        await led_execute(None, operation="set", param1=0, param2=0, param3=100)  # Resume Blue
 
     async def stop_mission(self):
         if self.active_mission:
@@ -157,9 +151,7 @@ class MissionManager:
             "status": self.status,
             "progress": self.progress,
             "logs": self.logs,
-            "uptime": round(asyncio.get_event_loop().time() - self.start_time, 1)
-            if self.start_time > 0
-            else 0,
+            "uptime": round(asyncio.get_event_loop().time() - self.start_time, 1) if self.start_time > 0 else 0,
             "last_error": self.last_error,
         }
 
@@ -179,9 +171,7 @@ class MissionManager:
             self.progress = 10
 
             self._add_log("Displaying PATROL metadata...")
-            await display_execute(
-                None, operation="scroll", param1="!!! PATROL ACTIVE !!!"
-            )
+            await display_execute(None, operation="scroll", param1="!!! PATROL ACTIVE !!!")
             self.progress = 20
 
             self._add_log("Triggering 🔊 Siren Alert...")
@@ -245,9 +235,7 @@ class MissionManager:
                 await asyncio.sleep(1)
 
             self._add_log("Displaying Wake Up message...")
-            await display_execute(
-                None, operation="write", param1="WAKE UP BOOMY!", param2=2
-            )
+            await display_execute(None, operation="write", param1="WAKE UP BOOMY!", param2=2)
 
             self._add_log("Broadcasting Morning Greeting...")
             await voice_execute(
