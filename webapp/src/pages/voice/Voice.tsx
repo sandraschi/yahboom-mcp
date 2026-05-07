@@ -23,6 +23,7 @@ import {
   Mic,
   MicOff,
   Radio,
+  Wrench,
   RefreshCw,
   Send,
   Speaker,
@@ -112,16 +113,16 @@ function HardwareStatus({
       ) : ok ? (
         <CheckCircle2 className="w-4 h-4 text-emerald-500" />
       ) : (
-        <AlertTriangle className="w-4 h-4 text-amber-500" />
+        <Wrench className="w-4 h-4 text-amber-500" />
       )}
       <div>
         <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-          {loading ? "Probing..." : ok ? (status?.device ?? "CSK4002 OK") : "Module Offline"}
+          {loading ? "Probing..." : ok ? (status?.device ?? "CSK4002 OK") : "Under Construction"}
         </p>
         {status && !loading && (
-          <p className="text-[9px] text-zinc-600 font-mono">
-            {status.baud} baud · {status.pyserial_ok ? "pyserial ✓" : "pyserial ✗"} ·{" "}
-            {status.espeak_ok ? "espeak ✓" : "espeak ✗"}
+          <p className="text-[9px] text-zinc-600 font-mono d-flex flex-wrap gap-x-2">
+            {status.baud} baud · {status.pyserial_ok ? "serial ✓" : "serial ✗"} ·{" "}
+            {status.espeak_ok ? "espeak ✓" : "TTS missing"}
           </p>
         )}
       </div>
