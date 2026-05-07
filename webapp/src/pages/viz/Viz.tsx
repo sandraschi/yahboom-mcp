@@ -1,8 +1,8 @@
 import { Environment, Grid, Line, OrbitControls, Text } from "@react-three/drei";
 import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import { motion } from "framer-motion";
-import { Activity, Battery, Box, Compass, Wifi, WifiOff } from "lucide-react";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Activity, Battery, Box, Compass, ScanLine, Wifi, WifiOff } from "lucide-react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { isBridgeLiveTelemetry } from "../../lib/api";
@@ -49,9 +49,41 @@ function useTelemetry() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// URDF-derived constants (in metres)
-// Source: automaticaddison/yahboom_rosmaster URDF
+// Auto-discover available STL files in the meshes directory
 // ─────────────────────────────────────────────────────────────────────────────
+const KNOWN_STLS = [
+  "boomy_00_complete.stl", "boomy_00_base_link.stl", "boomy_chassis.stl",
+  "base_link_X3.STL", "base_link.STL",
+  "front_left_wheel_X3.STL", "front_right_wheel_X3.STL",
+  "back_left_wheel_X3.STL", "back_right_wheel_X3.STL",
+  "camera_link.STL", "laser_link.STL",
+];
+
+function useAvailableStls(): string[] {
+  const [stls, setStls] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      for (const name of KNOWN_STLS) {
+        try {
+          const r = await fetch(`/assets/meshes/${name}`, { method: "HEAD" });
+          if (r.ok && !cancelled) {
+            setStls((prev) => (prev.includes(name) ? prev : [...prev, name]));
+          }
+        } catch { /* not found */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  return stls;
+}
+
+function pickFirst<T>(avail: T[], ...candidates: T[]): T | undefined {
+  return candidates.find((c) => avail.includes(c));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// URDF-derived constants (in metres)
 const WHEEL_RADIUS = 0.0325;
 const WHEEL_X_OFF = 0.08;
 const WHEEL_Y_HALF = 0.169 / 2 + -0.01; // 0.0745m
@@ -206,6 +238,7 @@ function CameraMesh() {
 function G1Robot({ yaw, linearVel }: { yaw: number; linearVel: number }) {
   const rootRef = useRef<THREE.Group>(null!);
   const targetYaw = useRef(yaw);
+  const stls = useAvailableStls();
 
   useEffect(() => {
     targetYaw.current = (yaw * Math.PI) / 180;
@@ -221,21 +254,25 @@ function G1Robot({ yaw, linearVel }: { yaw: number; linearVel: number }) {
   });
 
   const wheelSpin = linearVel * 20;
+  const body_stl = pickFirst(stls, "boomy_00_complete.stl", "boomy_chassis.stl", "base_link_X3.STL", "base_link.STL");
+  const flw = pickFirst(stls, "boomy_wheel_fl.stl", "front_left_wheel_X3.STL");
+  const frw = pickFirst(stls, "boomy_wheel_fr.stl", "front_right_wheel_X3.STL");
+  const blw = pickFirst(stls, "boomy_wheel_bl.stl", "back_left_wheel_X3.STL");
+  const brw = pickFirst(stls, "boomy_wheel_br.stl", "back_right_wheel_X3.STL");
 
-  // Wheel positions from URDF (X,Y lateral; vertical was Z-up in URDF).
-  // In Three.js Y-up: wheel axle must be at y=WHEEL_RADIUS so the tire rests on the floor (y=0).
-  // base_link stays one radius above the wheel plane (URDF base above wheel centers).
   return (
     <group ref={rootRef}>
       {/* ── Base body ─────────────────────────────────── */}
-      <StlPart
-        url="/assets/meshes/base_link_X3.STL"
-        position={[0, BASE_LINK_Y, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        color="#1e3a5f"
-        metalness={0.5}
-        roughness={0.5}
-      />
+      {body_stl && (
+        <StlPart
+          url={`/assets/meshes/${body_stl}`}
+          position={[0, BASE_LINK_Y, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          color="#1e3a5f"
+          metalness={0.5}
+          roughness={0.5}
+        />
+      )}
 
       {/* ── Indigo accent top-plate glow ──────────────── */}
       <mesh position={[0, 0.14 + WHEEL_AXLE_Y, 0]}>
@@ -256,32 +293,10 @@ function G1Robot({ yaw, linearVel }: { yaw: number; linearVel: number }) {
       <CameraMesh />
 
       {/* ── Wheels (URDF joint positions) ─────────────── */}
-      {/* front_left:  x=+0.08, lateral y=+0.0745, axle height = WHEEL_AXLE_Y */}
-      <WheelMesh
-        url="/assets/meshes/front_left_wheel_X3.STL"
-        position={[WHEEL_X_OFF, WHEEL_AXLE_Y, WHEEL_Y_HALF]}
-        spin={wheelSpin}
-      />
-      {/* front_right */}
-      <WheelMesh
-        url="/assets/meshes/front_right_wheel_X3.STL"
-        position={[WHEEL_X_OFF, WHEEL_AXLE_Y, -WHEEL_Y_HALF]}
-        spin={-wheelSpin}
-        flip
-      />
-      {/* back_left */}
-      <WheelMesh
-        url="/assets/meshes/back_left_wheel_X3.STL"
-        position={[-WHEEL_X_OFF, WHEEL_AXLE_Y, WHEEL_Y_HALF]}
-        spin={wheelSpin}
-      />
-      {/* back_right */}
-      <WheelMesh
-        url="/assets/meshes/back_right_wheel_X3.STL"
-        position={[-WHEEL_X_OFF, WHEEL_AXLE_Y, -WHEEL_Y_HALF]}
-        spin={-wheelSpin}
-        flip
-      />
+      {flw && <WheelMesh url={`/assets/meshes/${flw}`} position={[WHEEL_X_OFF, WHEEL_AXLE_Y, WHEEL_Y_HALF]} spin={wheelSpin} />}
+      {frw && <WheelMesh url={`/assets/meshes/${frw}`} position={[WHEEL_X_OFF, WHEEL_AXLE_Y, -WHEEL_Y_HALF]} spin={-wheelSpin} flip />}
+      {blw && <WheelMesh url={`/assets/meshes/${blw}`} position={[-WHEEL_X_OFF, WHEEL_AXLE_Y, WHEEL_Y_HALF]} spin={wheelSpin} />}
+      {brw && <WheelMesh url={`/assets/meshes/${brw}`} position={[-WHEEL_X_OFF, WHEEL_AXLE_Y, -WHEEL_Y_HALF]} spin={-wheelSpin} flip />}
 
       {/* ── Heading arrow ─────────────────────────────── */}
       <Line
