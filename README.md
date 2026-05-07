@@ -1,6 +1,17 @@
 # Yahboom Raspbot v2 (Boomy) - MCP Server, Webapp & Documentation
 
-[![FastMCP Version](https://img.shields.io/badge/FastMCP-3.2.0-blue?style=flat-square&logo=python&logoColor=white)](https://github.com/sandraschi/fastmcp) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![Linted with Biome](https://img.shields.io/badge/Linted_with-Biome-60a5fa?style=flat-square&logo=biome&logoColor=white)](https://biomejs.dev/) [![Built with Just](https://img.shields.io/badge/Built_with-Just-000000?style=flat-square&logo=gnu-bash&logoColor=white)](https://github.com/casey/just)
+[![FastMCP Version](https://img.shields.io/badge/FastMCP-3.2.0-blue?style=flat-square&logo=python&logoColor=white)](https://github.com/sandraschi/fastmcp)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Linted with Biome](https://img.shields.io/badge/Linted_with-Biome-60a5fa?style=flat-square&logo=biome&logoColor=white)](https://biomejs.dev/)
+[![Built with Just](https://img.shields.io/badge/Built_with-Just-000000?style=flat-square&logo=gnu-bash&logoColor=white)](https://github.com/casey/just)
+[![GitHub stars](https://img.shields.io/github/stars/sandraschi/yahboom-mcp?style=flat-square&logo=github&logoColor=white)](https://github.com/sandraschi/yahboom-mcp/stargazers)
+[![GitHub last commit](https://img.shields.io/github/last-commit/sandraschi/yahboom-mcp?style=flat-square&logo=github&logoColor=white)](https://github.com/sandraschi/yahboom-mcp/commits/master)
+[![Python version](https://img.shields.io/badge/python-3.12%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![ROS 2](https://img.shields.io/badge/ROS_2-Humble-22314E?style=flat-square&logo=ros&logoColor=white)](https://docs.ros.org/en/humble/)
+[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+[![Open issues](https://img.shields.io/github/issues/sandraschi/yahboom-mcp?style=flat-square&logo=github&logoColor=white)](https://github.com/sandraschi/yahboom-mcp/issues)
+[![Tests](https://img.shields.io/badge/tests-92%20passing-brightgreen?style=flat-square&logo=pytest&logoColor=white)](https://github.com/sandraschi/yahboom-mcp/actions)
+[![Ollama](https://img.shields.io/badge/Ollama-Gemma3:1b-5a5aff?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJzNC40OCAxMCAxMCAxMCAxMC00LjQ4IDEwLTEwUzE3LjUyIDIgMTIgMnptMCAxOGMtNC40MSAwLTgtMy41OS04LThzMy41OS04IDgtOCA4IDMuNTkgOCA4LTMuNTkgOC04IDh6IiBmaWxsPSIjNWE1YWZmIi8+PC9zdmc+)](https://ollama.ai/)
 
 ![Boomy Hero Shot](assets/boomy_hero.png)
 
