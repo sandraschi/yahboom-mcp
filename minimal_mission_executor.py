@@ -3,7 +3,7 @@
 import json, math, time, rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Float32, String
+from std_msgs.msg import Bool, Float32, String
 
 OBSTACLE_THRESHOLD_CM = 25.0
 REVERSE_DURATION_S = 1.5
@@ -15,6 +15,7 @@ class MissionExecutor(Node):
         super().__init__("mission_executor")
         self.cmd_pub = self.create_publisher(Twist, "/cmd_vel", 10)
         self.status_pub = self.create_publisher(String, "/boomy/mission_status", 10)
+        self.buzzer_pub = self.create_publisher(Bool, "/buzzer", 10)
         self.det_pub = self.create_publisher(String, "/boomy/detections_json", 10)
         self.create_subscription(String, "/boomy/mission", self._on_mission, 10)
         self.create_subscription(Float32, "/ultrasonic", self._on_ultrasonic, 10)
@@ -129,6 +130,12 @@ class MissionExecutor(Node):
         })
         self.status_pub.publish(String(data=payload))
         self.get_logger().info("STATUS: %s", payload)
+        if status in ("target_found", "completed"):
+            self._beep()
+
+    def _beep(self):
+        self.buzzer_pub.publish(Bool(data=True))
+        self.create_timer(0.4, lambda: self.buzzer_pub.publish(Bool(data=False))).cancel()
 
 
 def main():

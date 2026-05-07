@@ -737,14 +737,16 @@ async def video_feed():
     video_bridge = _state.get("video_bridge")
     bridge = _state.get("bridge")
 
-    # Use VideoBridge whenever it is running — mjpeg_generator waits for first frame.
-    # (Requiring last_frame here caused a race: no stream until one frame existed, so <img> often failed.)
+    # Use VideoBridge only if it has frames; otherwise proxy from the Raspbot demo
     if video_bridge and video_bridge.active:
-        logger.info("Vision: Streaming from VideoBridge")
-        return StreamingResponse(
-            video_bridge.mjpeg_generator(),
-            media_type="multipart/x-mixed-replace; boundary=frame",
-        )
+        jpeg = video_bridge.get_latest_frame_jpeg()
+        if jpeg:
+            logger.info("Vision: Streaming from VideoBridge")
+            return StreamingResponse(
+                video_bridge.mjpeg_generator(),
+                media_type="multipart/x-mixed-replace; boundary=frame",
+            )
+        logger.info("Vision: VideoBridge active but no frames — trying demo proxy")
 
     # Fallback: ROS bridge JPEG cache (no VideoBridge yet)
     async def bridge_gen():
@@ -1131,6 +1133,20 @@ async def control_lightstrip(req: LightstripPatternRequest):
             param3=req.b,
         )
     return result
+
+
+class SoundRequest(BaseModel):
+    duration: float = 2.0
+
+
+@app.post("/api/v1/control/buzzer")
+async def control_buzzer(req: SoundRequest):
+    """Buzz the onboard piezo buzzer via I2C."""
+    bridge = _state.get("bridge")
+    if not bridge:
+        raise HTTPException(status_code=503, detail="Bridge not initialized")
+    ok = await getattr(bridge, "publish_beep", lambda _: False)(req.duration)
+    return {"success": ok, "duration": req.duration}
 
 
 class VoiceControlRequest(BaseModel):

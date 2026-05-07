@@ -466,6 +466,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ operation, param1, param2, param3, payload }),
     }),
+  postBuzzer: (duration = 1.0) =>
+    request<{ success: boolean }>("/api/v1/control/buzzer", {
+      method: "POST",
+      body: JSON.stringify({ duration }),
+    }),
   getDiagLogs: (lines = 80) =>
     request<{ success: boolean; logs: string }>(`/api/v1/diagnostics/logs?lines=${lines}`),
   getDiagStack: () => request<DiagStackResponse>("/api/v1/diagnostics/stack"),

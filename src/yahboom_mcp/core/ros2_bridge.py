@@ -789,38 +789,50 @@ class ROS2Bridge:
         return await self.publish_velocity(linear_x=linear, angular_z=angular, linear_y=linear_y)
 
     async def publish_velocity(self, linear_x: float, angular_z: float, linear_y: float = 0.0):
-        """Send velocity command via SSH ros2 topic pub (bypasses rosbridge cmd_vel issue)."""
-        ssh = getattr(self, "ssh", None)
-        if not ssh or not ssh.connected:
-            logger.warning("Cannot publish velocity: SSH not connected")
+        """Send velocity command to the robot (including strafing for Mecanum wheels)."""
+        ros_ok = self.ros and self.ros.is_connected
+        if not ros_ok or not self.cmd_vel_topic:
+            logger.warning(
+                "Cannot publish velocity: not connected (connected=%s, ros.is_connected=%s, cmd_vel=%s)",
+                self.connected,
+                ros_ok,
+                self.cmd_vel_topic is not None,
+            )
             return False
 
-        cmd = (
-            'docker exec yahboom_ros2_final bash -c '
-            '"source /opt/ros/humble/setup.bash && '
-            'ros2 topic pub --once /cmd_vel geometry_msgs/Twist '
-            "'{linear: {x: %.2f, y: %.2f}, angular: {z: %.2f}}'\""
-        ) % (linear_x, linear_y, angular_z)
-        out, err, _code = await ssh.execute(cmd)
-        ok = "publishing" in out or _code == 0
-        logger.info("SSH cmd_vel: x=%.2f y=%.2f z=%.2f ok=%s", linear_x, linear_y, angular_z, ok)
-        return ok
+        twist = {
+            "linear": {"x": linear_x, "y": linear_y, "z": 0.0},
+            "angular": {"x": 0.0, "y": 0.0, "z": angular_z},
+        }
+        self.cmd_vel_topic.publish(roslibpy.Message(twist))
+        logger.info("Published cmd_vel: x=%.2f y=%.2f z=%.2f", linear_x, linear_y, angular_z)
+        return True
 
     async def publish_lightstrip(self, r: int, g: int, b: int) -> bool:
-        """Send RGB lightstrip command via direct I2C over SSH (bypasses ROS topic)."""
+        """Send RGB lightstrip command via roslibpy."""
+        ros_ok = self.ros and self.ros.is_connected
+        if not ros_ok or not self.rgblight_topic:
+            logger.warning("Cannot publish lightstrip: ROS not connected")
+            return False
+        self.rgblight_topic.publish(roslibpy.Message({"data": [r, g, b]}))
+        logger.info("Published lightstrip R=%d G=%d B=%d", r, g, b)
+        return True
+
+    async def publish_beep(self, duration_s: float = 2.0) -> bool:
+        """Buzz via I2C over SSH for a given duration."""
         ssh = getattr(self, "ssh", None)
         if not ssh or not ssh.connected:
-            logger.warning("Cannot publish lightstrip: SSH not connected")
             return False
         cmd = (
             'docker exec yahboom_ros2_final python3 -c '
             '"from Raspbot_Lib import Raspbot; '
-            'Raspbot().Ctrl_WQ2812_brightness_ALL(%d, %d, %d); '
-            'print(\\\"OK\\\")"'
-        ) % (r, g, b)
+            'c = Raspbot(); c.Ctrl_BEEP_Switch(1); '
+            'import time; time.sleep(%.1f); '
+            'c.Ctrl_BEEP_Switch(0); print(\\\"OK\\\")"'
+        ) % (duration_s)
         out, err, _code = await ssh.execute(cmd)
         ok = "OK" in out
-        logger.info("SSH I2C lightstrip R=%d G=%d B=%d ok=%s", r, g, b, ok)
+        logger.info("SSH I2C beep %.1fs ok=%s", duration_s, ok)
         return ok
 
     async def publish_servo(self, servo_s1: int, servo_s2: int) -> bool:

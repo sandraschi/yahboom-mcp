@@ -797,25 +797,20 @@ export default function Dashboard() {
 
                   <div className="grid grid-rows-2 gap-2">
                     <button
-                      onClick={() => api.postTool("play_beep")}
+                      onClick={() => api.postBuzzer(1.0)}
                       disabled={!connected}
-                      className="bg-white/5 border border-white/10 rounded-xl text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2 group"
+                      className="bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2 group"
                     >
-                      <Zap size={12} className="group-hover:text-amber-500" />
+                      <Zap size={14} className="group-hover:text-amber-500" />
                       Sound Check
                     </button>
                     <button
-                      onClick={() =>
-                        api.postVoice(
-                          "play_file",
-                          "E:\\Multimedia Files\\Music - Blues\\James, Etta\\Her Best (1997)\\James, Etta - Her Best (1997) - 16 - I'd Rather Go Blind.mp3",
-                        )
-                      }
+                      onClick={() => api.postTool("play_beep")}
                       disabled={!connected}
-                      className="bg-white/5 border border-white/10 rounded-xl text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-300 hover:bg-indigo-500/10 transition-all flex items-center justify-center gap-2 group"
+                      className="bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-300 hover:bg-indigo-500/10 transition-all flex items-center justify-center gap-2 group"
                     >
-                      <Monitor size={12} className="group-hover:text-indigo-400" />
-                      Play Blues
+                      <Volume2 size={14} className="group-hover:text-indigo-400" />
+                      Voice Beep
                     </button>
                   </div>
                 </div>

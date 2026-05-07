@@ -1,26 +1,40 @@
 import logging
 from typing import Any
 
+import roslibpy
+
 logger = logging.getLogger("yahboom-mcp.operations.camera_ptz")
 
-# Tracked current angles — centre = 90°.
 _camera_state = {"pan": 90, "tilt": 90}
+
+_SERVO_TOPIC = "/servo"
+_SERVO_MSG = "yahboomcar_msgs/msg/ServoControl"
 
 
 async def _publish_both(ros_bridge, pan: int, tilt: int, ssh_bridge=None) -> bool:
     pan = max(0, min(180, pan))
     tilt = max(0, min(180, tilt))
 
-    # Direct I2C over SSH (bypasses rosbridge forwarding issue)
-    ok = await _ssh_servo_fallback(ssh_bridge, pan, tilt)
-    if ok:
-        return True
-
-    # Fallback to bridge helper
+    # Preferred: bridge helper (roslibpy)
     if hasattr(ros_bridge, "publish_servo"):
         ok = await ros_bridge.publish_servo(servo_s1=pan, servo_s2=tilt)
         if ok:
             return True
+
+    # Direct roslibpy fallback
+    if ros_bridge and ros_bridge.ros and ros_bridge.ros.is_connected:
+        try:
+            topic = roslibpy.Topic(ros_bridge.ros, _SERVO_TOPIC, _SERVO_MSG)
+            topic.publish(roslibpy.Message({"servo_s1": pan, "servo_s2": tilt}))
+            logger.info("Servo direct publish: pan=%d tilt=%d", pan, tilt)
+            return True
+        except Exception as e:
+            logger.error("Direct servo publish failed: %s", e)
+
+    # SSH I2C fallback
+    ok = await _ssh_servo_fallback(ssh_bridge, pan, tilt)
+    if ok:
+        return True
 
     logger.warning("All servo publish paths failed")
     return False
