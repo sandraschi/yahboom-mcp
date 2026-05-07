@@ -3,7 +3,7 @@ import { AlertCircle, Cpu, Loader2, MessageSquare, Send, User } from "lucide-rea
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api, type ChatMessage } from "../../lib/api";
+import { type ChatMessage, api } from "../../lib/api";
 
 interface Message {
   role: "user" | "ai";

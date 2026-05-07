@@ -11,7 +11,7 @@ import {
   Layers,
   LayoutDashboard,
   Lightbulb,
-  Map,
+  Map as MapIcon,
   MessageSquare,
   Mic,
   Monitor,
@@ -23,6 +23,7 @@ import {
   Settings,
   Shield,
   Sparkles,
+  Target,
   Wrench,
 } from "lucide-react";
 import type React from "react";
@@ -40,9 +41,10 @@ const navGroups = [
     icon: LayoutDashboard,
     items: [
       { path: "/", label: "Dashboard", icon: LayoutDashboard },
+      { path: "/status", label: "Status", icon: Activity },
       { path: "/analytics", label: "Analytics", icon: Activity },
       { path: "/viz", label: "Visualization", icon: ScanLine },
-      { path: "/map", label: "Map", icon: Map },
+      { path: "/map", label: "Map", icon: MapIcon },
       { path: "/lidar-map", label: "Lidar Map", icon: Layers },
     ],
   },
@@ -53,10 +55,10 @@ const navGroups = [
     items: [
       { path: "/movement", label: "Movement", icon: Gamepad2 },
       { path: "/sensors", label: "Sensors", icon: Gauge },
-      { path: "/peripherals", label: "Peripherals",    icon: Lightbulb },
-      { path: "/voice",       label: "Voice & Audio",  icon: Mic       },
+      { path: "/peripherals", label: "Peripherals", icon: Lightbulb },
+      { path: "/voice", label: "Voice & Audio", icon: Mic },
       { path: "/voice-upgrade", label: "Voice Upgrade", icon: Sparkles },
-      { path: "/lidar-addon", label: "Lidar Addon",    icon: Package   },
+      { path: "/lidar-addon", label: "Lidar Addon", icon: Package },
     ],
   },
   {
@@ -65,6 +67,7 @@ const navGroups = [
     icon: Cpu,
     items: [
       { path: "/chat", label: "AI Companion", icon: MessageSquare },
+      { path: "/missions", label: "Missions", icon: Target },
       { path: "/llm", label: "Local LLM", icon: Cpu },
       { path: "/workflows", label: "Workflows", icon: Play },
     ],
@@ -157,6 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       {/* Footer / Toggle */}
       <div className="p-4 border-t border-white/5">
         <button
+          type="button"
           onClick={onToggle}
           className="w-full flex items-center justify-center py-2.5 rounded-xl text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-colors"
         >

@@ -1,7 +1,7 @@
 import { AlertCircle, RefreshCw, ScanLine } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { api, type DreameMapResponse } from "../../lib/api";
+import { type DreameMapResponse, api } from "../../lib/api";
 
 const LidarMapPage: React.FC = () => {
   const [mapData, setMapData] = useState<DreameMapResponse | null>(null);

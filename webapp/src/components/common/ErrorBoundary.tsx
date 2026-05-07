@@ -114,6 +114,7 @@ class ErrorBoundary extends Component<Props, State> {
             </div>
 
             <button
+              type="button"
               onClick={this.handleReset}
               style={{
                 width: "100%",

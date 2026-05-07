@@ -162,13 +162,21 @@ async def execute(
         r = max(0, min(255, int(param1))) if param1 is not None else 0
         g = max(0, min(255, int(param2))) if param2 is not None else 0
         b = max(0, min(255, int(param3))) if param3 is not None else 0
-        topic.publish(roslibpy.Message({"data": [r, g, b]}))
-        result = {"success": True, "rgb": [r, g, b], "status": "published"}
+        ok = False
+        if hasattr(bridge, "publish_lightstrip"):
+            ok = await bridge.publish_lightstrip(r, g, b)
+        if not ok:
+            topic.publish(roslibpy.Message({"data": [r, g, b]}))
+        result = {"success": ok, "rgb": [r, g, b], "status": "published"}
 
     elif operation in ("off", "stop_pattern"):
         await _stop_pattern()
-        topic.publish(roslibpy.Message({"data": [0, 0, 0]}))
-        result = {"success": True, "status": "off"}
+        ok = False
+        if hasattr(bridge, "publish_lightstrip"):
+            ok = await bridge.publish_lightstrip(0, 0, 0)
+        if not ok:
+            topic.publish(roslibpy.Message({"data": [0, 0, 0]}))
+        result = {"success": ok, "status": "off"}
 
     elif operation == "pattern":
         pattern_key = str(param1).lower() if param1 else "patrol"

@@ -193,7 +193,7 @@ The dashboard Safety panel shows `nearest_m` and turns the text **red** when < 0
 |---|---|
 | **Source** | USB webcam or RPi Camera Module on forward chassis |
 | **ROS topic** | `/camera/image_raw` *(optional)* |
-| **MCP endpoint** | `GET http://localhost:10792/stream` — MJPEG |
+| **MCP endpoint** | `GET http://localhost:10892/stream` — MJPEG |
 | **Dashboard** | Camera feed panel in Mission Control |
 
 The `VideoBridge` class in `core/video_bridge.py` connects to the ROS image topic and re-streams it as MJPEG to the dashboard. When `VideoBridge` is not active (no camera connected), the `/stream` endpoint returns an error and the dashboard feed shows a blank `<img>` element.
@@ -222,13 +222,13 @@ ROS2Bridge (core/ros2_bridge.py)
       │── Converts quaternion → Euler
       │── Summarises LaserScan → 8 obstacle sectors
       │
-FastAPI (port 10792)
+FastAPI (port 10892)
       │── GET /api/v1/telemetry  → full snapshot JSON (2 s polling)
       │── GET /api/v1/health     → connection status
       │── GET /stream            → MJPEG video
       │── POST /api/v1/control/move → cmd_vel publish
       │
-Vite Dashboard (port 10793)
+Vite Dashboard (port 10893)
       └── Mission Control page polls /telemetry every 2 s
           Displays: battery %, voltage, heading, pitch, roll,
                     accel xyz, position xyz, nearest obstacle,

@@ -113,13 +113,13 @@ services:
   yahboom-mcp:
     build: .
     ports:
-      - "10792:10792"
+      - "10892:10892"
     environment:
       - YAHBOOM_IP=${ROBOT_IP}
       - YAHBOOM_BRIDGE_PORT=9090
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:10792/api/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:10892/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -129,10 +129,10 @@ services:
 ```bash
 # Production monitoring
 # Health checks
-curl http://localhost:10792/api/v1/health
+curl http://localhost:10892/api/v1/health
 
 # Telemetry monitoring
-curl http://localhost:10792/api/v1/telemetry
+curl http://localhost:10892/api/v1/telemetry
 
 # Log aggregation
 tail -f /var/log/yahboom-mcp/*.log
@@ -174,7 +174,7 @@ tail -f /var/log/yahboom-mcp/*.log
 ### Load Testing Results
 ```bash
 # Simulated load test
-ab -n 1000 -c 10 http://localhost:10792/api/v1/health
+ab -n 1000 -c 10 http://localhost:10892/api/v1/health
 
 # Results:
 # Requests per second: 150

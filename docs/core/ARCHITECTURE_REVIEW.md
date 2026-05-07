@@ -163,8 +163,8 @@ const [connState, setConnState] = useState<ConnState>('loading')
 // Efficient polling with cleanup
 useEffect(() => {
     const poll = async () => {
-        const hRes = await fetch('http://localhost:10792/api/v1/health')
-        const tRes = await fetch('http://localhost:10792/api/v1/telemetry')
+        const hRes = await fetch('http://localhost:10892/api/v1/health')
+        const tRes = await fetch('http://localhost:10892/api/v1/telemetry')
         // Process and update state
     }
     const interval = setInterval(poll, 2000)

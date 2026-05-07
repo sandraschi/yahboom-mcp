@@ -148,25 +148,25 @@ skills = [
     {
         "name": "move",
         "description": "Move Boomy. linear: m/s (-1 to 1), angular: rad/s (-2 to 2)",
-        "endpoint": "http://localhost:10792/api/v1/control/move",
+        "endpoint": "http://localhost:10892/api/v1/control/move",
         "params": ["linear", "angular"]
     },
     {
         "name": "set_lights",
         "description": "Set lightstrip. pattern: patrol|rainbow|breathe|fire|off",
-        "endpoint": "http://localhost:10792/api/v1/control/lightstrip",
+        "endpoint": "http://localhost:10892/api/v1/control/lightstrip",
         "params": ["operation", "pattern"]
     },
     {
         "name": "get_telemetry",
         "description": "Get battery, IMU, position, obstacle data",
-        "endpoint": "http://localhost:10792/api/v1/telemetry",
+        "endpoint": "http://localhost:10892/api/v1/telemetry",
         "method": "GET"
     },
     {
         "name": "stop",
         "description": "Emergency stop. Always available.",
-        "endpoint": "http://localhost:10792/api/v1/stop_all",
+        "endpoint": "http://localhost:10892/api/v1/stop_all",
     },
 ]
 ```

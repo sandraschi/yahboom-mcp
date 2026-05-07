@@ -12,7 +12,7 @@ Minimal **observe -> LLM -> act** loop using yahboom-mcp as the body and Ollama 
 
 ```powershell
 cd D:\Dev\repos\yahboom-mcp
-$env:YAHBOOM_BASE_URL = "http://localhost:10792"
+$env:YAHBOOM_BASE_URL = "http://localhost:10892"
 $env:OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 python scripts/embodied_loop.py --instruction "go forward" --max-steps 60
 ```

@@ -4,7 +4,7 @@ set windows-shell := ["pwsh.exe", "-NoLogo", "-Command"]
 
 export NAME := "Yahboom MCP"
 export DESC := "Industrial ROS 2 control plane"
-export VER  := "1.4.0"
+export VER  := "2.3.0"
 export PORT := "10892"
 export MODE := "dual"
 export HOST := "0.0.0.0"
@@ -87,10 +87,11 @@ shell:
 
 # ── Quality ───────────────────────────────────────────────────────────────────
 
-# Execute comprehensive linting (Ruff)
+# Execute comprehensive linting (Ruff + TypeScript + Biome)
 lint:
     uv run ruff check .
     Set-Location '{{justfile_directory()}}\webapp'
+    npx tsc --noEmit
     npx @biomejs/biome ci .
 
 # Execute auto-fixes and formatting

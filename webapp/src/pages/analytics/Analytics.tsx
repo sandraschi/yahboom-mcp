@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Activity, AlertCircle, BarChart3, TrendingUp, Zap } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
-import { api, type Telemetry } from "../../lib/api";
+import { type Telemetry, api } from "../../lib/api";
 
 const Analytics: React.FC = () => {
   const [history, setHistory] = useState<Telemetry[]>([]);

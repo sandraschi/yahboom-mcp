@@ -1,6 +1,6 @@
 [project]
 name = "yahboom-mcp"
-version = "2.3.0"
+version = "2.4.0"
 description = "SOTA 2026 Yahboom Raspbot v2 ROS 2 MCP Server"
 readme = "README.md"
 requires-python = ">=3.12"

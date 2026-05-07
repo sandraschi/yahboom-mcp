@@ -84,6 +84,9 @@ async def lifespan(fastapi_app: FastAPI):
             robot_host,
         )
     connection_type = (os.environ.get("YAHBOOM_CONNECTION") or "rosbridge").strip().lower()
+    bridge_port = int(os.environ.get("YAHBOOM_BRIDGE_PORT", 9090))
+    esp32_port = int(os.environ.get("YAHBOOM_ESP32_PORT", 2323))
+    use_mock = (os.environ.get("YAHBOOM_USE_MOCK_BRIDGE") or "").strip().lower() in ("1", "true", "yes", "on")
 
     # Initialize placeholders for resources
     video_bridge = None
@@ -94,12 +97,15 @@ async def lifespan(fastapi_app: FastAPI):
     _state["trajectory_manager"] = trajectory_manager
 
     # Setup the appropriate bridge
-    if connection_type == "esp32":
-        esp32_port = int(os.environ.get("YAHBOOM_ESP32_PORT", 2323))
+    if use_mock:
+        from .testing.mock_bridge import MockROS2Bridge
+
+        bridge = MockROS2Bridge(host=robot_host, port=bridge_port)
+        ssh = None
+    elif connection_type == "esp32":
         bridge = ESP32Bridge(host=robot_host, port=esp32_port)
         ssh = None
     else:
-        bridge_port = int(os.environ.get("YAHBOOM_BRIDGE_PORT", 9090))
         bridge = ROS2Bridge(host=robot_host, port=bridge_port, fallback_host=fallback_host)
         ssh = SSHBridge(robot_host)
         bridge.ssh = ssh
@@ -114,10 +120,13 @@ async def lifespan(fastapi_app: FastAPI):
         if getattr(bridge, "ros", None) and bridge.ros.is_connected:
             if video_bridge:
                 video_bridge.stop()
-            video_bridge = VideoBridge(bridge.ros, ssh_bridge=ssh)
-            video_bridge.start()
-            _state["video_bridge"] = video_bridge
-            logger.info("Components successfully re-synchronized with robot.")
+            if getattr(bridge, "skip_video_bridge", False):
+                logger.info("Mock bridge: skipping VideoBridge re-sync")
+            else:
+                video_bridge = VideoBridge(bridge.ros, ssh_bridge=ssh)
+                video_bridge.start()
+                _state["video_bridge"] = video_bridge
+                logger.info("Components successfully re-synchronized with robot.")
 
     # Store resync callback so reconnect_hardware() endpoint can call it
     _state["resync_all_components"] = resync_all_components
@@ -146,10 +155,13 @@ async def lifespan(fastapi_app: FastAPI):
 
         # 3. Initial video bridge activation if ROS is up
         if connected and getattr(bridge, "ros", None) and bridge.ros.is_connected:
-            video_bridge = VideoBridge(bridge.ros, ssh_bridge=ssh)
-            video_bridge.start()
-            _state["video_bridge"] = video_bridge
-            logger.info("Initial VideoBridge activation successful.")
+            if getattr(bridge, "skip_video_bridge", False):
+                logger.info("Mock bridge: VideoBridge skipped (CI / no roslibpy)")
+            else:
+                video_bridge = VideoBridge(bridge.ros, ssh_bridge=ssh)
+                video_bridge.start()
+                _state["video_bridge"] = video_bridge
+                logger.info("Initial VideoBridge activation successful.")
 
         # Start autonomous connection watchdog
         watchdog_task = asyncio.create_task(bridge.monitor_connection(interval=5.0, on_reconnect=on_reconnect))
@@ -255,7 +267,7 @@ async def get_health():
 
 
 # --- Ollama / LLM (webapp Settings + Chat) ---
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://192.168.1.11:11434")
 _llm_settings: dict = {"provider": "ollama", "model": ""}
 
 
@@ -399,10 +411,10 @@ async def ros_restart_bringup() -> str:
 
     logger.info("Triggering remote bringup restart...")
     launch_cmd = (
-        'docker exec -d yahboom_ros2 bash -c "'
+        'docker exec -d yahboom_ros2_final bash -c "'
         "source /opt/ros/humble/setup.bash && "
-        "source /home/pi/yahboomcar_ws/install/setup.bash && "
-        'ros2 launch yahboomcar_bringup yahboomcar_bringup_launch.py"'
+        "source /root/yahboomcar_ws/install/setup.bash && "
+        'ros2 launch yahboomcar_bringup yahboomcar_bringup.launch.py"'
     )
     await ssh.execute(launch_cmd)
 
@@ -511,10 +523,10 @@ _HELP: dict = {
             "topics": {
                 "imu": "IMU data: 9-axis (accel/gyro/mag). heading in degrees 0–360. yahboom(operation='read_imu').",
                 "battery": "Battery: percentage 0–100. Below 20% = low warning. yahboom(operation='health_check').",
-                "telemetry": "Full telemetry: battery + IMU + velocity. GET http://localhost:10792/api/v1/telemetry — only available when bridge connected.",
+                "telemetry": "Full telemetry: battery + IMU + velocity. GET http://localhost:10892/api/v1/telemetry — only available when bridge connected.",
                 "odometry": "Odometry: wheel encoder-based position estimation via /odom ROS topic (in development).",
                 "lidar": "LIDAR: lidar(operation='read', source='yahboom'|'dreame'|'auto'). Yahboom /scan → obstacles (8 sectors) + nearest_m. Dreame D20 Pro map via DREAME_MAP_URL.",
-                "camera": "Camera: MJPEG stream at http://localhost:10792/stream — only active when VideoBridge is initialized.",
+                "camera": "Camera: MJPEG stream at http://localhost:10892/stream — only active when VideoBridge is initialized.",
             },
         },
         "connection": {
@@ -523,8 +535,8 @@ _HELP: dict = {
                 "requirements": "Requirements: Yahboom Raspbot v2 powered on, Raspberry Pi running ROS 2 Humble, ROSBridge server running on port 9090.",
                 "rosbridge": "Start ROSBridge on the robot: `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`.",
                 "env_vars": "Configure robot IP: set YAHBOOM_IP=192.168.x.x and YAHBOOM_BRIDGE_PORT=9090 before starting the server.",
-                "cli": "CLI flags: `uv run yahboom-mcp --mode dual --robot-ip 192.168.1.100 --port 10792`.",
-                "verify": "Verify: GET http://localhost:10792/api/v1/health — returns {connected: true} when bridge is live.",
+                "cli": "CLI flags: `uv run yahboom-mcp --mode dual --robot-ip 192.168.1.100 --port 10892`.",
+                "verify": "Verify: GET http://localhost:10892/api/v1/health — returns {connected: true} when bridge is live.",
                 "wifi": "WiFi setup: Robot and workstation on same LAN. Raspbot v2 hotspot: SSID 'raspbot', password '12345678'. Robot IP 192.168.1.11, port 6000. Set YAHBOOM_IP=192.168.1.11 and YAHBOOM_BRIDGE_PORT=6000 (or 9090 for standard rosbridge), then restart server. Use Onboarding page at /onboarding to configure.",
             },
         },
@@ -536,7 +548,7 @@ _HELP: dict = {
                 "move": "POST /api/v1/control/move?linear=0.2&angular=0.0 — sends Twist command directly to /cmd_vel.",
                 "stream": "GET /stream — MJPEG video stream. Usable in <img src> tags. Requires VideoBridge active.",
                 "mcp_sse": "MCP over SSE: GET /sse connects AI clients (Claude Desktop, Cursor). Use with mcp_config.json.",
-                "docs": "Swagger UI: http://localhost:10792/docs — interactive API explorer for all REST endpoints.",
+                "docs": "Swagger UI: http://localhost:10892/docs — interactive API explorer for all REST endpoints.",
             },
         },
         "mcp_tools": {
@@ -554,9 +566,9 @@ _HELP: dict = {
         "startup": {
             "description": "Starting the server and dashboard.",
             "topics": {
-                "start_script": "Windows: run start.ps1 (double-click start.bat). Clears port 10792, starts Python server + Vite dashboard.",
-                "manual": "Manual start: `uv run yahboom-mcp --mode dual --port 10792` for server only.",
-                "dashboard": "Dashboard UI runs on http://localhost:10793 (Vite dev server).",
+                "start_script": "Windows: run start.ps1 (double-click start.bat). Clears port 10892, starts Python server + Vite dashboard.",
+                "manual": "Manual start: `uv run yahboom-mcp --mode dual --port 10892` for server only.",
+                "dashboard": "Dashboard UI runs on http://localhost:10893 (Vite dev server).",
                 "modes": "Modes: stdio (MCP only), http (FastAPI+SSE only), dual (both). Default is stdio for MCP clients.",
                 "logs": "Logs: server logs to stderr. Vite logs to console. Check start.ps1 output for errors.",
             },
@@ -565,7 +577,7 @@ _HELP: dict = {
             "description": "Common issues and fixes.",
             "topics": {
                 "blank_dashboard": "Dashboard blank: ensure BrowserRouter is present in main.tsx. Check browser console for TypeError.",
-                "server_down": "Server not on 10792: run start.ps1. If port blocked: `netstat -ano | findstr 10792` to find conflicting process.",
+                "server_down": "Server not on 10892: run start.ps1. If port blocked: `netstat -ano | findstr 10892` to find conflicting process.",
                 "bot_offline": "Bot offline banner: ROSBridge not reachable. Check robot IP with ping, confirm rosbridge_server running.",
                 "npm_error": "npm Win32 error: start.ps1 uses `cmd /c npm` — do not change to direct npm call.",
                 "fastmcp_error": "FastMCP version mismatch: use FastMCP.from_fastapi(app) pattern, not mcp.app (removed in v3.0).",
@@ -679,10 +691,10 @@ async def restart_ros_bringup():
         return {"success": False, "error": "SSH not connected"}
 
     launch_cmd = (
-        'docker exec -d yahboom_ros2 bash -c "'
+        'docker exec -d yahboom_ros2_final bash -c "'
         "source /opt/ros/humble/setup.bash && "
-        "source /home/pi/yahboomcar_ws/install/setup.bash && "
-        'ros2 launch yahboomcar_bringup yahboomcar_bringup_launch.py"'
+        "source /root/yahboomcar_ws/install/setup.bash && "
+        'ros2 launch yahboomcar_bringup yahboomcar_bringup.launch.py"'
     )
     await ssh.execute(launch_cmd)
     invalidate_stack_caches()
@@ -753,8 +765,24 @@ async def video_feed():
             await asyncio.sleep(0.1)  # 10 FPS
 
     logger.info("Vision: Streaming from Bridge Cache fallback")
+    # Third fallback: proxy from Raspbot demo video_feed (port 6001)
+    logger.info("Vision: proxying from Raspbot demo")
+    robot_ip = os.environ.get("YAHBOOM_IP", "192.168.1.11")
+
+    async def demo_proxy_gen():
+        client = httpx.AsyncClient(timeout=30.0)
+        try:
+            async with client.stream("GET", f"http://{robot_ip}:6001/video_feed") as resp:
+                if resp.status_code == 200:
+                    async for chunk in resp.aiter_bytes():
+                        yield chunk
+        except Exception:
+            await asyncio.sleep(0.5)
+        finally:
+            await client.aclose()
+
     return StreamingResponse(
-        bridge_gen(),
+        demo_proxy_gen(),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
 
@@ -1498,7 +1526,7 @@ async def get_capabilities():
     return {
         "status": "ok",
         "server": {"name": "yahboom-mcp", "version": "1.0.1", "fastmcp": "3.2.0"},
-        "tool_surface": {"total": 5, "portmanteau_count": 1, "atomic_count": 4},
+        "tool_surface": {"total": 9, "portmanteau_count": 1, "atomic_count": 8},
         "available_missions": ["patrol", "alarm", "briefing", "kaffeehaus"],
         "agent_mission": "MCP tool yahboom_agent_mission(goal, provider, publish_to_ros, speak) or POST /api/v1/agent/mission — LLM JSON plan; optional publish std_msgs/String on YAHBOOM_MISSION_TOPIC; Ollama or YAHBOOM_GEMINI_API_KEY",
         "available_operations": [

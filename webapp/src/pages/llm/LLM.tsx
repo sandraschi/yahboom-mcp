@@ -35,9 +35,9 @@ const LLM: React.FC = () => {
                 { icon: Database, label: "VRAM", value: "2.4 / 24 GB", color: "text-indigo-400" },
                 { icon: Shield, label: "Model", value: "Mistral 7B", color: "text-green-400" },
                 { icon: ActivityIcon, label: "Latency", value: "4ms", color: "text-yellow-400" },
-              ].map((stat, i) => (
+              ].map((stat) => (
                 <div
-                  key={i}
+                  key={stat.label}
                   className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5"
                 >
                   <stat.icon className={`${stat.color} w-5 h-5 flex-shrink-0`} />
@@ -51,7 +51,10 @@ const LLM: React.FC = () => {
               ))}
             </div>
 
-            <button className="w-full lg:w-auto px-10 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-600/20">
+            <button
+              type="button"
+              className="w-full lg:w-auto px-10 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-600/20"
+            >
               Manage Local Inference Grid
             </button>
           </div>

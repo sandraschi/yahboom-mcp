@@ -7,30 +7,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### 🤖 Agent mission planner API (2026-04-22)
-- **`POST /api/v1/agent/mission`** — Natural-language **goal** → structured **JSON** (`intent`, `behavior`, `target_description`, ROS topic hints, `voice_feedback`, etc.) via **Ollama** (dashboard LLM model) or **Google Gemini** (`YAHBOOM_GEMINI_API_KEY`, `YAHBOOM_GEMINI_MISSION_MODEL`). Optional **`publish_to_ros`** publishes **`std_msgs/String`** on **`YAHBOOM_MISSION_TOPIC`** (default **`/boomy/mission`**); optional **`speak`** uses the voice module over SSH.
-- **`src/yahboom_mcp/agent_mission.py`** — Prompt, JSON parse, Gemini `generateContent` with `responseMimeType: application/json`.
-- **`ROS2Bridge.publish_mission_json`** — Advertises mission publisher during topic setup.
-- **`webapp/src/lib/api.ts`** — `postAgentMission`, `MissionPlanV1`, `AgentMissionResponse`.
-- **`tests/unit/test_agent_mission.py`** — JSON extraction and Pydantic validation.
-- **`ros2/boomy_mission_executor/`** — **ament_python** ROS 2 package: **`mission_executor`** node subscribes to **`/boomy/mission`**, parses JSON, publishes conservative search motion on **`/cmd_vel`** for `search` / `room_search` / `spin_scan`; optional **`detections_json_topic`** stops search on label match vs **`target_description`**; optional Nav2 **`NavigateToPose`** when **`use_nav2`** and **`nav2_goal`** in JSON; **`/boomy/mission_status`** JSON feedback. **`mission_executor.launch.py`** included; **`nav2_msgs`** in **`package.xml`**. See package **README.md** for `colcon` build on the Pi.
-- **`agent_mission` / `MissionPlanV1`** — Optional **`nav2_goal`** in planner schema and system prompt.
-- **Docs** — **`docs/ops/AGENT_MISSION_AND_MCP.md`**: end-to-end agent missions (HTTP + MCP **`yahboom_agent_mission`**, Pi executor, env vars, troubleshooting). Cross-links from **`STARTUP_AND_BRINGUP.md`**, **`STACK_HEALTH_PROBE.md`**, **`README.md`**, **`docs/core/structure.md`**.
+## [2.4.1] - 2026-05-07
 
-### 🔭 Stack health, lifecycle, and Docker log preview (2026-04-22)
-- **`src/yahboom_mcp/stack_probe.py`** — TTL-cached **full stack** probe (TCP, SSH, Pi hostname/IPs/Wi‑Fi, Docker engine, **`docker inspect`** on **`YAHBOOM_ROS2_CONTAINER`**, driver graph / rosbridge-in-graph hints, PC WebSocket, cmd_vel, video). Exposed on **`GET /api/v1/health`** as **`stack`** (`YAHBOOM_STACK_PROBE_SECS`).
-- **`ros_container` fields** — **`lifecycle`** (`phase` / `label` / `detail`: never started vs ran then exited vs running, restart loop, etc.), **`restart_loop`**, **`docker_logs_preview`** (and **`docker_logs_error`**, **`docker_logs_truncated`**, **`docker_logs_lines_fetched`**) when the container is unhealthy: server runs **`docker logs --tail N`** over SSH with **`YAHBOOM_DOCKER_LOGS_TAIL`** and **`YAHBOOM_DOCKER_LOGS_MAX_CHARS`**, plus best-effort **redaction** (tokens/passwords/PEM blocks). **`remediation_steps`**, **`alternate_running_container`**, **`docker_ps_preview`**, inspect exit/OOM fields.
-- **Webapp** — **`StackStatusTable`**: layered table, **restart loop** banner and row highlight, **Run history**, **Docker log preview** panel; types in **`webapp/src/lib/api.ts`**.
-- **Docs** — **`docs/ops/STACK_HEALTH_PROBE.md`** (this feature set); **`docs/ops/STARTUP_AND_BRINGUP.md`** and **`README.md`** cross-links. **MCP Central Docs** holds **full-text** **`docs/robotics/yahboom/STARTUP_AND_BRINGUP.md`** and **`STACK_HEALTH_PROBE.md`** for RAG in the fleet docs webapp (keep in sync when changing bringup or **`health.stack`**).
+### 🐛 Critical Fix: rosbridge host vs container
+- **Root cause identified**: Two rosbridge instances were competing for port 9090 — one on the Pi HOST (PID 3361, started by `yahboom-launch.sh`) and one inside the Docker container. The host rosbridge lacked workspace packages (`yahboomcar_msgs`) and had DDS discovery issues with the container, silently dropping all published messages. `client_count: 0` confirmed the MCP's WebSocket connection was never registered.
+- **Fix**: Killed the host rosbridge. Only the container rosbridge (with all packages, same DDS domain) serves port 9090 now. `client_count` now correctly reflects connected clients.
+- **`publish_velocity`** — rewritten to use SSH `docker exec ros2 topic pub` (bypasses rosbridge DDS forwarding entirely, always works).
+- **`publish_lightstrip`** — rewritten to use SSH `docker exec python3` with direct `Raspbot_Lib.Ctrl_WQ2812_brightness_ALL()` I2C commands.
+- **`camera_ptz.py`** SSH fallback container name corrected to `yahboom_ros2_final`.
 
-### 📚 Startup / bringup documentation (2026-04-22)
-- **`docs/hardware/RASPBOT_V2_HARDWARE_STACK.md`** — Full **Yahboom Raspbot v2** hardware stack plus **§1** definitions (**MCU** = Rosmaster-tier microcontroller under Pi; **rosbridge** = Pi software for PC; **Micro-ROS** ≠ rosbridge; **Pi OS / Docker / Humble**); **§9.3** comparison table; **§15 assembly** placeholder (planned fleet build guide; Yahboom printed instructions called out as often insufficient). **`docs/ops/STARTUP_AND_BRINGUP.md`**, **`docs/hardware/ROSBRIDGE.md`** — cross-links to §1/§9.3.
-- **`docs/ops/STARTUP_AND_BRINGUP.md`** — Canonical operator doc: Goliath ↔ Pi path, **ROS 2** vs **rosbridge_suite** vs USB-linked controller tier under the Pi (misnamed “rosbridge board”), Docker + `setup-autostart.sh` / `install-rosbridge-at-boot.sh`, webapp **Reconnect** vs **Hard Reset**, **Dashboard** (basic status) vs **Diagnostic Hub** (topics/nodes) vs **Server logs**.
-- **`docs/hardware/ROSBRIDGE.md`** — New terminology section + renumbered headings; link to startup doc.
-- **`docs/ops/installation.md`** — Rewritten for Python 3.12, ports **10892/10893**, `dual` mode, pointer to startup doc.
-- **`docs/ops/ROSBRIDGE_AT_BOOT.md`** — Cross-link to startup doc.
-- **`docs/core/ARCHITECTURE_REVIEW.md`** — Note correcting schematic port 9090 vs MCP transports; link to startup doc.
-- **`README.md`** — Documentation pillar + webapp status surfaces (dashboard / diagnostics / logs).
+### 📺 OLED: luma.oled dependency eliminated
+- **`display.py`** — rewrote `_build_luma_script()` to use `smbus2` (already installed via apt) + `PIL` (included with ROS 2) instead of `luma.oled` + `luma.core`. The SSD1306 OLED now works with zero additional dependencies.
+- OLED init sequence, framebuffer rendering, text drawing, and scrolling all use direct I2C writes via `smbus2`. Status dashboard (IP, CPU, RAM, TEMP) also migrated.
+- `_display_err_with_hint()` updated to no longer reference luma.
+
+### 🧠 Webapp Help page
+- Added **ROS 2** tab: architecture (rosbridge in container, topic map, IMU/battery limitation).
+- Added **Missions** tab: what missions are, sample missions, obstacle avoidance, Ollama + vision detection pipeline.
+- Fixed stale port reference (`10793` → `10893`) in Help page quick links.
+
+### 📚 Documentation
+- **`docs/hardware/ROSMASTER_ARCHITECTURE.md`** — updated with rosbridge host-vs-container analysis, client_count diagnosis, OLED smbus2 migration.
+- **README.md** — verified all doc links current.
+
+### 🧹 Known Hardware Limitations
+- **No IMU/battery**: Raspbot V2 Rosmaster STM32 firmware does not expose IMU (accelerometer/gyroscope) or battery ADC through I2C registers (full scan 0x00-0x3f) or UART (no serial output at 115200 or 921600 baud). To add: external I2C hardware — INA219 (~$5) for battery voltage, MPU6050 (~$8) for IMU.
+- **PTZ servos**: I2C commands reach the STM32 (verified via `Raspbot_Lib.Ctrl_Servo()` on Pi host), but servos may lack external power or PWM signal routing — physical/hardware issue.
+
+### 🔊 Voice Module
+- **CSK4002/CI1302** module connected via Pi USB. Presents as CH340 serial (ttyUSB0, 0xA5 protocol at 115200) + C-Media USB Audio (card 2 for speaker/mic). The CH340 is the module's serial (not the STM32 — STM32 uses I2C via GPIO).
+- **Serial control works** — 0xA5 binary packets (phrase play, volume, ASR trigger) sent over CH340 reach the module. Phrase IDs 1-85 depend on factory firmware batch.
+- **USB audio fallback** — `play_beep` generates WAV via Python and plays via `aplay -D hw:2,0`. `play_file` uses `mpg123` through USB audio card 2.
+- **`_play_beep_usb()`** — new function in voice.py: generates 880Hz sine WAV, plays via USB audio when serial device isn't resolved.
+- CP2102 driver loaded on Pi but no CP2102 device detected — CSK4002 uses CH340 (VID 1a86:7522), not CP2102.
+
+## [2.4.0] - 2026-05-07
+
+### 🤖 Autonomous Mission Execution (Ollama → ROS → Robot)
+- **Mission executor** (`/minimal_mission_executor.py` in container) — subscribes `/boomy/mission` (JSON from Ollama planner), executes search/spin_scan/room_search behaviors via `/cmd_vel`, publishes status on `/boomy/mission_status`. Handles `target_description` keyword extraction for vision matching.
+- **Ultrasonic obstacle avoidance** — executor subscribes `/ultrasonic` (Float32, cm). Sonar < 25 cm triggers reverse (1.5s) + turn (2s) before resuming search pattern. Status published with `was_blocked` flag.
+- **Vision detection bridge** (`/detection_bridge.py` in container) — SSD MobileNet v2 COCO (90 classes: dog, person, cat, bowl, chair, etc.) runs in Docker at 0.5 FPS. Reads MJPEG frames from `raspbot.pyc` demo (avoids `/dev/video0` contention). Publishes detections to `/boomy/detections_json`. Target matching in executor: stops on keyword match, reports confidence.
+- **`vision_bridge.py`** — standalone detection script, configurable via `DETECTION_CAM_URL` env var.
+- **Webapp `/missions` page** — natural-language prompt input, 4 sample missions (Square Patrol, Spin Scan, Forward Recon, Room Search), "Report Back" panel showing mission plan JSON + status. Connected to `POST /api/v1/agent/mission`.
+- **Docs** — `docs/ops/AUTONOMOUS_MISSIONS.md`: full architecture (Ollama planning → JSON → ROS execution → status feedback), "find our dog" and "check water bowls" scenario walkthroughs, capability matrix.
+- **`docs/hardware/ROSMASTER_ARCHITECTURE.md`** — dual-bus analysis (I2C 0x2b for motors/sensors, UART serial for IMU/battery), I2C register map, container architecture diagram, factory demo vs Docker vs micro-ROS analysis.
+- **Rosmaster_Lib** — extracted from Docker image, installed on Pi host. Methods: `get_battery_voltage()`, `get_accelerometer_data()`, `get_gyroscope_data()`, `get_magnetometer_data()`. Serial at 115200 baud (not 921600).
+
+### 🔧 Infrastructure & Reliability
+- **Rosbridge moved to driver container** — `rosbridge_websocket` now runs inside `yahboom_ros2_final` (not sidecar) where `yahboomcar_msgs` and all workspace packages are available. Fixes `/servo` advertise error and ensures `/cmd_vel` forwarding.
+- **`yahboomcar_msgs`** — copied to driver container's Python path for rosbridge message deserialization.
+- **`/start_all.sh`** — single entrypoint script in container: rosbridge → driver bringup → mission executor → detection bridge. Runs on `docker exec`.
+- **`/usr/local/bin/yahboom-launch.sh`** (Pi host) — updated for `yahboom_ros2_final` container, starts rosbridge + driver bringup at boot.
+- **Ollama binding** — changed from `127.0.0.1:11434` to `0.0.0.0:11434` on Pi so MCP server on PC can reach it.
+- **Ollama default URL** — `server.py` now defaults to `http://192.168.1.11:11434` (was `127.0.0.1` — unreachable from PC).
+
+### 🐛 Bug Fixes
+- **Port drift** — 9 hardcoded `10792` references in `server.py` help tool, 3 in `prompts.py`, ~28 in docs/skills → all corrected to `10892`/`10893`.
+- **`restart_ros_bringup`** — container name (`yahboom_ros2` → `yahboom_ros2_final`), workspace path (`/home/pi/` → `/root/`), launch file name (`yahboomcar_bringup_launch.py` → `yahboomcar_bringup.launch.py`). 2 locations fixed.
+- **`camera_ptz.py:76`** — SSH fallback target container corrected to `yahboom_ros2_final`.
+- **`agentic.py`** — `ctx` parameter now passed through to `yahboom_tool()` calls (was `ctx=None`, losing correlation ID).
+- **Mission API payload** — webapp `Missions.tsx` fixed to send `{goal: ...}` object instead of raw string.
+
+### 🎨 Webapp
+- **Status page** (`/status`) — dedicated page: connection banner, telemetry grid (battery, heading, velocity, sonar), full StackStatusTable, server uptime. Extracted from Dashboard.
+- **Dashboard slimming** — removed StackStatusTable (→ Status page), removed verbose connection banner text, link to Status page for details. Controls-only focus: camera, WASD, PTZ, lightstrip, voice.
+- **Logs page overhaul** (`/logs`) — added: filter input, Export (`.log` download), sort toggle (oldest/newest first), Tail on/off button, legible font (text-sm text-slate-300).
+- **Missions page** (`/missions`) — prompt input, sample missions, "Report Back" panel, connected to agent mission API.
+- **Readability** — base font 15px + line-height 1.6, slate palette lightened (400: `#b0bec5`, 500: `#90a4ae`), minimum text sizes bumped from `text-[8px]`/`text-[9px]` to `text-xs`/`text-sm`.
+- **Sidebar** — added Status and Missions nav items.
+- **Duplicate route** — removed second `/peripherals` registration in `App.tsx`.
+
+### 🧪 Testing
+- **18 new unit tests** — `test_safety.py` (4), `test_lidar.py` (7), `test_agentic.py` (7). Total: 92 tests, all passing.
+- **`justfile`** — `VER` synced to `2.3.0`, added `tsc --noEmit` to lint recipe.
+
+### 📦 Dependencies & Config
+- **`boomy_mission_executor`** — built with `colcon` in Docker workspace. Source at `ros2/boomy_mission_executor/`. Logger format compatibility fix for ROS 2 Humble (rclpy `get_logger().info()` single-arg).
+- **Detection model** — SSD MobileNet v2 COCO `frozen_inference_graph.pb` copied from host to container at `/detection_model/`.
+- **Empty dirs removed** — `src/yahboom_mcp/integrations/`, `src/yahboom_mcp/utils/`.
+- **Unused noqa directives** — `RUF100` false positives acknowledged (E402/S104 in `server.py` suppress real lint findings).
 
 ## [2.3.3] - 2026-04-13
 ### 🎨 3D Visualization Refinement (SOTA v16.12)

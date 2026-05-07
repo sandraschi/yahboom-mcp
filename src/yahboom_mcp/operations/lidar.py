@@ -143,7 +143,7 @@ async def _read_dreame_map(correlation_id: str, param1: Any, payload: dict | Non
             "success": False,
             "source": "dreame",
             "operation": "read_dreame_map",
-            "error": "DREAME_MAP_URL not set. Set to robotics-mcp or dreame-mcp map/scan endpoint (e.g. http://localhost:PORT/api/dreame/map).",
+            "error": "DREAME_MAP_URL not set. Set to dreame-mcp or compatible JSON map URL (e.g. http://HOST:10894/api/v1/map).",
             "correlation_id": correlation_id,
         }
 

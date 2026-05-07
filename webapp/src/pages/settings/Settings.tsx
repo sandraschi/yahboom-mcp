@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { api, type LLMSettings, type OllamaModel, type OllamaStatus } from "../../lib/api";
+import { type LLMSettings, type OllamaModel, type OllamaStatus, api } from "../../lib/api";
 
 const Settings: React.FC = () => {
   const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null);

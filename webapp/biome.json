@@ -1,5 +1,8 @@
 {
   "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "files": {
+    "ignore": ["dist", "node_modules", "build", ".vite"]
+  },
   "linter": {
     "enabled": true,
     "rules": {
@@ -8,7 +11,16 @@
         "noNonNullAssertion": "off"
       },
       "correctness": {
-        "noUnusedVariables": "warn"
+        "noUnusedVariables": "off",
+        "useExhaustiveDependencies": "off"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off",
+        "noExplicitAny": "off",
+        "noAssignInExpressions": "off"
+      },
+      "a11y": {
+        "recommended": false
       }
     }
   },

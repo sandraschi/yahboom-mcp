@@ -26,7 +26,7 @@ Use this skill when you need **domain expertise** on Yahboom Raspbot v2 hardware
 
 - **ROS 2**: Humble on Ubuntu 24.04. Topics/services follow ROS 2 naming (e.g. cmd_vel, odom, scan, image).
 - **MCP ↔ Robot**: yahboom-mcp server talks to a **REST bridge** (or direct ROS 2 node) on the robot network. Robot IP and bridge port configurable (env or settings). 
-- **Dual mode**: Server can run `--mode stdio` (MCP only) or `--mode dual --port 10792` (REST API + MCP). Dashboard (Vite) uses REST on 10792; frontend dev server on 10793.
+- **Dual mode**: Server can run `--mode stdio` (MCP only) or `--mode dual --port 10892` (REST API + MCP). Dashboard (Vite) uses REST on 10892; frontend dev server on 10893.
 
 ## ⚙️ Kinematics and Motion
 

@@ -351,7 +351,7 @@ export const api = {
       body: JSON.stringify({ operation: "play", id: sound_id }),
     }),
   /** OLED Display */
-  postDisplayWrite: (text: string, line: number = 1) =>
+  postDisplayWrite: (text: string, line = 1) =>
     request<HardwareOpResponse>("/api/v1/display/write", {
       method: "POST",
       body: JSON.stringify({ text, line }),
@@ -366,7 +366,7 @@ export const api = {
     }),
 
   // Consolidated Peripheral Controls (Peripherals 2.0)
-  postLightstripControl: (r: number, g: number, b: number, mode: number = 0) =>
+  postLightstripControl: (r: number, g: number, b: number, mode = 0) =>
     request<{ success: boolean }>("/api/v1/led", {
       method: "POST",
       body: JSON.stringify({ r, g, b, mode }),
@@ -406,9 +406,7 @@ export const api = {
     }),
   /** ROS 2 Diagnostics */
   getRosTopics: () =>
-    request<{ success: boolean; topics?: any[]; error?: string }>(
-      "/api/v1/diagnostics/ros/topics",
-    ),
+    request<{ success: boolean; topics?: any[]; error?: string }>("/api/v1/diagnostics/ros/topics"),
   postResyncRos: () =>
     request<{ success: boolean }>("/api/v1/diagnostics/ros/resync", {
       method: "POST",
@@ -468,10 +466,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ operation, param1, param2, param3, payload }),
     }),
-  getDiagLogs: (lines: number = 80) =>
+  getDiagLogs: (lines = 80) =>
     request<{ success: boolean; logs: string }>(`/api/v1/diagnostics/logs?lines=${lines}`),
-  getDiagStack: () =>
-    request<DiagStackResponse>("/api/v1/diagnostics/stack"),
+  getDiagStack: () => request<DiagStackResponse>("/api/v1/diagnostics/stack"),
   postExecCommand: (command: string) =>
     request<CommandResponse>("/api/v1/diagnostics/exec", {
       method: "POST",

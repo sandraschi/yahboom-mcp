@@ -133,12 +133,12 @@ LiteRT-LM skills are JSON tool definitions. Define once, reuse across all autono
         "linear_y":  {"type": "number", "description": "Strafe left (+) or right (-)"}
       }
     },
-    "endpoint": "POST http://localhost:10792/api/v1/control/move"
+    "endpoint": "POST http://localhost:10892/api/v1/control/move"
   },
   {
     "name": "stop",
     "description": "Emergency stop. Call this immediately if any danger is detected.",
-    "endpoint": "POST http://localhost:10792/api/v1/stop_all"
+    "endpoint": "POST http://localhost:10892/api/v1/stop_all"
   },
   {
     "name": "set_lights",
@@ -152,7 +152,7 @@ LiteRT-LM skills are JSON tool definitions. Define once, reuse across all autono
       },
       "required": ["operation"]
     },
-    "endpoint": "POST http://localhost:10792/api/v1/control/lightstrip"
+    "endpoint": "POST http://localhost:10892/api/v1/control/lightstrip"
   },
   {
     "name": "say",
@@ -162,22 +162,22 @@ LiteRT-LM skills are JSON tool definitions. Define once, reuse across all autono
       "properties": {"text": {"type": "string"}},
       "required": ["text"]
     },
-    "endpoint": "POST http://localhost:10792/api/v1/voice"
+    "endpoint": "POST http://localhost:10892/api/v1/voice"
   },
   {
     "name": "get_telemetry",
     "description": "Get current robot state: battery %, position, obstacles, IMU heading.",
-    "endpoint": "GET http://localhost:10792/api/v1/telemetry"
+    "endpoint": "GET http://localhost:10892/api/v1/telemetry"
   },
   {
     "name": "capture_and_describe",
     "description": "Capture a camera frame and return a description of what is visible.",
-    "endpoint": "GET http://localhost:10792/api/v1/snapshot"
+    "endpoint": "GET http://localhost:10892/api/v1/snapshot"
   },
   {
     "name": "write_display",
     "description": "Write text to the OLED display. param1: text, param2: line number (0-3).",
-    "endpoint": "POST http://localhost:10792/api/v1/display/write"
+    "endpoint": "POST http://localhost:10892/api/v1/display/write"
   }
 ]
 ```
@@ -195,7 +195,7 @@ import asyncio
 import json
 
 LITERT_URL  = "http://localhost:8080/v1/chat/completions"
-MCP_URL     = "http://localhost:10792"
+MCP_URL     = "http://localhost:10892"
 SKILLS_FILE = "/home/pi/boomy_skills.json"
 
 SYSTEM_PROMPT = """
@@ -393,8 +393,8 @@ The autonomous agent (`boomy_agent.py`) and yahboom-mcp are siblings, not nested
 Both run on the Pi. They share the same hardware through the REST API:
 
 ```
-boomy_agent.py          →  POST http://localhost:10792/...  →  yahboom-mcp
-boomy_watchdog.py       →  POST http://localhost:10792/...  →  yahboom-mcp
+boomy_agent.py          →  POST http://localhost:10892/...  →  yahboom-mcp
+boomy_watchdog.py       →  POST http://localhost:10892/...  →  yahboom-mcp
 litert-lm (serve mode)  →  (called by boomy_agent.py)
                                          ↓
                                     yahboom-mcp

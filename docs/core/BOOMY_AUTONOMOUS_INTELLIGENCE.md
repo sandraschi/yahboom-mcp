@@ -113,7 +113,7 @@ STEP 2: NETWORK PROBE (30 seconds)
   → ping 192.168.0.1 (router)  — is WiFi connected at all?
   → ping 1.1.1.1                — is internet reachable?
   → ping 192.168.0.105          — is Goliath up? (Boomy's own IP = different)
-  → HTTP GET http://goliath:10792/api/v1/health  — is yahboom-mcp running?
+  → HTTP GET http://goliath:10892/api/v1/health  — is yahboom-mcp running?
   → Record results in /run/boomy/wigo_report.json
 
 STEP 3: LED STATUS VISUAL CHECK

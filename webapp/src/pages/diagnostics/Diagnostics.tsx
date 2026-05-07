@@ -15,7 +15,7 @@ import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import StackStatusTable from "../../components/StackStatusTable";
-import { api, type DiagStackResponse, type DriverStackSnapshot, type Health } from "../../lib/api";
+import { type DiagStackResponse, type DriverStackSnapshot, type Health, api } from "../../lib/api";
 
 interface RosTopic {
   name: string;
@@ -284,7 +284,9 @@ const Diagnostics: React.FC = () => {
                         {topicFetchError ? (
                           <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 text-left">
                             <p className="text-red-400 font-semibold text-sm">Topic list error</p>
-                            <p className="text-red-300/80 font-mono text-xs mt-1">{topicFetchError}</p>
+                            <p className="text-red-300/80 font-mono text-xs mt-1">
+                              {topicFetchError}
+                            </p>
                           </div>
                         ) : topics.length > 0 ? (
                           <p className="text-center text-gray-500 italic">
@@ -301,12 +303,19 @@ const Diagnostics: React.FC = () => {
                               WebSocket rosbridge on the Pi (default{" "}
                               <span className="font-mono">YAHBOOM_BRIDGE_PORT=9090</span>
                               ). The hub is still talking to this PC&apos;s gateway; the Raspberry
-                              at <span className="font-mono">{health?.robot_connection.ip ?? "—"}</span>{" "}
+                              at{" "}
+                              <span className="font-mono">
+                                {health?.robot_connection.ip ?? "—"}
+                              </span>{" "}
                               is not on the graph.
                             </p>
                             <ul className="text-gray-500 text-xs list-disc list-inside space-y-1">
-                              <li>Robot powered, same LAN, correct IP in start script / YAHBOOM_IP</li>
-                              <li>On the Pi: rosbridge running (e.g. rosbridge_websocket launch)</li>
+                              <li>
+                                Robot powered, same LAN, correct IP in start script / YAHBOOM_IP
+                              </li>
+                              <li>
+                                On the Pi: rosbridge running (e.g. rosbridge_websocket launch)
+                              </li>
                               <li>Firewall allows TCP to the bridge port from this host</li>
                             </ul>
                             <p className="text-xs text-slate-500">
@@ -321,8 +330,8 @@ const Diagnostics: React.FC = () => {
                           <p className="text-center text-gray-500 text-sm">
                             ROS reports connected but no topics were returned (no rosapi on
                             rosbridge, SSH down, or no publishers). Try{" "}
-                            <span className="font-mono">System Re-Sync</span>, ensure SSH to the
-                            Pi works for topic fallback, or add rosapi to your rosbridge launch.
+                            <span className="font-mono">System Re-Sync</span>, ensure SSH to the Pi
+                            works for topic fallback, or add rosapi to your rosbridge launch.
                           </p>
                         )}
                       </td>

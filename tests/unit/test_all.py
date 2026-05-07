@@ -10,6 +10,17 @@ from yahboom_mcp.operations import display, lightstrip, motion, voice
 from yahboom_mcp.operations.camera_ptz import camera_move, camera_reset, camera_set_pos
 from yahboom_mcp.portmanteau import yahboom_tool
 
+
+@pytest.fixture
+def centered_camera_ptz():
+    """camera_ptz uses module-level angles; reset so tests do not depend on order."""
+    from yahboom_mcp.operations import camera_ptz
+
+    camera_ptz._camera_state["pan"] = 90
+    camera_ptz._camera_state["tilt"] = 90
+    yield
+
+
 # ── Motion ───────────────────────────────────────────────────────────────────
 
 
@@ -134,49 +145,48 @@ async def test_lightstrip_disconnected(disconnected_bridge):
 
 
 @pytest.mark.asyncio
-async def test_servo_camera_move_up(mock_bridge_with_servo):
+async def test_servo_camera_move_up(mock_bridge_with_servo, centered_camera_ptz):
     result = await camera_move(mock_bridge_with_servo, direction="up", step=15)
     assert result["success"]
-    tilt_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 2)
-    assert tilt_cmd["angle"] == 90 - 15  # started at 90, moved up 15
+    last = mock_bridge_with_servo.servo_history[-1]
+    assert last["servo_s1"] == 90
+    assert last["servo_s2"] == 90 - 15  # started at 90, moved up 15
 
 
 @pytest.mark.asyncio
-async def test_servo_camera_move_left(mock_bridge_with_servo):
+async def test_servo_camera_move_left(mock_bridge_with_servo, centered_camera_ptz):
     result = await camera_move(mock_bridge_with_servo, direction="left", step=20)
     assert result["success"]
-    pan_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 1)
-    assert pan_cmd["angle"] == 90 + 20
+    last = mock_bridge_with_servo.servo_history[-1]
+    assert last["servo_s1"] == 90 + 20
+    assert last["servo_s2"] == 90
 
 
 @pytest.mark.asyncio
-async def test_servo_camera_set_pos(mock_bridge_with_servo):
+async def test_servo_camera_set_pos(mock_bridge_with_servo, centered_camera_ptz):
     result = await camera_set_pos(mock_bridge_with_servo, pan=45, tilt=135)
     assert result["success"]
-    pan_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 1)
-    tilt_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 2)
-    assert pan_cmd["angle"] == 45
-    assert tilt_cmd["angle"] == 135
+    last = mock_bridge_with_servo.servo_history[-1]
+    assert last["servo_s1"] == 45
+    assert last["servo_s2"] == 135
 
 
 @pytest.mark.asyncio
-async def test_servo_camera_reset(mock_bridge_with_servo):
+async def test_servo_camera_reset(mock_bridge_with_servo, centered_camera_ptz):
     result = await camera_reset(mock_bridge_with_servo)
     assert result["success"]
-    pan_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 1)
-    tilt_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 2)
-    assert pan_cmd["angle"] == 90
-    assert tilt_cmd["angle"] == 90
+    last = mock_bridge_with_servo.servo_history[-1]
+    assert last["servo_s1"] == 90
+    assert last["servo_s2"] == 90
 
 
 @pytest.mark.asyncio
 async def test_servo_clamp_bounds(mock_bridge_with_servo):
     result = await camera_set_pos(mock_bridge_with_servo, pan=-50, tilt=999)
     assert result["success"]
-    pan_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 1)
-    tilt_cmd = next(c for c in mock_bridge_with_servo.servo_history if c["id"] == 2)
-    assert pan_cmd["angle"] == 0  # clamped
-    assert tilt_cmd["angle"] == 180  # clamped
+    last = mock_bridge_with_servo.servo_history[-1]
+    assert last["servo_s1"] == 0  # clamped
+    assert last["servo_s2"] == 180  # clamped
 
 
 @pytest.mark.asyncio
@@ -268,24 +278,33 @@ async def test_voice_no_ssh(disconnected_bridge):
 
 
 @pytest.mark.asyncio
-async def test_voice_get_status_not_found(mock_bridge, mock_ssh):
-    mock_ssh.execute.return_value = ("Bus 001 Device 002: ID 1234:5678 SomeOtherDevice\n", "", 0)
-    result = await voice.execute(operation="get_status")
-    assert result["success"]
-    assert not result["result"]["detected"]
+async def test_voice_get_status_not_found(mock_bridge, mock_ssh, monkeypatch):
+    async def _no_device(_ssh):
+        return None, "Voice module not found"
 
-
-@pytest.mark.asyncio
-async def test_voice_get_status_found(mock_bridge, mock_ssh):
-    # lsusb, pyserial probe, then _resolve_device script returns /dev/ttyUSB0
+    monkeypatch.setattr("yahboom_mcp.operations.voice._resolve_device", _no_device)
     mock_ssh.execute.side_effect = [
-        ("Bus 001 Device 002: ID 1a86:7523 QinHeng Electronics\n", "", 0),  # lsusb
-        ("PY_SERIAL_OK\n", "", 0),  # pyserial probe
-        ("/dev/ttyUSB0\n", "", 0),  # find device script
+        ("OK\n", "", 0),
+        ("espeak-ng 1.48\n", "", 0),
     ]
     result = await voice.execute(operation="get_status")
     assert result["success"]
-    assert result["result"]["detected"]
+    assert not result["result"]["device_found"]
+
+
+@pytest.mark.asyncio
+async def test_voice_get_status_found(mock_bridge, mock_ssh, monkeypatch):
+    async def _has_device(_ssh):
+        return "/dev/ttyUSB0", ""
+
+    monkeypatch.setattr("yahboom_mcp.operations.voice._resolve_device", _has_device)
+    mock_ssh.execute.side_effect = [
+        ("OK\n", "", 0),
+        ("espeak-ng 1.48\n", "", 0),
+    ]
+    result = await voice.execute(operation="get_status")
+    assert result["success"]
+    assert result["result"]["device_found"]
     assert result["result"]["device"] == "/dev/ttyUSB0"
 
 

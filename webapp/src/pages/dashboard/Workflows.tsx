@@ -11,7 +11,7 @@ import {
   Terminal as TerminalIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { api, type MissionStatus } from "../../lib/api";
+import { type MissionStatus, api } from "../../lib/api";
 
 const MISSION_METADATA = [
   {

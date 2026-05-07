@@ -24,8 +24,10 @@ def test_health_reports_connected(client: TestClient) -> None:
     r = client.get("/api/v1/health")
     assert r.status_code == 200
     body = r.json()
-    assert body["status"] == "ok"
-    assert body["connected"] is True
+    assert body["status"] == "online"
+    rc = body["robot_connection"]
+    assert rc["ros"] == "connected"
+    assert rc["cmd_vel_ready"] is True
 
 
 def test_telemetry_live_source(client: TestClient) -> None:

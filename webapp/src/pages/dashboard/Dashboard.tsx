@@ -1,8 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import StackStatusTable from "../../components/StackStatusTable";
-import { api, isBridgeLiveTelemetry, type Health } from "../../lib/api";
+import { type Health, api, isBridgeLiveTelemetry } from "../../lib/api";
 
 const STREAM_URL = "/stream";
 
@@ -21,8 +20,8 @@ import {
   Loader2,
   MessageSquare,
   Monitor,
-  Radio,
   Navigation,
+  Radio,
   Shield,
   Square,
   Unplug,
@@ -272,26 +271,34 @@ export default function Dashboard() {
                           ? "Pi reachable — ROS bridge down"
                           : "No connection to robot"}
                 </h2>
-                <p className="text-[11px] font-mono text-slate-500 mt-0.5">
+                <p className="text-xs font-mono text-slate-400 mt-0.5">
                   Target <span className="text-indigo-300">{robotIp}</span>
                   {health && (
                     <>
                       {" · "}
-                      <span className={rc?.ros === "connected" ? "text-emerald-400" : "text-slate-500"}>
+                      <span
+                        className={rc?.ros === "connected" ? "text-emerald-400" : "text-slate-500"}
+                      >
                         ROS {rc?.ros ?? "—"}
                       </span>
                       {" · "}
-                      <span className={rc?.ssh === "connected" ? "text-emerald-400" : "text-slate-500"}>
+                      <span
+                        className={rc?.ssh === "connected" ? "text-emerald-400" : "text-slate-500"}
+                      >
                         SSH {rc?.ssh ?? "—"}
                       </span>
                       {" · "}
-                      <span className={rc?.video === "active" ? "text-emerald-400" : "text-slate-500"}>
+                      <span
+                        className={rc?.video === "active" ? "text-emerald-400" : "text-slate-500"}
+                      >
                         Video {rc?.video ?? "—"}
                       </span>
                       {typeof rc?.cmd_vel_ready === "boolean" && (
                         <>
                           {" · "}
-                          <span className={rc.cmd_vel_ready ? "text-emerald-400" : "text-amber-400"}>
+                          <span
+                            className={rc.cmd_vel_ready ? "text-emerald-400" : "text-amber-400"}
+                          >
                             cmd_vel {rc.cmd_vel_ready ? "ready" : "not ready"}
                           </span>
                         </>
@@ -308,10 +315,16 @@ export default function Dashboard() {
 
             {health?.stack && (
               <div className="max-w-4xl">
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                  Full stack status
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wide mb-2">
+                  Stack health — see <Link to="/status" className="text-indigo-400 underline">Status page</Link> for details
                 </h3>
-                <StackStatusTable stack={health.stack} />
+                <div className="flex flex-wrap gap-2">
+                  {health.stack.layers?.map((l: any) => (
+                    <span key={l.id} className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${l.ok ? "border-emerald-500/30 bg-emerald-950/40 text-emerald-400" : "border-red-500/30 bg-red-950/40 text-red-400"}`}>
+                      {l.ok ? "✓" : "✗"} {l.title}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -336,8 +349,8 @@ export default function Dashboard() {
               <div className="text-sm text-amber-100/85 leading-relaxed max-w-3xl space-y-2">
                 <p>
                   SSH reaches the Pi, but the WebSocket ROS bridge is not connected (rosbridge not
-                  running, wrong <span className="font-mono">YAHBOOM_BRIDGE_PORT</span>, or ROS still
-                  starting).
+                  running, wrong <span className="font-mono">YAHBOOM_BRIDGE_PORT</span>, or ROS
+                  still starting).
                 </p>
                 <p className="text-xs text-amber-200/70">
                   On the robot: launch rosbridge (e.g.{" "}
@@ -352,27 +365,33 @@ export default function Dashboard() {
             {noRobotPath && (
               <div className="text-sm text-red-100/85 leading-relaxed max-w-3xl space-y-3">
                 <p className="rounded-xl border border-red-500/25 bg-red-950/50 p-3 text-red-50/95 text-sm">
-                  <span className="font-semibold text-white">Hey — start with the robot and the link.</span>{" "}
-                  Turn the Raspbot on and wait for it to boot. Join the Raspbot Wi‑Fi access point on
-                  this PC, <span className="font-semibold">or</span> connect an Ethernet cable between
-                  Goliath and the Pi. Until that path exists, Docker, systemd, and Yahboom bringup on
-                  the Pi are not in play for this dashboard — there is nothing here to &quot;wake&quot;
-                  the robot remotely. After power + network are good, use{" "}
-                  <span className="font-mono text-red-100/90">Reconnect</span> (header) or Diagnostics{" "}
-                  <span className="font-mono text-red-100/90">Hard Reset</span> if ROS still does not attach.
+                  <span className="font-semibold text-white">
+                    Hey — start with the robot and the link.
+                  </span>{" "}
+                  Turn the Raspbot on and wait for it to boot. Join the Raspbot Wi‑Fi access point
+                  on this PC, <span className="font-semibold">or</span> connect an Ethernet cable
+                  between Goliath and the Pi. Until that path exists, Docker, systemd, and Yahboom
+                  bringup on the Pi are not in play for this dashboard — there is nothing here to
+                  &quot;wake&quot; the robot remotely. After power + network are good, use{" "}
+                  <span className="font-mono text-red-100/90">Reconnect</span> (header) or
+                  Diagnostics <span className="font-mono text-red-100/90">Hard Reset</span> if ROS
+                  still does not attach.
                 </p>
                 <p>
                   This PC cannot reach the configured robot address — both{" "}
-                  <span className="font-mono">ROS</span> (rosbridge) and <span className="font-mono">SSH</span>{" "}
-                  are down. The gateway on Goliath is running; the Pi is not participating.
+                  <span className="font-mono">ROS</span> (rosbridge) and{" "}
+                  <span className="font-mono">SSH</span> are down. The gateway on Goliath is
+                  running; the Pi is not participating.
                 </p>
                 <ul className="list-disc list-inside text-xs text-red-200/80 space-y-1.5">
                   <li>
-                    <span className="font-semibold text-red-100/90">Robot off or booting</span> — Raspbot
-                    power / SD / wait for AP or Ethernet to come up.
+                    <span className="font-semibold text-red-100/90">Robot off or booting</span> —
+                    Raspbot power / SD / wait for AP or Ethernet to come up.
                   </li>
                   <li>
-                    <span className="font-semibold text-red-100/90">Goliath not on the robot network</span>{" "}
+                    <span className="font-semibold text-red-100/90">
+                      Goliath not on the robot network
+                    </span>{" "}
                     — join Wi‑Fi to the <span className="font-mono">Raspbot</span> access point{" "}
                     <span className="inline-flex items-center gap-1">
                       <Radio className="w-3 h-3 inline" />
@@ -778,7 +797,7 @@ export default function Dashboard() {
 
                   <div className="grid grid-rows-2 gap-2">
                     <button
-                    onClick={() => api.postTool("play_beep")}
+                      onClick={() => api.postTool("play_beep")}
                       disabled={!connected}
                       className="bg-white/5 border border-white/10 rounded-xl text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2 group"
                     >

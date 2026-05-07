@@ -52,33 +52,33 @@ interface ListenResult {
 // IDs are firmware-dependent; update these after running the discovery script
 // described in docs/hardware/VOICE_AUDIO.md §4 (Preset Phrase Vocabulary)
 const PRESET_PHRASES: { id: number; label: string; category: string }[] = [
-  { id: 1,  label: "Greeting / Beep",    category: "System"  },
-  { id: 2,  label: "Ready",              category: "System"  },
-  { id: 3,  label: "OK / Confirmed",     category: "System"  },
-  { id: 4,  label: "Go Forward",         category: "Motion"  },
-  { id: 5,  label: "Go Backward",        category: "Motion"  },
-  { id: 6,  label: "Turn Left",          category: "Motion"  },
-  { id: 7,  label: "Turn Right",         category: "Motion"  },
-  { id: 8,  label: "Stop",               category: "Motion"  },
-  { id: 9,  label: "Speed Up",           category: "Motion"  },
-  { id: 10, label: "Slow Down",          category: "Motion"  },
-  { id: 11, label: "Obstacle Avoid ON",  category: "Mode"    },
-  { id: 12, label: "Obstacle Avoid OFF", category: "Mode"    },
-  { id: 13, label: "Follow Me ON",       category: "Mode"    },
-  { id: 14, label: "Follow Me OFF",      category: "Mode"    },
-  { id: 15, label: "Patrol ON",          category: "Mode"    },
-  { id: 16, label: "Patrol OFF",         category: "Mode"    },
-  { id: 17, label: "Lights ON",          category: "Light"   },
-  { id: 18, label: "Lights OFF",         category: "Light"   },
-  { id: 19, label: "Battery Report",     category: "System"  },
-  { id: 20, label: "Low Battery",        category: "System"  },
+  { id: 1, label: "Greeting / Beep", category: "System" },
+  { id: 2, label: "Ready", category: "System" },
+  { id: 3, label: "OK / Confirmed", category: "System" },
+  { id: 4, label: "Go Forward", category: "Motion" },
+  { id: 5, label: "Go Backward", category: "Motion" },
+  { id: 6, label: "Turn Left", category: "Motion" },
+  { id: 7, label: "Turn Right", category: "Motion" },
+  { id: 8, label: "Stop", category: "Motion" },
+  { id: 9, label: "Speed Up", category: "Motion" },
+  { id: 10, label: "Slow Down", category: "Motion" },
+  { id: 11, label: "Obstacle Avoid ON", category: "Mode" },
+  { id: 12, label: "Obstacle Avoid OFF", category: "Mode" },
+  { id: 13, label: "Follow Me ON", category: "Mode" },
+  { id: 14, label: "Follow Me OFF", category: "Mode" },
+  { id: 15, label: "Patrol ON", category: "Mode" },
+  { id: 16, label: "Patrol OFF", category: "Mode" },
+  { id: 17, label: "Lights ON", category: "Light" },
+  { id: 18, label: "Lights OFF", category: "Light" },
+  { id: 19, label: "Battery Report", category: "System" },
+  { id: 20, label: "Low Battery", category: "System" },
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
   System: "indigo",
   Motion: "emerald",
-  Mode:   "amber",
-  Light:  "yellow",
+  Mode: "amber",
+  Light: "yellow",
 };
 
 // ── API helpers ───────────────────────────────────────────────────────────────
@@ -95,7 +95,11 @@ async function voiceTool(operation: string, param1?: string | number, param2?: s
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function HardwareStatus({ status, loading, onRefresh }: {
+function HardwareStatus({
+  status,
+  loading,
+  onRefresh,
+}: {
   status: VoiceStatus | null;
   loading: boolean;
   onRefresh: () => void;
@@ -112,11 +116,12 @@ function HardwareStatus({ status, loading, onRefresh }: {
       )}
       <div>
         <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-          {loading ? "Probing..." : ok ? status?.device ?? "CSK4002 OK" : "Module Offline"}
+          {loading ? "Probing..." : ok ? (status?.device ?? "CSK4002 OK") : "Module Offline"}
         </p>
         {status && !loading && (
           <p className="text-[9px] text-zinc-600 font-mono">
-            {status.baud} baud · {status.pyserial_ok ? "pyserial ✓" : "pyserial ✗"} · {status.espeak_ok ? "espeak ✓" : "espeak ✗"}
+            {status.baud} baud · {status.pyserial_ok ? "pyserial ✓" : "pyserial ✗"} ·{" "}
+            {status.espeak_ok ? "espeak ✓" : "espeak ✗"}
           </p>
         )}
       </div>
@@ -156,11 +161,21 @@ export default function Voice() {
   const [lastRecognition, setLastRecognition] = useState<ListenResult | null>(null);
 
   // Log of last events
-  const [eventLog, setEventLog] = useState<{ time: string; msg: string; type: "info" | "ok" | "warn" }[]>([]);
+  const [eventLog, setEventLog] = useState<
+    { time: string; msg: string; type: "info" | "ok" | "warn" }[]
+  >([]);
 
   const pushLog = useCallback((msg: string, type: "info" | "ok" | "warn" = "info") => {
-    setEventLog(prev => [
-      { time: new Date().toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit", second: "2-digit" }), msg, type },
+    setEventLog((prev) => [
+      {
+        time: new Date().toLocaleTimeString("de-AT", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+        msg,
+        type,
+      },
       ...prev.slice(0, 19),
     ]);
   }, []);
@@ -170,7 +185,12 @@ export default function Voice() {
     try {
       const res = await voiceTool("get_status");
       setStatus(res.result as VoiceStatus);
-      pushLog(res.result?.device_found ? `Device found: ${res.result.device}` : "Voice module not detected", res.result?.device_found ? "ok" : "warn");
+      pushLog(
+        res.result?.device_found
+          ? `Device found: ${res.result.device}`
+          : "Voice module not detected",
+        res.result?.device_found ? "ok" : "warn",
+      );
     } catch (e) {
       pushLog("Status probe failed — is backend running?", "warn");
     } finally {
@@ -178,7 +198,9 @@ export default function Voice() {
     }
   }, [pushLog]);
 
-  useEffect(() => { refreshStatus(); }, [refreshStatus]);
+  useEffect(() => {
+    refreshStatus();
+  }, [refreshStatus]);
 
   // ── Preset play ─────────────────────────────────────────────────────────────
   const handlePlay = async (phraseId: number, label: string) => {
@@ -186,7 +208,10 @@ export default function Voice() {
     pushLog(`Playing preset #${phraseId}: ${label}`);
     try {
       await voiceTool("play", phraseId);
-      pushLog(`Preset #${phraseId} sent → [0xA5, 0x${phraseId.toString(16).padStart(2,"0").toUpperCase()}, 0x${(~phraseId & 0xFF).toString(16).padStart(2,"0").toUpperCase()}]`, "ok");
+      pushLog(
+        `Preset #${phraseId} sent → [0xA5, 0x${phraseId.toString(16).padStart(2, "0").toUpperCase()}, 0x${(~phraseId & 0xff).toString(16).padStart(2, "0").toUpperCase()}]`,
+        "ok",
+      );
     } catch (e) {
       pushLog(`Play #${phraseId} failed`, "warn");
     } finally {
@@ -241,7 +266,7 @@ export default function Voice() {
       const result = res.result as ListenResult;
       setLastRecognition(result);
       if (result.command_id !== null) {
-        const phrase = PRESET_PHRASES.find(p => p.id === result.command_id);
+        const phrase = PRESET_PHRASES.find((p) => p.id === result.command_id);
         pushLog(`Recognised ID ${result.command_id}${phrase ? ` → ${phrase.label}` : ""}`, "ok");
       } else {
         pushLog("Listen timeout — no event received", "warn");
@@ -253,13 +278,15 @@ export default function Voice() {
     }
   };
 
-  const categories = ["all", ...Array.from(new Set(PRESET_PHRASES.map(p => p.category)))];
-  const filtered = selectedCategory === "all" ? PRESET_PHRASES : PRESET_PHRASES.filter(p => p.category === selectedCategory);
+  const categories = ["all", ...Array.from(new Set(PRESET_PHRASES.map((p) => p.category)))];
+  const filtered =
+    selectedCategory === "all"
+      ? PRESET_PHRASES
+      : PRESET_PHRASES.filter((p) => p.category === selectedCategory);
 
   return (
     <div className="min-h-screen bg-black text-white p-6 md:p-10 font-sans">
       <div className="max-w-[1400px] mx-auto space-y-10">
-
         {/* ── Header ─────────────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-6 flex-wrap">
           <div>
@@ -278,24 +305,27 @@ export default function Voice() {
         <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/15 flex items-start gap-4">
           <AlertTriangle className="w-5 h-5 text-amber-500/70 mt-0.5 flex-shrink-0" />
           <div className="space-y-1">
-            <p className="text-[11px] font-black uppercase tracking-widest text-amber-500/80">Hardware Limitation</p>
+            <p className="text-[11px] font-black uppercase tracking-widest text-amber-500/80">
+              Hardware Limitation
+            </p>
             <p className="text-[11px] text-zinc-500 leading-relaxed">
-              The CSK4002 module has a fixed firmware vocabulary of 85 preset phrases — it cannot synthesise arbitrary text.
-              The <strong className="text-zinc-400">Preset Phrases</strong> panel triggers those presets via binary serial.
-              The <strong className="text-zinc-400">TTS</strong> panel uses espeak-ng on the Pi over ALSA — a separate audio path with no echo cancellation.
-              Upgrade path: <span className="text-indigo-400">Voice Upgrade</span> page (ReSpeaker Lite + Piper TTS).
+              The CSK4002 module has a fixed firmware vocabulary of 85 preset phrases — it cannot
+              synthesise arbitrary text. The{" "}
+              <strong className="text-zinc-400">Preset Phrases</strong> panel triggers those presets
+              via binary serial. The <strong className="text-zinc-400">TTS</strong> panel uses
+              espeak-ng on the Pi over ALSA — a separate audio path with no echo cancellation.
+              Upgrade path: <span className="text-indigo-400">Voice Upgrade</span> page (ReSpeaker
+              Lite + Piper TTS).
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-
           {/* ── Left column: preset phrases ──────────────────────────────────── */}
           <div className="xl:col-span-2 space-y-6">
-
             {/* Category filter */}
             <div className="flex items-center gap-2 flex-wrap">
-              {categories.map(cat => (
+              {categories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
@@ -312,7 +342,7 @@ export default function Voice() {
 
             {/* Phrase grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {filtered.map(phrase => {
+              {filtered.map((phrase) => {
                 const col = CATEGORY_COLORS[phrase.category] ?? "zinc";
                 const isPlaying = playingId === phrase.id;
                 return (
@@ -324,13 +354,15 @@ export default function Voice() {
                     className={`relative overflow-hidden rounded-2xl p-4 text-left border transition-all disabled:opacity-40 ${
                       isPlaying
                         ? `bg-${col}-500/15 border-${col}-500/40`
-                        : `bg-zinc-900/60 border-white/5 hover:bg-zinc-900 hover:border-white/10`
+                        : "bg-zinc-900/60 border-white/5 hover:bg-zinc-900 hover:border-white/10"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-3">
-                      <span className={`text-[9px] font-black uppercase tracking-widest ${
-                        isPlaying ? `text-${col}-400` : "text-zinc-600"
-                      }`}>
+                      <span
+                        className={`text-[9px] font-black uppercase tracking-widest ${
+                          isPlaying ? `text-${col}-400` : "text-zinc-600"
+                        }`}
+                      >
                         #{phrase.id}
                       </span>
                       {isPlaying ? (
@@ -339,10 +371,16 @@ export default function Voice() {
                         <Zap className="w-3.5 h-3.5 text-zinc-700" />
                       )}
                     </div>
-                    <p className="text-[11px] font-bold text-zinc-300 leading-tight">{phrase.label}</p>
-                    <p className={`text-[9px] mt-1 font-medium ${
-                      isPlaying ? `text-${col}-500/70` : "text-zinc-700"
-                    }`}>{phrase.category}</p>
+                    <p className="text-[11px] font-bold text-zinc-300 leading-tight">
+                      {phrase.label}
+                    </p>
+                    <p
+                      className={`text-[9px] mt-1 font-medium ${
+                        isPlaying ? `text-${col}-500/70` : "text-zinc-700"
+                      }`}
+                    >
+                      {phrase.category}
+                    </p>
                     {isPlaying && (
                       <motion.div
                         className={`absolute bottom-0 left-0 h-0.5 bg-${col}-500`}
@@ -357,13 +395,13 @@ export default function Voice() {
             </div>
 
             <p className="text-[9px] text-zinc-700 font-mono px-1">
-              IDs above are firmware estimates. Run the discovery script (VOICE_AUDIO.md §4) to confirm your module's exact mapping.
+              IDs above are firmware estimates. Run the discovery script (VOICE_AUDIO.md §4) to
+              confirm your module's exact mapping.
             </p>
           </div>
 
           {/* ── Right column: controls ──────────────────────────────────────── */}
           <div className="space-y-6">
-
             {/* TTS panel */}
             <div className="rounded-[2rem] bg-zinc-900/40 border border-white/5 p-6 space-y-5">
               <div className="flex items-center gap-3">
@@ -371,7 +409,9 @@ export default function Voice() {
                   <Volume2 className="w-4 h-4 text-purple-500" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-widest text-white">Arbitrary TTS</p>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-white">
+                    Arbitrary TTS
+                  </p>
                   <p className="text-[9px] text-zinc-600 font-mono">espeak-ng → ALSA (no AEC)</p>
                 </div>
               </div>
@@ -380,8 +420,10 @@ export default function Voice() {
                 rows={3}
                 placeholder="Enter text to speak…"
                 value={ttsText}
-                onChange={e => setTtsText(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) handleTts(); }}
+                onChange={(e) => setTtsText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && e.ctrlKey) handleTts();
+                }}
                 className="w-full bg-black/40 border border-white/5 rounded-2xl p-4 text-sm text-white placeholder-zinc-700 resize-none focus:outline-none focus:border-purple-500/30 focus:ring-2 focus:ring-purple-500/10 transition-all font-mono leading-relaxed"
               />
 
@@ -392,12 +434,22 @@ export default function Voice() {
                   ttsResult === "ok"
                     ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
                     : ttsResult === "error"
-                    ? "bg-red-500/20 border-red-500/30 text-red-400"
-                    : "bg-purple-500/10 border-purple-500/20 text-purple-400 hover:bg-purple-500/20 disabled:opacity-30"
+                      ? "bg-red-500/20 border-red-500/30 text-red-400"
+                      : "bg-purple-500/10 border-purple-500/20 text-purple-400 hover:bg-purple-500/20 disabled:opacity-30"
                 }`}
               >
-                {ttsBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                {ttsBusy ? "Speaking…" : ttsResult === "ok" ? "Spoken ✓" : ttsResult === "error" ? "Failed ✗" : "Speak"}
+                {ttsBusy ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                {ttsBusy
+                  ? "Speaking…"
+                  : ttsResult === "ok"
+                    ? "Spoken ✓"
+                    : ttsResult === "error"
+                      ? "Failed ✗"
+                      : "Speak"}
               </button>
             </div>
 
@@ -405,32 +457,53 @@ export default function Voice() {
             <div className="rounded-[2rem] bg-zinc-900/40 border border-white/5 p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  {volume === 0 ? <VolumeX className="w-4 h-4 text-zinc-500" /> : <Volume2 className="w-4 h-4 text-indigo-400" />}
-                  <p className="text-[11px] font-black uppercase tracking-widest text-white">ALSA Volume</p>
+                  {volume === 0 ? (
+                    <VolumeX className="w-4 h-4 text-zinc-500" />
+                  ) : (
+                    <Volume2 className="w-4 h-4 text-indigo-400" />
+                  )}
+                  <p className="text-[11px] font-black uppercase tracking-widest text-white">
+                    ALSA Volume
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {volumeBusy && <Loader2 className="w-3 h-3 animate-spin text-zinc-500" />}
-                  <span className="text-sm font-black text-indigo-400 font-mono w-8 text-right">{volume}</span>
+                  <span className="text-sm font-black text-indigo-400 font-mono w-8 text-right">
+                    {volume}
+                  </span>
                 </div>
               </div>
               <input
-                type="range" min={0} max={100} value={volume}
-                onChange={e => handleVolumeChange(parseInt(e.target.value))}
+                type="range"
+                min={0}
+                max={100}
+                value={volume}
+                onChange={(e) => handleVolumeChange(Number.parseInt(e.target.value))}
                 className="w-full h-1.5 appearance-none rounded-full bg-zinc-800 accent-indigo-500 cursor-pointer"
               />
-              <p className="text-[9px] text-zinc-600">Controls Pi ALSA master. Does not affect module's internal speaker.</p>
+              <p className="text-[9px] text-zinc-600">
+                Controls Pi ALSA master. Does not affect module's internal speaker.
+              </p>
             </div>
 
             {/* Listen panel */}
             <div className="rounded-[2rem] bg-zinc-900/40 border border-white/5 p-6 space-y-4">
               <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                  listening ? "bg-red-500/20" : "bg-indigo-500/10"
-                }`}>
-                  {listening ? <Mic className="w-4 h-4 text-red-400 animate-pulse" /> : <MicOff className="w-4 h-4 text-indigo-400" />}
+                <div
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
+                    listening ? "bg-red-500/20" : "bg-indigo-500/10"
+                  }`}
+                >
+                  {listening ? (
+                    <Mic className="w-4 h-4 text-red-400 animate-pulse" />
+                  ) : (
+                    <MicOff className="w-4 h-4 text-indigo-400" />
+                  )}
                 </div>
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-widest text-white">Recognition Listen</p>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-white">
+                    Recognition Listen
+                  </p>
                   <p className="text-[9px] text-zinc-600 font-mono">5s window · 0xA5 packet</p>
                 </div>
               </div>
@@ -444,7 +517,15 @@ export default function Voice() {
                     : "bg-indigo-500/10 border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20"
                 }`}
               >
-                {listening ? <><Loader2 className="w-4 h-4 animate-spin" /> Listening…</> : <><Radio className="w-4 h-4" /> Listen (5s)</>}
+                {listening ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Listening…
+                  </>
+                ) : (
+                  <>
+                    <Radio className="w-4 h-4" /> Listen (5s)
+                  </>
+                )}
               </button>
 
               <AnimatePresence>
@@ -463,7 +544,8 @@ export default function Voice() {
                       <>
                         <p className="font-black">ID = {lastRecognition.command_id}</p>
                         <p className="text-emerald-500/60 mt-0.5">
-                          {PRESET_PHRASES.find(p => p.id === lastRecognition.command_id)?.label ?? "Unknown phrase"}
+                          {PRESET_PHRASES.find((p) => p.id === lastRecognition.command_id)?.label ??
+                            "Unknown phrase"}
                         </p>
                       </>
                     ) : (
@@ -473,7 +555,6 @@ export default function Voice() {
                 )}
               </AnimatePresence>
             </div>
-
           </div>
         </div>
 
@@ -481,27 +562,30 @@ export default function Voice() {
         <div className="rounded-[2rem] bg-zinc-900/30 border border-white/5 p-6">
           <div className="flex items-center gap-3 mb-4">
             <Cpu className="w-4 h-4 text-zinc-600" />
-            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Event Log</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+              Event Log
+            </p>
           </div>
           <div className="space-y-1 font-mono text-[10px] max-h-40 overflow-y-auto scrollbar-none">
-            {eventLog.length === 0 && (
-              <p className="text-zinc-700">No events yet.</p>
-            )}
+            {eventLog.length === 0 && <p className="text-zinc-700">No events yet.</p>}
             {eventLog.map((e, i) => (
               <div key={i} className="flex items-start gap-3">
                 <span className="text-zinc-700 flex-shrink-0">{e.time}</span>
-                <span className={
-                  e.type === "ok" ? "text-emerald-500/80" :
-                  e.type === "warn" ? "text-amber-500/80" :
-                  "text-zinc-500"
-                }>
+                <span
+                  className={
+                    e.type === "ok"
+                      ? "text-emerald-500/80"
+                      : e.type === "warn"
+                        ? "text-amber-500/80"
+                        : "text-zinc-500"
+                  }
+                >
                   {e.msg}
                 </span>
               </div>
             ))}
           </div>
         </div>
-
       </div>
     </div>
   );

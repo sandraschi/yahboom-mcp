@@ -28,3 +28,7 @@ The Dreame D20 Pro robot hoover is currently integrated inside **robotics-mcp** 
 3. robotics-mcp: remove or thin Dreame-specific logic; keep fleet orchestration and optional “proxy” to dreame-mcp if needed.
 
 No change required to yahboom-mcp except ensuring `DREAME_MAP_URL` points to wherever the Dreame map is served (today: robotics-mcp; later: dreame-mcp).
+
+## ROS 2 on the Pi (Nav2 / Raspbot)
+
+For **Nav2** (not just the MCP HTTP `DREAME_MAP_URL` panel), use the sibling package **`ros2/boomy_dreame_map_bridge`**: it subscribes to nothing; it **GET**s `http://<dreame-mcp-host>:10894/api/v1/map` and publishes `nav_msgs/OccupancyGrid` for a static layer. See that package’s **README.md**. The Raspbot’s own **MS200** `/scan` remains the local obstacle source when you add it; the Dreame floor plan is a separate, manually aligned layer.

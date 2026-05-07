@@ -1,7 +1,7 @@
 import { Gauge, RefreshCw, WifiOff } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { api, isBridgeLiveTelemetry, type SensorsResponse } from "../../lib/api";
+import { type SensorsResponse, api, isBridgeLiveTelemetry } from "../../lib/api";
 
 const POLL_MS = 500;
 
@@ -57,7 +57,7 @@ const SensorsPage: React.FC = () => {
     ? (data.line_sensors as unknown[]).map((v) => {
         if (typeof v === "number" && !Number.isNaN(v)) return v;
         if (typeof v === "string" && v.trim() !== "") {
-          const n = parseInt(v, 10);
+          const n = Number.parseInt(v, 10);
           return Number.isNaN(n) ? null : n;
         }
         return null;

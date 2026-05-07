@@ -47,6 +47,23 @@ logger = logging.getLogger("yahboom-mcp.operations.voice")
 # Baud rate for CSK4002/CI1302 — 115200, not 9600
 _BAUD = int(os.environ.get("YAHBOOM_VOICE_BAUD", "115200"))
 
+# USB audio card for voice module (HW:2,0 = C-Media USB Audio)
+_USB_AUDIO_DEV = os.environ.get("YAHBOOM_USB_AUDIO_DEV", "hw:2,0")
+
+
+async def _play_beep_usb(ssh) -> bool:
+    """Generate and play a beep via USB audio (aplay)."""
+    script = (
+        'python3 -c "import wave,struct,math; '
+        'f=wave.open(\\\"/tmp/beep.wav\\\",\\\"w\\\"); '
+        'f.setnchannels(1); f.setsampwidth(2); f.setframerate(44100); '
+        '[f.writeframes(struct.pack(\\\"<h\\\",int(16000*math.sin(2*math.pi*880*i/44100)))) for i in range(22050)]; '
+        'f.close()" && '
+        f'aplay -D {_USB_AUDIO_DEV} /tmp/beep.wav && echo OK'
+    )
+    out, err, code = await ssh.execute(script)
+    return "OK" in (out or "")
+
 # USB VID:PID pairs for the CH340 and CP2102 USB-UART bridges used on Yahboom
 # voice modules.  Used only for device-discovery scanning.
 _VOICE_USB_IDS = {"1a86:7522", "1a86:7523", "10c4:ea60", "0403:6001"}
@@ -311,10 +328,14 @@ async def execute(
         phrase_id = 1 if operation == "play_beep" else max(1, min(_MAX_PHRASE_ID, int(param1 or 1)))
         device, resolve_note = await _resolve_device(ssh)
         if not device:
+            # Fallback: generate beep via USB audio
+            logger.info("Voice serial not found — using USB audio fallback for beep")
+            ok = await _play_beep_usb(ssh)
             result = {
-                "success": False,
-                "error": resolve_note or "Voice module not found",
-                "hint": "Set up udev symlink /dev/ttyVOICE or set YAHBOOM_VOICE_DEVICE",
+                "success": ok,
+                "status": "played" if ok else "failed",
+                "mode": "usb_audio_fallback",
+                "log": "" if ok else "USB audio beep failed",
             }
         else:
             ps_out, _, _ = await ssh.execute(_check_pyserial_cmd())

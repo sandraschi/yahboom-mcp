@@ -73,7 +73,7 @@ class MissionExecutorNode(Node):
 
         if det_topic:
             self.create_subscription(String, det_topic, self._on_detections_json, 10)
-            self.get_logger().info("Detection JSON subscription on %r", det_topic)
+            self.get_logger().info("Detection JSON subscription on %r" % (det_topic))
 
         self._timer = None
         self._deadline_sec = 0.0
@@ -95,7 +95,7 @@ class MissionExecutorNode(Node):
                     self._nav2_action,
                 )
             except Exception as e:
-                self.get_logger().error("Nav2 requested but nav2_msgs unavailable: %s", e)
+                self.get_logger().error("Nav2 requested but nav2_msgs unavailable: %s" % (e))
                 self._use_nav2 = False
 
         self.get_logger().info(
@@ -109,7 +109,7 @@ class MissionExecutorNode(Node):
         try:
             self._status_pub.publish(String(data=json.dumps(payload, ensure_ascii=False)))
         except Exception as e:
-            self.get_logger().warn("mission status publish failed: %s", e)
+            self.get_logger().warn("mission status publish failed: %s" % (e))
 
     def _stop_motion(self) -> None:
         self._pub.publish(Twist())
@@ -128,7 +128,7 @@ class MissionExecutorNode(Node):
             cancel_future = gh.cancel_goal_async()
             cancel_future.add_done_callback(lambda _f: None)
         except Exception as e:
-            self.get_logger().debug("nav2 cancel: %s", e)
+            self.get_logger().debug("nav2 cancel: %s" % (e))
 
     def _on_detections_json(self, msg: String) -> None:
         if self._phase != "search":
@@ -144,7 +144,7 @@ class MissionExecutorNode(Node):
         if not labels_match_target(labels, self._search_keywords):
             return
 
-        self.get_logger().info("Target match on labels=%s (keywords=%s)", labels, self._search_keywords)
+        self.get_logger().info("Target match on labels=%s (keywords=%s)" % (labels, self._search_keywords))
         self._cancel_timer()
         self._stop_motion()
         self._phase = "idle"
@@ -196,7 +196,7 @@ class MissionExecutorNode(Node):
             try:
                 goal_handle = fut.result()
             except Exception as e:
-                self.get_logger().error("Nav2 send_goal failed: %s", e)
+                self.get_logger().error("Nav2 send_goal failed: %s" % (e))
                 return
             if not goal_handle.accepted:
                 self.get_logger().warn("Nav2 goal rejected")
@@ -211,7 +211,7 @@ class MissionExecutorNode(Node):
                 try:
                     res = rfut.result().result
                 except Exception as ex:
-                    self.get_logger().warn("Nav2 result error: %s", ex)
+                    self.get_logger().warn("Nav2 result error: %s" % (ex))
                     return
                 self.get_logger().info("Nav2 navigation finished")
                 self._publish_status(
@@ -234,7 +234,7 @@ class MissionExecutorNode(Node):
         try:
             plan = json.loads(raw)
         except json.JSONDecodeError as e:
-            self.get_logger().error("Invalid mission JSON: %s", e)
+            self.get_logger().error("Invalid mission JSON: %s" % (e))
             return
 
         behavior = str(plan.get("behavior") or "idle").lower()

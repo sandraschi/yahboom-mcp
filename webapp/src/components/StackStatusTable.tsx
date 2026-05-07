@@ -49,11 +49,13 @@ export default function StackStatusTable({ stack }: { stack: StackOverview }) {
           className="rounded-xl border-2 border-amber-500/85 bg-amber-950/45 px-4 py-3 shadow-[0_0_24px_rgba(245,158,11,0.12)]"
           role="status"
         >
-          <div className="text-xs font-black tracking-widest text-amber-200 uppercase">Restart loop</div>
+          <div className="text-xs font-black tracking-widest text-amber-200 uppercase">
+            Restart loop
+          </div>
           <p className="mt-1.5 text-[11px] text-amber-100/95 leading-relaxed">
             Docker keeps starting this ROS container and it exits immediately each time. Check{" "}
-            <span className="font-mono text-amber-200">docker logs</span> on the Pi for the repeating error. The stack
-            table row below is highlighted.
+            <span className="font-mono text-amber-200">docker logs</span> on the Pi for the
+            repeating error. The stack table row below is highlighted.
           </p>
         </div>
       ) : null}
@@ -88,7 +90,9 @@ export default function StackStatusTable({ stack }: { stack: StackOverview }) {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 font-mono text-[10px] text-slate-400 space-y-1">
-          <div className="text-slate-500 font-bold uppercase tracking-wide mb-2">TCP from this PC</div>
+          <div className="text-slate-500 font-bold uppercase tracking-wide mb-2">
+            TCP from this PC
+          </div>
           <div>
             <span className="text-slate-500">:22</span>{" "}
             {g.tcp_ssh_port_22?.ok ? (
@@ -109,7 +113,9 @@ export default function StackStatusTable({ stack }: { stack: StackOverview }) {
         </div>
 
         <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 font-mono text-[10px] text-slate-400 space-y-1">
-          <div className="text-slate-500 font-bold uppercase tracking-wide mb-2">Pi &amp; Docker</div>
+          <div className="text-slate-500 font-bold uppercase tracking-wide mb-2">
+            Pi &amp; Docker
+          </div>
           <div>
             <span className="text-slate-500">hostname</span> {pi.hostname ?? "—"}
           </div>
@@ -128,7 +134,9 @@ export default function StackStatusTable({ stack }: { stack: StackOverview }) {
           </div>
           <div>
             <span className="text-slate-500">docker systemd</span>{" "}
-            <span className={dk.systemd_active === "active" ? "text-emerald-400" : "text-amber-400"}>
+            <span
+              className={dk.systemd_active === "active" ? "text-emerald-400" : "text-amber-400"}
+            >
               {dk.systemd_active}
             </span>
             {dk.server_version ? (
@@ -140,7 +148,15 @@ export default function StackStatusTable({ stack }: { stack: StackOverview }) {
           </div>
           <div>
             <span className="text-slate-500">container</span> {ctr.name}{" "}
-            <span className={ctr.running ? "text-emerald-400" : restartLoop ? "text-amber-200 font-semibold" : "text-amber-300"}>
+            <span
+              className={
+                ctr.running
+                  ? "text-emerald-400"
+                  : restartLoop
+                    ? "text-amber-200 font-semibold"
+                    : "text-amber-300"
+              }
+            >
               {ctr.docker_state}
             </span>
             {restartLoop ? (
@@ -152,7 +168,9 @@ export default function StackStatusTable({ stack }: { stack: StackOverview }) {
               <>
                 {" "}
                 <span className="text-slate-500">exit</span>{" "}
-                <span className={ctr.exit_code === 137 ? "text-red-400" : "text-slate-300"}>{ctr.exit_code}</span>
+                <span className={ctr.exit_code === 137 ? "text-red-400" : "text-slate-300"}>
+                  {ctr.exit_code}
+                </span>
               </>
             ) : null}
             {ctr.oom_killed ? (
@@ -164,8 +182,10 @@ export default function StackStatusTable({ stack }: { stack: StackOverview }) {
           </div>
           {ctr.alternate_running_container ? (
             <p className="text-amber-300/90 leading-relaxed pt-1">
-              Another container <span className="text-amber-200">{ctr.alternate_running_container}</span> is Up —
-              set <span className="text-slate-300">YAHBOOM_ROS2_CONTAINER</span> if the app is probing the wrong name.
+              Another container{" "}
+              <span className="text-amber-200">{ctr.alternate_running_container}</span> is Up — set{" "}
+              <span className="text-slate-300">YAHBOOM_ROS2_CONTAINER</span> if the app is probing
+              the wrong name.
             </p>
           ) : null}
           {ctr.lifecycle?.label ? (
@@ -176,11 +196,25 @@ export default function StackStatusTable({ stack }: { stack: StackOverview }) {
                   : "mt-2 pt-2 border-t border-slate-800/90 space-y-1"
               }
             >
-              <div className={restartLoop ? "text-amber-500/95 uppercase tracking-wide font-bold" : "text-slate-500 uppercase tracking-wide"}>
+              <div
+                className={
+                  restartLoop
+                    ? "text-amber-500/95 uppercase tracking-wide font-bold"
+                    : "text-slate-500 uppercase tracking-wide"
+                }
+              >
                 Run history{restartLoop ? " · restart loop" : ""}
               </div>
               <div className="text-slate-100 font-medium leading-snug">{ctr.lifecycle.label}</div>
-              <p className={restartLoop ? "text-amber-100/85 leading-relaxed" : "text-slate-400 leading-relaxed"}>{ctr.lifecycle.detail}</p>
+              <p
+                className={
+                  restartLoop
+                    ? "text-amber-100/85 leading-relaxed"
+                    : "text-slate-400 leading-relaxed"
+                }
+              >
+                {ctr.lifecycle.detail}
+              </p>
             </div>
           ) : null}
         </div>
@@ -200,7 +234,9 @@ export default function StackStatusTable({ stack }: { stack: StackOverview }) {
             ) : null}
           </div>
           {ctr.docker_logs_error ? (
-            <p className="text-[10px] text-red-300/95 font-mono leading-relaxed">{ctr.docker_logs_error}</p>
+            <p className="text-[10px] text-red-300/95 font-mono leading-relaxed">
+              {ctr.docker_logs_error}
+            </p>
           ) : null}
           {ctr.docker_logs_preview ? (
             <pre className="text-[9px] text-slate-300 whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto border border-slate-800/90 rounded p-2 bg-black/45">
@@ -250,7 +286,11 @@ export default function StackStatusTable({ stack }: { stack: StackOverview }) {
 
       <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3 font-mono text-[10px] text-slate-400">
         <span className="text-slate-500">rosbridge WebSocket (this app)</span>{" "}
-        <span className={rb.websocket_to_rosbridge === "connected" ? "text-emerald-400" : "text-red-400"}>
+        <span
+          className={
+            rb.websocket_to_rosbridge === "connected" ? "text-emerald-400" : "text-red-400"
+          }
+        >
           {rb.websocket_to_rosbridge}
         </span>
         {" · "}

@@ -11,20 +11,50 @@ _OLED_ADDRS = ["0x3c", "0x3d"]
 
 
 def _build_luma_script(driver: str, address: str, width: int, height: int, body: str) -> str:
-    """Generate a self-contained Python script for luma-based display ops."""
+    """Generate a self-contained Python script using smbus2+PIL instead of luma."""
+    addr_int = int(str(address), 16) if isinstance(address, str) else int(address)
     return f"""
-import sys
+import sys, time
 try:
-    from luma.core.interface.serial import i2c
-    from luma.core.render import canvas
-    from luma.oled.device import {driver}
-    from PIL import ImageFont
+    from PIL import Image, ImageDraw, ImageFont
+    import smbus2
 
-    serial = i2c(port=1, address={address})
-    device = {driver}(serial, width={width}, height={height})
+    addr = {addr_int}
+    bus = smbus2.SMBus(1)
+
+    def _ssd1306_cmd(cmd):
+        bus.write_byte_data(addr, 0x00, cmd)
+
+    def _ssd1306_data(data):
+        for b in data:
+            bus.write_byte_data(addr, 0x40, b)
+
+    def _init():
+        for c in [0xAE,0xD5,0x80,0xA8,0x3F,0xD3,0x00,0x40,0x8D,0x14,0x20,0x00,0xA1,0xC8,0xDA,0x12,0x81,0xCF,0xD9,0xF1,0xDB,0x40,0xA4,0xA6,0x2E,0xAF]:
+            _ssd1306_cmd(c); time.sleep(0.001)
+
+    def _flush(img):
+        for page in range(8):
+            _ssd1306_cmd(0xB0 | page)
+            _ssd1306_cmd(0x00)
+            _ssd1306_cmd(0x10)
+            for x in range({width}):
+                col = 0
+                for y in range(8):
+                    px = img.getpixel((x, page * 8 + y))
+                    if px > 127: col |= (1 << y)
+                _ssd1306_cmd(0x40)
+                bus.write_byte(addr, col)
+
+    _init()
+    img = Image.new("1", ({width}, {height}), 0)
+    draw = ImageDraw.Draw(img)
     font = ImageFont.load_default()
 
     {body}
+
+    _flush(img)
+    bus.close()
     print("VERIFIED")
 except Exception as e:
     print(f"ERROR: {{e}}", file=sys.stderr)
@@ -49,12 +79,12 @@ def _nohup_python3_scroll(script_quoted: str) -> str:
 
 
 def _display_err_with_hint(err: str) -> str:
-    """Append Pi-side install hint when remote Python lacks luma."""
+    """Return error string, stripping known EPS/display noise."""
     if not err:
         return err
     e = err.strip()
-    if "luma" in e.lower() or "No module named" in e:
-        return e + " — On the Pi: pip3 install luma.oled luma.core pillow"
+    if "No module named" in e:
+        return e + " — missing Python library on Pi"
     return e
 
 
@@ -126,7 +156,7 @@ async def execute(
                 probe_addr,
                 width,
                 height,
-                "with canvas(device) as draw: draw.text((0,0), 'OK', fill='white', font=font)",
+                "draw.text((0,0), 'OK', font=font, fill=255)",
             )
             out, _, _code = await ssh.execute(_python3_c_command(__import__("shlex").quote(probe_script)))
             driver_ok = "VERIFIED" in out
@@ -153,7 +183,7 @@ async def execute(
         # Kill any running scroll loop
         await ssh.execute("pkill -f 'display_scroll_loop' 2>/dev/null || true")
         await _maybe_pause_ros_oled(ssh)
-        body = "with canvas(device) as draw: pass  # blank frame"
+        body = "draw.text((0,0), '', font=font, fill=0)  # blank frame"
         script = _build_luma_script(driver, address, width, height, body)
         out, err, _ = await ssh.execute(_python3_c_command(__import__("shlex").quote(script)))
         ok = "VERIFIED" in out
@@ -171,7 +201,7 @@ async def execute(
         y = line * 14  # ~14px per line at default font
         # Escape braces and quotes for embedding in the script body
         safe_text = text.replace("\\", "\\\\").replace('"', '\\"').replace("'", "\\'")
-        body = f'with canvas(device) as draw: draw.text((0, {y}), "{safe_text}", fill="white", font=font)'
+        body = f'draw.text((0, {y}), "{safe_text}", font=font, fill=255)'
         script = _build_luma_script(driver, address, width, height, body)
         out, err, _ = await ssh.execute(_python3_c_command(__import__("shlex").quote(script)))
         ok = "VERIFIED" in out
@@ -199,11 +229,10 @@ try:
 except Exception:
     ip = '?.?.?.?'
 
-with canvas(device) as draw:
-    draw.text((0,  0), f"IP: {ip}",       fill='white', font=font)
-    draw.text((0, 14), f"CPU: {cpu:.0f}%", fill='white', font=font)
-    draw.text((0, 28), f"RAM: {ram:.0f}%", fill='white', font=font)
-    draw.text((0, 42), f"TEMP: {temp:.1f}C", fill='white', font=font)
+draw.text((0,  0), f"IP: {ip}",       font=font, fill=255)
+draw.text((0, 14), f"CPU: {cpu:.0f}%", font=font, fill=255)
+draw.text((0, 28), f"RAM: {ram:.0f}%", font=font, fill=255)
+draw.text((0, 42), f"TEMP: {temp:.1f}C", font=font, fill=255)
 """
         script = _build_luma_script(driver, address, width, height, body)
         out, err, _ = await ssh.execute(_python3_c_command(__import__("shlex").quote(script)))
@@ -223,29 +252,37 @@ with canvas(device) as draw:
         await ssh.execute("pkill -f 'display_scroll_loop' 2>/dev/null || true")
         import shlex
 
+        addr_int = int(str(address), 16) if isinstance(address, str) else int(address)
         scroll_script = f"""
 # display_scroll_loop
 import time, sys
-try:
-    from luma.core.interface.serial import i2c
-    from luma.core.render import canvas
-    from luma.oled.device import {driver}
-    from PIL import ImageFont, ImageDraw, Image
+from PIL import Image, ImageDraw, ImageFont
+import smbus2
 
-    serial = i2c(port=1, address={address})
-    device = {driver}(serial, width={width}, height={height})
-    font = ImageFont.load_default()
-    text = '{safe_text}'
-    x = {width}
-    while True:
-        with canvas(device) as draw:
-            draw.text((x, 25), text, fill='white', font=font)
-        x -= 3
-        if x < -len(text) * 6:
-            x = {width}
-        time.sleep(0.04)
-except Exception as e:
-    print(f'SCROLL ERROR: {{e}}', file=sys.stderr)
+addr = {addr_int}
+bus = smbus2.SMBus(1)
+def _cmd(c): bus.write_byte_data(addr, 0x00, c)
+def _flush(img):
+    for page in range(8):
+        _cmd(0xB0 | page); _cmd(0x00); _cmd(0x10)
+        for x in range({width}):
+            col = 0
+            for y in range(8):
+                if img.getpixel((x, page * 8 + y)) > 127: col |= (1 << y)
+            _cmd(0x40); bus.write_byte(addr, col)
+for c in [0xAE,0xD5,0x80,0xA8,0x3F,0xD3,0x00,0x40,0x8D,0x14,0x20,0x00,0xA1,0xC8,0xDA,0x12,0x81,0xCF,0xD9,0xF1,0xDB,0x40,0xA4,0xA6,0x2E,0xAF]:
+    _cmd(c); time.sleep(0.001)
+font = ImageFont.load_default()
+text = '{safe_text}'
+x = {width}
+while True:
+    img = Image.new("1", ({width}, {height}), 0)
+    draw = ImageDraw.Draw(img)
+    draw.text((x, 25), text, font=font, fill=255)
+    _flush(img)
+    x -= 3
+    if x < -len(text) * 6: x = {width}
+    time.sleep(0.04)
 """
         await ssh.execute(_nohup_python3_scroll(shlex.quote(scroll_script)))
         result = {"success": True, "status": "scrolling", "text": text}

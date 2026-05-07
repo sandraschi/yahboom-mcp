@@ -48,6 +48,7 @@ function Step2SubstrateLink({
         <p className="text-slate-500 text-xs mt-2">Auto-skip in {countdown}s, or skip now.</p>
       </div>
       <button
+        type="button"
         onClick={onSkip}
         className="px-8 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-all"
       >
@@ -154,10 +155,14 @@ const Onboarding: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                <label
+                  htmlFor="onboarding-robot-ip"
+                  className="text-xs font-bold text-slate-500 uppercase tracking-widest"
+                >
                   Robot host / IP
                 </label>
                 <input
+                  id="onboarding-robot-ip"
                   type="text"
                   value={config.robotIp}
                   onChange={(e) => setConfig({ ...config, robotIp: e.target.value })}
@@ -165,10 +170,14 @@ const Onboarding: React.FC = () => {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                <label
+                  htmlFor="onboarding-bridge-port"
+                  className="text-xs font-bold text-slate-500 uppercase tracking-widest"
+                >
                   Bridge Port
                 </label>
                 <input
+                  id="onboarding-bridge-port"
                   type="text"
                   value={config.port}
                   onChange={(e) => setConfig({ ...config, port: e.target.value })}
@@ -194,6 +203,7 @@ const Onboarding: React.FC = () => {
             </div>
 
             <button
+              type="button"
               onClick={() => setStep(2)}
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-indigo-600/20 active:scale-[0.98]"
             >
@@ -226,9 +236,9 @@ const Onboarding: React.FC = () => {
                   { label: "Battery Core", status: "82% - Stable" },
                   { label: "Odom Array", status: "Active" },
                   { label: "LIDAR Path", status: "Link Established" },
-                ].map((item, idx) => (
+                ].map((item) => (
                   <div
-                    key={idx}
+                    key={item.label}
                     className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5"
                   >
                     <span className="text-sm font-medium text-slate-300">{item.label}</span>
@@ -239,7 +249,10 @@ const Onboarding: React.FC = () => {
             </div>
 
             <button
-              onClick={() => (window.location.href = "/")}
+              type="button"
+              onClick={() => {
+                window.location.href = "/";
+              }}
               className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-green-600/20"
             >
               Enter Mission Control

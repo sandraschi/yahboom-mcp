@@ -12,13 +12,29 @@ from typing import Any
 logger = logging.getLogger("yahboom_mcp.testing.mock_bridge")
 
 
+class _MockRosConn:
+    """Minimal stand-in so `bridge.ros.is_connected` matches `bridge.connected`."""
+
+    __slots__ = ("_bridge",)
+
+    def __init__(self, bridge: MockROS2Bridge):
+        self._bridge = bridge
+
+    @property
+    def is_connected(self) -> bool:
+        return self._bridge.connected
+
+
 class MockROS2Bridge:
     """Mirrors the public surface of ROS2Bridge used by tools and FastAPI routes."""
+
+    #: Lifespan skips VideoBridge when True (no roslibpy.Ros).
+    skip_video_bridge = True
 
     def __init__(self, host: str = "127.0.0.1", port: int = 9090):
         self.host = host
         self.port = port
-        self.ros = None  # skip VideoBridge (requires real roslibpy.Ros)
+        self.ros = _MockRosConn(self)
         self.connected = False
         self.cmd_vel_topic: object | None = None
         self.cmd_vel_history: list[dict[str, Any]] = []
@@ -98,11 +114,13 @@ class MockROS2Bridge:
             ["/camera/image_raw", "sensor_msgs/msg/Image"],
         ] + [[f"/mock_topic_{i}", "std_msgs/msg/Header"] for i in range(65)]
 
-    async def publish_servo(self, servo_id: int, angle: int) -> bool:
+    async def publish_servo(self, servo_s1: int, servo_s2: int) -> bool:
+        """Match ROS2Bridge.publish_servo (pan=servo_s1, tilt=servo_s2)."""
         if not self.connected:
             return False
-        angle = max(0, min(180, angle))
-        self.servo_history.append({"id": servo_id, "angle": angle})
+        pan = max(0, min(180, int(servo_s1)))
+        tilt = max(0, min(180, int(servo_s2)))
+        self.servo_history.append({"servo_s1": pan, "servo_s2": tilt})
         return True
 
     async def move(self, linear: float = 0.0, angular: float = 0.0, linear_y: float = 0.0) -> bool:

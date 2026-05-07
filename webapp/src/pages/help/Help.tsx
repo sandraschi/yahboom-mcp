@@ -12,6 +12,7 @@ import {
   Package,
   Play,
   Radio,
+  Target,
   Terminal,
   Wifi,
   Wrench,
@@ -135,6 +136,8 @@ const TABS = [
   { id: "tools", label: "MCP Tools", icon: Cpu },
   { id: "api", label: "REST API", icon: Terminal },
   { id: "connect", label: "Connection", icon: Wifi },
+  { id: "ros", label: "ROS 2", icon: Radio },
+  { id: "missions", label: "Missions", icon: Target },
   { id: "trouble", label: "Troubleshooting", icon: AlertTriangle },
 ];
 
@@ -300,7 +303,7 @@ const TabQuickStart = () => (
     <div className="grid grid-cols-2 gap-4">
       {[
         { label: "MCP Server", url: "http://localhost:10892/docs", icon: Terminal },
-        { label: "Dashboard", url: "http://localhost:10793/", icon: Activity },
+        { label: "Dashboard", url: "http://localhost:10893/", icon: Activity },
       ].map((l) => (
         <a
           key={l.label}
@@ -501,6 +504,127 @@ const TabConnect = () => (
   </div>
 );
 
+const TabRos = () => (
+  <div className="space-y-4">
+    <Accordion title="What is ROS 2?" icon={Radio} color="indigo">
+      <p className="text-sm text-slate-400 leading-relaxed">
+        <strong className="text-slate-300">Robot Operating System 2</strong> (ROS 2) is an open-source middleware framework for robot software development.
+        It provides hardware abstraction, device drivers, message-passing between processes (topics, services, actions), and tools for visualization, debugging, and simulation.
+      </p>
+      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+        <strong className="text-slate-300">Made by:</strong> Open Robotics (now part of the Open Source Robotics Foundation — OSRF). Major industry contributors include Amazon (AWS), Google, Microsoft, Intel, Bosch, and BMW. The core is Apache 2.0 licensed.
+      </p>
+      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+        <strong className="text-slate-300">Versions:</strong> ROS 2 releases follow an annual cycle named after turtles (Humble Hawksbill, Iron Irwini, Rolling Ridley, etc.).
+      </p>
+      <div className="mt-3 space-y-1 text-sm text-slate-400">
+        <p><span className="font-mono text-slate-300">Humble Hawksbill</span> — <strong className="text-emerald-400">We use this</strong>. LTS release (May 2022 — May 2027). ROS 2 Humble on Ubuntu 22.04 (Jammy). Default in Yahboom Raspbot image.</p>
+        <p><span className="font-mono text-slate-300">Iron Irwini</span> — Non-LTS (May 2023 — Nov 2024). Superseded.</p>
+        <p><span className="font-mono text-slate-300">Jazzy Jalisco</span> — LTS (May 2024 — May 2029). Targets Ubuntu 24.04. Would need a newer Pi OS image.</p>
+        <p><span className="font-mono text-slate-300">Kilted Kaiju</span> — Future release (May 2025).</p>
+      </div>
+      <p className="text-sm text-slate-400 leading-relaxed mt-3">
+        <strong className="text-slate-300">Our installation:</strong> ROS 2 Humble inside <span className="font-mono text-slate-300">yahboomtechnology/ros-humble:0.1.0</span> Docker container on Raspberry Pi 5 with Raspberry Pi OS (Debian 12 Bookworm). The container has the full Yahboom workspace (<span className="font-mono text-slate-300">yahboomcar_bringup</span>, <span className="font-mono text-slate-300">yahboomcar_msgs</span>, <span className="font-mono text-slate-300">boomy_mission_executor</span>) and shares the host network stack.
+      </p>
+      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+        Key ROS 2 concepts used:
+        <strong className="text-slate-300"> Nodes</strong> (driver_node, mission_executor, rosbridge_websocket) ← <strong className="text-slate-300"> Topics</strong> (/cmd_vel, /rgblight, /ultrasonic, /boomy/mission) ← <strong className="text-slate-300"> Publishers/Subscribers</strong> ← <strong className="text-slate-300"> DDS</strong> (Fast DDS, the default middleware for Humble).
+      </p>
+    </Accordion>
+    <Accordion title="How does ROS 2 work on Boomy?" icon={Radio} color="indigo">
+      <p className="text-sm text-slate-400 leading-relaxed">
+        ROS 2 Humble runs inside a Docker container (<span className="font-mono text-slate-300">yahboom_ros2_final</span>)
+        on the Raspberry Pi 5. The container uses host networking and has all Yahboom workspace packages installed.
+      </p>
+      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+        <strong className="text-slate-300">Architecture:</strong> MCP Server (PC) → rosbridge_websocket (container, port 9090) → DDS → driver_node (reads I2C sensors, controls motors/servos/lightstrip).
+      </p>
+      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+        The rosbridge runs inside the driver container so it has access to all custom message types (<span className="font-mono text-slate-300">yahboomcar_msgs/ServoControl</span>).
+        Host-level rosbridge was permanently disabled — it didn't have the needed packages.
+      </p>
+    </Accordion>
+    <Accordion title="Which ROS topics exist?" icon={Activity} color="indigo">
+      <div className="text-sm text-slate-400 leading-relaxed space-y-1">
+        <p><span className="font-mono text-slate-300">/cmd_vel</span> — Motion commands (geometry_msgs/Twist)</p>
+        <p><span className="font-mono text-slate-300">/rgblight</span> — RGB lightstrip (std_msgs/Int32MultiArray, 3 bytes: R,G,B)</p>
+        <p><span className="font-mono text-slate-300">/servo</span> — PTZ camera servos (yahboomcar_msgs/ServoControl: servo_s1=pan, servo_s2=tilt)</p>
+        <p><span className="font-mono text-slate-300">/line_sensor</span> — 4-channel IR cliff sensors</p>
+        <p><span className="font-mono text-slate-300">/ultrasonic</span> — Front ultrasonic distance (Float32, cm)</p>
+        <p><span className="font-mono text-slate-300">/buzzer</span> — Buzzer toggle (std_msgs/Bool)</p>
+        <p><span className="font-mono text-slate-300">/boomy/mission</span> — Autonomous mission JSON (std_msgs/String)</p>
+        <p><span className="font-mono text-slate-300">/boomy/mission_status</span> — Mission execution feedback</p>
+        <p><span className="font-mono text-slate-300">/boomy/detections_json</span> — SSD MobileNet vision detections</p>
+      </div>
+    </Accordion>
+    <Accordion title="Why don't IMU and battery work?" icon={AlertTriangle} color="amber">
+      <p className="text-sm text-slate-400 leading-relaxed">
+        The Raspbot V2 Rosmaster STM32 board does NOT expose IMU or battery data through I2C or UART in the factory firmware.
+        A full I2C register scan (0x00-0x3f) found only: motor control, servos, lightstrip, line sensors, and ultrasonic.
+        No IMU (accelerometer/gyroscope) or battery ADC registers exist.
+      </p>
+      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+        <strong className="text-slate-300">To add these:</strong> external I2C hardware — INA219 for battery (~$5) or MPU6050 for IMU (~$8).
+      </p>
+    </Accordion>
+  </div>
+)
+
+const TabMissions = () => (
+  <div className="space-y-4">
+    <Accordion title="What are autonomous missions?" icon={Play} color="indigo">
+      <p className="text-sm text-slate-400 leading-relaxed">
+        Autonomous missions let you send a natural-language goal to the robot. The onboard LLM (Ollama/Gemma3:1b on the Pi)
+        plans the mission, and the mission executor ROS node drives the robot autonomously.
+      </p>
+      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+        <strong className="text-slate-300">Pipeline:</strong> Goal text → Ollama on Pi → structured MissionPlanV1 JSON → ROS /boomy/mission → mission_executor node → /cmd_vel motion.
+        Status published on /boomy/mission_status, vision detections on /boomy/detections_json.
+      </p>
+    </Accordion>
+    <Accordion title="Sample missions" icon={Target} color="indigo">
+      <div className="space-y-3 text-sm text-slate-400">
+        <div>
+          <p className="font-bold text-slate-300">"Patrol in a square"</p>
+          <p>Ollama plans: intent=search, behavior=spin_scan, duration=20s. Robot drives a sinusoidal search pattern, avoiding obstacles.</p>
+        </div>
+        <div>
+          <p className="font-bold text-slate-300">"Spin scan for 5 seconds"</p>
+          <p>Slow rotation while scanning. Obstacle avoidance active (stops & reverses if sonar &lt; 25cm). Reports at completion.</p>
+        </div>
+        <div>
+          <p className="font-bold text-slate-300">"Find a dog"</p>
+          <p>Ollama plans: intent=search, target_description="a dog", behavior=room_search. SSD MobileNet v2 COCO model detects objects.
+          When "dog" matches at &gt;45% confidence, executor stops and reports "Found dog (87%)".</p>
+        </div>
+      </div>
+    </Accordion>
+    <Accordion title="How does obstacle avoidance work?" icon={Activity} color="indigo">
+      <p className="text-sm text-slate-400 leading-relaxed">
+        The mission executor subscribes to <span className="font-mono text-slate-300">/ultrasonic</span> (Float32, cm).
+        If the distance drops below <strong>25cm</strong>, the executor:
+      </p>
+      <ol className="list-decimal list-inside text-sm text-slate-400 mt-2 space-y-1">
+        <li>Reverses for 1.5 seconds</li>
+        <li>Turns for 2 seconds to clear the obstacle</li>
+        <li>Resumes the search pattern</li>
+        <li>Publishes was_blocked=true in mission_status</li>
+      </ol>
+    </Accordion>
+    <Accordion title="Ollama & vision detection" icon={Cpu} color="indigo">
+      <p className="text-sm text-slate-400 leading-relaxed">
+        Missions use <strong>Gemma3:1b</strong> running on the Pi via Ollama (192.168.1.11:11434).
+        The system prompt defines the MissionPlanV1 JSON schema.
+      </p>
+      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+        Vision detection runs a <strong>SSD MobileNet v2 COCO</strong> model (90 classes: dog, person, cat, bowl, chair, bottle, etc.)
+        inside the Docker container. Frames are captured from the raspbot.pyc demo's MJPEG stream (avoiding /dev/video0 contention).
+        Inference runs at ~2 FPS with 45% confidence threshold.
+      </p>
+    </Accordion>
+  </div>
+)
+
 const TabTrouble = () => (
   <div className="space-y-4">
     {[
@@ -582,6 +706,8 @@ const Help = () => {
     tools: <TabTools />,
     api: <TabApi />,
     connect: <TabConnect />,
+    ros: <TabRos />,
+    missions: <TabMissions />,
     trouble: <TabTrouble />,
   };
 

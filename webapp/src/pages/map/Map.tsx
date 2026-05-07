@@ -2,7 +2,7 @@ import { Battery, Compass, MapPin, Trash2, Wifi, WifiOff } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, isBridgeLiveTelemetry, type Telemetry } from "../../lib/api";
+import { type Telemetry, api, isBridgeLiveTelemetry } from "../../lib/api";
 
 const POLL_MS = 800;
 const METRES_PER_PX = 0.015;
