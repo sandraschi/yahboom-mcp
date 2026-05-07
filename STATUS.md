@@ -58,7 +58,7 @@ Natural-language goals → Ollama → structured JSON → ROS execution:
     - **Weight**: 1.0 kg.
     - **Cost**: ~$300 (w/ Pi 5 16GB).
 - **Scaling Path**: **ROSMASTER X3 PLUS** (Jetson Orin NX + LiDAR + 6-DOF Arm) documented in `docs/fleet/`.
-- **Target 2026**: **Noetix Bumi Android** (Autumn Project). Currently in **Virtual Twin** development phase.
+- **Target 2026**: **Noetix Bumi Android** — **Shipping now** from ~10,000 CNY (~€1,300). 98cm / 17kg / 21 DoF. Models from Lite to EDU-Max with NVIDIA Jetson Orin. SDK + open source tools available. Architecture ported to `bumi-mcp`.
 - **Dreame map bridge**: `ros2/boomy_dreame_map_bridge/` package exists but not deployed.
 
 ## 🧠 Services Running in Docker (yahboom_ros2_final)
