@@ -67,24 +67,38 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [wakeWordSeen, setWakeWordSeen] = useState(false);
+  const [wakeWordActive, setWakeWordActive] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [llmResponse, setLlmResponse] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
+  const wakeCommandTimeout = useRef<any>(null);
 
-  // Voice Intelligence Logic — defined before the useEffect that references it
+  // Process a voice command once wake word is active
   const processVoiceCommand = useCallback(async (text: string) => {
     if (!text.trim()) return;
+    // Clear wake if user said "stop" or "cancel" after wake word
+    if (/^(stop|cancel|never mind|that's all)/i.test(text.trim())) {
+      setWakeWordActive(false);
+      setWakeWordSeen(false);
+      setLlmResponse("Boomy standing by.");
+      setTimeout(() => setLlmResponse(null), 3000);
+      return;
+    }
     try {
-      // Pipe text to robot for "chat_and_say" (Gemma 3 on Pi)
       const res = await api.postTool("chat_and_say", text);
       if (res?.result?.response) {
         setLlmResponse(res.result.response);
-        // Clear response after 10 seconds
         setTimeout(() => setLlmResponse(null), 10000);
       }
     } catch (err) {
       console.error("Voice pipe failed:", err);
     }
+  }, []);
+
+  const wakeReArm = useCallback(() => {
+    setWakeWordActive(false);
+    setWakeWordSeen(false);
   }, []);
 
   useEffect(() => {
@@ -104,10 +118,30 @@ export default function Dashboard() {
       }
       setTranscript(current);
 
-      // Final result detected
-      if (event.results[event.results.length - 1].isFinal) {
+      // Check for wake word "Bumi Bumi" (also "boomy boomy" phonetically)
+      if (!wakeWordActive && !wakeWordSeen && /\bb(oo|u)mi\s*b(oo|u)mi\b/i.test(current.toLowerCase())) {
+        setWakeWordSeen(true);
+        setWakeWordActive(true);
+        setLlmResponse("Bumi Bumi? I'm listening!");
+        // Re-arm after 30s of inactivity
+        if (wakeCommandTimeout.current) clearTimeout(wakeCommandTimeout.current);
+        wakeCommandTimeout.current = setTimeout(wakeReArm, 30000);
+      }
+
+      // If wake word is active and a final result comes in — it's a command
+      if (wakeWordActive && event.results[event.results.length - 1].isFinal) {
         const final = event.results[event.results.length - 1][0].transcript;
-        processVoiceCommand(final);
+        // Skip if it's just the wake word
+        const clean = final.replace(/\bb(?:oo|u)mi\s*b(?:oo|u)mi\b/gi, "").trim();
+        if (clean && clean.length > 2) {
+          processVoiceCommand(clean);
+          // Re-arm wake word after command
+          if (wakeCommandTimeout.current) clearTimeout(wakeCommandTimeout.current);
+          wakeCommandTimeout.current = setTimeout(() => {
+            setWakeWordActive(false);
+            setWakeWordSeen(false);
+          }, 60000);
+        }
       }
     };
 
@@ -116,7 +150,7 @@ export default function Dashboard() {
     };
 
     recognitionRef.current = recognition;
-  }, [isListening, processVoiceCommand]);
+  }, [isListening, wakeWordActive, wakeWordSeen, processVoiceCommand, wakeReArm]);
 
   const toggleListening = () => {
     if (isListening) {
@@ -742,15 +776,27 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div
-                    className={`w-2 h-2 rounded-full ${isListening ? "bg-red-500 animate-ping" : "bg-slate-700"}`}
+                    className={`w-2 h-2 rounded-full ${isListening ? (wakeWordActive ? "bg-emerald-500 animate-ping" : "bg-red-500 animate-ping") : "bg-slate-700"}`}
                   />
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
-                    {isListening ? "Listening" : "Ready"}
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">
+                    {isListening ? (wakeWordActive ? "Awake" : "Listening") : "Ready"}
                   </span>
                 </div>
               </div>
 
               <div className="space-y-4">
+                {/* Wake word hint */}
+                {!isListening && (
+                  <div className="text-center py-2 bg-indigo-500/5 border border-indigo-500/20 rounded-2xl text-xs text-indigo-300">
+                    Say <strong>"Bumi Bumi"</strong> to wake
+                  </div>
+                )}
+                {isListening && wakeWordActive && (
+                  <div className="text-center py-2 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl text-xs text-emerald-300">
+                    Awake — speak a command, or say <strong>"stop"</strong> to dismiss
+                  </div>
+                )}
+
                 {/* Transcription Log */}
                 <div className="h-20 bg-black/40 rounded-2xl border border-white/5 p-3 overflow-y-auto overflow-x-hidden scrollbar-hide">
                   <AnimatePresence mode="wait">
@@ -790,8 +836,8 @@ export default function Dashboard() {
                     } disabled:opacity-30`}
                   >
                     <Volume2 className={isListening ? "animate-pulse" : ""} />
-                    <span className="text-[9px] font-black uppercase tracking-widest">
-                      {isListening ? "Stop" : "Talk To Boomy"}
+                    <span className="text-xs font-black uppercase tracking-widest">
+                      {isListening ? "Stop" : wakeWordActive ? "Awake" : "Talk To Boomy"}
                     </span>
                   </button>
 

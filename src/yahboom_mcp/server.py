@@ -51,7 +51,7 @@ class EndpointFilter(logging.Filter):
         "/api/v1/telemetry",
         "/api/v1/health",
         "/api/v1/sensors",
-        # Diagnostics hub polls these every 5s (see webapp Diagnostics.tsx)
+        "/api/system/stats",
         "/api/v1/diagnostics/ros/topics",
         "/api/v1/diagnostics/stack",
     )

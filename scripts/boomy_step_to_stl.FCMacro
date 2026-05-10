@@ -1,0 +1,36 @@
+"""FreeCAD macro: export all bodies from current document as STL.
+Usage: Open STEP file in FreeCAD GUI, then Macros → Execute this macro.
+"""
+import FreeCAD, Mesh, os, re
+
+OUT = os.path.expanduser(r"~\Desktop\boomy_stls")
+os.makedirs(OUT, exist_ok=True)
+
+doc = FreeCAD.ActiveDocument
+if not doc:
+    raise Exception("No active document — open the STEP file first.")
+
+name_fn = lambda n: re.sub(r'[^a-zA-Z0-9_-]', '_', n).strip('_')[:50]
+
+for i, obj in enumerate(doc.Objects):
+    base = name_fn(obj.Label or f"part_{i:02d}")
+    path = os.path.join(OUT, f"boomy_{i:02d}_{base}.stl")
+    try:
+        # Handle parts, bodies, and assemblies recursively
+        def export_all(shape, export_list):
+            if hasattr(shape, 'Shape') and shape.Shape and shape.Shape.Solids:
+                export_list.append(shape)
+            if hasattr(shape, 'Group'):
+                for child in shape.Group:
+                    export_all(child, export_list)
+        targets = []
+        export_all(obj, targets)
+        for t in targets:
+            p = os.path.join(OUT, f"boomy_{i:02d}_{base}.stl")
+            Mesh.export([t], p)
+            sz = os.path.getsize(p) / 1024
+            FreeCAD.Console.PrintMessage(f"  {os.path.basename(p)} — {sz:.0f} KB\n")
+    except Exception as e:
+        FreeCAD.Console.PrintWarning(f"  {base}: {e}\n")
+
+FreeCAD.Console.PrintMessage(f"\nDone. STLs in {OUT}\n")
