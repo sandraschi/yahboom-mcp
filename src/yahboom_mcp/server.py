@@ -1156,6 +1156,43 @@ async def legacy_voice_say(req: VoiceRequest):
     return await speak(req)
 
 
+# ── Tapo two-way audio ────────────────────────────────────────────────────────
+
+
+class TapoListenRequest(BaseModel):
+    duration_sec: int = 5
+    language: str = "en"
+
+
+class TapoSpeakRequest(BaseModel):
+    text: str
+    volume: int = 80
+
+
+@app.post("/api/v1/tapo/audio/listen")
+async def tapo_audio_listen(req: TapoListenRequest):
+    """Capture audio from Tapo's RTSP mic and transcribe via faster-whisper."""
+    from .operations import tapo_audio
+
+    return await tapo_audio.listen(duration_sec=req.duration_sec, language=req.language)
+
+
+@app.post("/api/v1/tapo/audio/speak")
+async def tapo_audio_speak(req: TapoSpeakRequest):
+    """Convert text to speech and play through Pi audio output."""
+    from .operations import tapo_audio
+
+    return await tapo_audio.speak(text=req.text, volume=req.volume)
+
+
+@app.get("/api/v1/tapo/audio/status")
+async def tapo_audio_status():
+    """Check Tapo camera connectivity and audio capabilities."""
+    from .operations import tapo_audio
+
+    return await tapo_audio.status()
+
+
 class LEDRequest(BaseModel):
     r: int
     g: int
