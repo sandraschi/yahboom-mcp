@@ -504,4 +504,9 @@ export const api = {
         speak: body.speak ?? false,
       }),
     }),
+  tapoSpeak: (text: string) =>
+    request<{ success: boolean }>("/api/v1/tapo/audio/speak", { method: "POST", body: JSON.stringify({ text }) }),
+  tapoListen: (durationSec = 5) =>
+    request<{ success: boolean; text: string }>("/api/v1/tapo/audio/listen", { method: "POST", body: JSON.stringify({ duration_sec: durationSec }) }),
+  tapoStatus: () => request<{ success: boolean; connected: boolean }>("/api/v1/tapo/audio/status"),
 };

@@ -72,6 +72,21 @@ export default function Dashboard() {
   const [transcript, setTranscript] = useState("");
   const [llmResponse, setLlmResponse] = useState<string | null>(null);
   const [headlight, setHeadlight] = useState(false);
+  const [tapoSpeakText, setTapoSpeakText] = useState("");
+  const [tapoListening, setTapoListening] = useState(false);
+  const [tapoTranscript, setTapoTranscript] = useState("");
+  const tapoSend = useCallback(async () => {
+    if (!tapoSpeakText.trim()) return;
+    await api.tapoSpeak(tapoSpeakText);
+    setTapoSpeakText("");
+  }, [tapoSpeakText]);
+  const tapoListen = useCallback(async () => {
+    setTapoListening(true);
+    setTapoTranscript("");
+    const r = await api.tapoListen(5);
+    if (r?.text) setTapoTranscript(r.text);
+    setTapoListening(false);
+  }, []);
   const recognitionRef = useRef<any>(null);
   const wakeCommandTimeout = useRef<any>(null);
 
@@ -744,6 +759,33 @@ export default function Dashboard() {
                   <div className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform ${headlight ? "translate-x-6" : "translate-x-0.5"}`} />
                 </button>
               </div>
+            </div>
+
+            {/* Tapo Audio */}
+            <div className="bg-[#0f0f12]/80 border border-white/5 rounded-3xl p-6 backdrop-blur-xl shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Radio className="text-cyan-500 w-5 h-5" />
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    Tapo Audio
+                  </h3>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={tapoSpeakText}
+                  onChange={(e) => setTapoSpeakText(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && tapoSend()}
+                  placeholder="Type to speak..."
+                  className="flex-1 px-3 py-1.5 bg-slate-800 border border-white/10 rounded-lg text-[11px] text-slate-300 placeholder-slate-600 focus:outline-none focus:border-cyan-500/50"
+                />
+                <button onClick={tapoSend} className="px-3 py-1.5 bg-cyan-500/20 border border-cyan-500/30 rounded-lg text-[10px] font-bold text-cyan-400 hover:bg-cyan-500/40 transition-all">Speak</button>
+                <button onClick={tapoListen} disabled={tapoListening} className="px-3 py-1.5 bg-purple-500/20 border border-purple-500/30 rounded-lg text-[10px] font-bold text-purple-400 hover:bg-purple-500/40 transition-all disabled:opacity-50">
+                  {tapoListening ? "Listening..." : "Listen"}
+                </button>
+              </div>
+              {tapoTranscript && <p className="text-[10px] text-slate-400 mt-2">"{tapoTranscript}"</p>}
             </div>
 
             {/* Keyboard visual mockup (Simplified) */}
