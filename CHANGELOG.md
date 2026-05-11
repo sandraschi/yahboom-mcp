@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.2] - 2026-05-11
+
+### 🤖 Container Hygiene & Bringup
+- **Rosbridge unification**: Installed `ros-humble-rosbridge-server` inside `yahboom_ros2_final` so rosbridge and driver nodes run in the **same container**. This fixed the "Telemetry Blackout" — rosbridge DDS subscriptions cannot receive data when rosbridge and driver are in separate containers (sidecar pattern). 22+ ROS nodes now all visible in one graph.
+- **Systemd service restored**: Renamed `/etc/systemd/system/yahboom-robot.service` back from `.disabled`. Updated `/usr/local/bin/yahboom-launch.sh` wrapper to target `yahboom_ros2_final` container. Service now survives reboots correctly.
+- **DNS fixed**: Set `nameserver 8.8.8.8` on Pi host. Ethernet connection (192.168.0.250) provides reliable apt access.
+- **Container cleanup**: Pruned dead containers (`yahboom_dead_*`, `yahboom_broken_*`), removed unused images (`ros:humble-ros-base`, `microros/micro-ros-agent`).
+
+### 📸 Camera Pipeline
+- **Camera publisher**: Created `/camera_publisher.py` in the container — publishes compressed JPEG frames to `/image_raw/compressed` via `rclpy`.
+- **SSH-based snapshot fallback**: `/api/v1/snapshot` now uses direct OpenCV capture over SSH when VideoBridge has no frames. Returns 200 OK with JPEG from the robot's camera.
+- **VideoBridge topic default**: Changed from `/image_raw/compressed` to `/image_raw` (handles raw sensor_msgs/Image with YUYV→BGR fallback). Then reverted to compressed when SSH fallback proved more reliable.
+- **Raspbot demo on port 6001**: Identified that host raspbot process holds `/dev/video0`, preventing container access. Camera works when host process is killed.
+
+### 🕹️ PTZ Camera — Demo Mode
+- **`camera_set_pos` operation** added to portmanteau — absolute pan/tilt positioning (0–180°).
+- **`camera_move` operation** added to portmanteau — directional step movement.
+- **PTZ Demo button** in Dashboard — sweeps camera through a geometric pattern covering the full 180° range in both axes (16-point path including all four corners).
+- Updated `portmanteau.py` to route `camera_set_pos` and `camera_move` to `camera_ptz` operations.
+
+### 💡 GPIO & LED Headlight
+- **`GET /api/v1/gpio`** — returns pin states for headlight (GPIO 17), led1 (GPIO 23), led2 (GPIO 24).
+- **`POST /api/v1/gpio`** — sets GPIO pin via sysfs (`/sys/class/gpio/gpio{pin}/value`) over SSH. Auto-exports and configures direction on first use.
+- **Headlight toggle** in Dashboard — amber toggle switch with glow effect. Calls `api.gpioSet()`.
+- Added `gpioSet()` and `gpioStatus()` to frontend API client.
+
+### 🤖 AI & Autonomy (in the works)
+- **Ollama confirmed**: Gemma 3 1B (778MB) running at `192.168.1.11:11434`. Pi has 15GB RAM (13GB available).
+- **LLM model configured**: `gemma3:1b` set as default for autonomous mission planning via `PUT /api/v1/settings/llm`.
+- **Gemma 4 (released 2026-04-02)**: Not yet available on Ollama's model registry. E2B (2B) and E4B (4B) variants would fit the Pi's 15GB RAM and provide native multimodal (text + image + audio) capabilities for optical recognition tasks. Awaiting Ollama availability.
+- **Pi disk bottleneck**: SD card 95% full (2.2GB free on 46GB). Larger multimodal models like `llava:7b` (3.8GB) won't fit without storage expansion.
+
+### 🔧 Exec Endpoint & Diagnostics
+- **`/api/v1/diagnostics/exec`**: Confirmed working — truncation was client-side PowerShell formatting issue. Using `ConvertTo-Json` shows full multi-line output with proper `\n` escaping.
+- **`/api/v1/diagnostics/ros/restart`**: Triggers `docker exec yahboom_ros2_final ... ros2 launch yahboomcar_bringup` with 10s stability delay.
+
+### 🗄️ Backup & Recovery
+- **Docker commit**: `yahboom_ros2_final:backup-20260511` saved on Pi (337 ROS packages + rosbridge-server).
+- **Container export**: 2.05GB `backup_20260511.tar.gz` on dev machine at `D:\Dev\repos\yahboom-mcp\`.
+- **Config backup**: Systemd service, launch wrapper, and restore script saved in `/home/pi/backup_20260511/`.
+- **Restore procedure**: `docker import backup_20260511.tar.gz` + copy systemd files + `systemctl daemon-reload && systemctl enable --now yahboom-robot.service`.
+
+### 📚 Documentation
+- **STATUS.md**: Updated with current container architecture, port assignment, and known limitations.
+- **CHANGELOG.md**: This entry — documenting the container hygiene overhaul and camera/GPIO features.
+- **MCD project page**: Updated ports, version, FastMCP tier, and container architecture description.
+
 ## [2.4.1] - 2026-05-07
 
 ### 🐛 Critical Fix: rosbridge host vs container

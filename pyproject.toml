@@ -89,3 +89,10 @@ ignore = ["S101", "B008", "S108", "S110", "S311", "RUF001", "RUF002", "RUF003"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.1.0",
+]

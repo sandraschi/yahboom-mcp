@@ -91,7 +91,7 @@ async def yahboom_tool(
             # LED expects 3 params (r, g, b) inside execute.
             p3 = param3 if param3 is not None else (payload.get("b") if payload else 0)
             return await lightstrip.execute(ctx, sub_op, param1, param2, p3)
-        elif op_lower in ["camera_up", "camera_down", "camera_left", "camera_right", "camera_reset"]:
+        elif op_lower in ["camera_up", "camera_down", "camera_left", "camera_right", "camera_reset", "camera_set_pos", "camera_move"]:
             from .operations import camera_ptz
 
             bridge = _state.get("bridge")
@@ -99,6 +99,14 @@ async def yahboom_tool(
 
             if op_lower == "camera_reset":
                 return await camera_ptz.camera_reset(bridge, ssh_bridge=ssh)
+            if op_lower == "camera_set_pos":
+                pan = int(param1) if param1 else 90
+                tilt = int(param2) if param2 else 90
+                return await camera_ptz.camera_set_pos(bridge, pan, tilt, ssh_bridge=ssh)
+            if op_lower == "camera_move":
+                direction = str(param1) if param1 else "up"
+                step = int(param2) if param2 else 15
+                return await camera_ptz.camera_move(bridge, direction, step=step, ssh_bridge=ssh)
 
             direction = op_lower.replace("camera_", "")
             step = int(param1) if param1 else 15

@@ -71,6 +71,7 @@ export default function Dashboard() {
   const [wakeWordActive, setWakeWordActive] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [llmResponse, setLlmResponse] = useState<string | null>(null);
+  const [headlight, setHeadlight] = useState(false);
   const recognitionRef = useRef<any>(null);
   const wakeCommandTimeout = useRef<any>(null);
 
@@ -161,6 +162,20 @@ export default function Dashboard() {
       setLlmResponse(null);
       recognitionRef.current?.start();
       setIsListening(true);
+    }
+  };
+
+  const runPTZDemo = async () => {
+    const pattern: [number, number][] = [
+      [0, 0], [45, 0], [90, 0], [135, 0], [180, 0],
+      [180, 45], [180, 90], [180, 135], [180, 180],
+      [135, 180], [90, 180], [45, 180], [0, 180],
+      [0, 135], [0, 90], [0, 45],
+      [90, 90],
+    ];
+    for (const [pan, tilt] of pattern) {
+      await api.postTool("camera_set_pos", pan, tilt);
+      await new Promise((r) => setTimeout(r, 200));
     }
   };
 
@@ -647,13 +662,22 @@ export default function Dashboard() {
                     Camera PTZ
                   </h3>
                 </div>
-                <button
-                  onClick={() => api.postTool("camera_reset")}
-                  className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-white transition-all"
-                  title="Center Camera"
-                >
-                  Center
-                </button>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => api.postTool("camera_reset")}
+                    className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-white transition-all"
+                    title="Center Camera"
+                  >
+                    Center
+                  </button>
+                  <button
+                    onClick={runPTZDemo}
+                    className="px-3 py-1 bg-cyan-500/20 border border-cyan-500/30 rounded-lg text-[10px] font-bold text-cyan-400 uppercase tracking-widest hover:bg-cyan-500/40 transition-all"
+                    title="Sweep camera through geometric pattern"
+                  >
+                    Demo
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2 max-w-[140px] mx-auto">
@@ -699,6 +723,27 @@ export default function Dashboard() {
               <p className="text-[10px] text-slate-600 text-center mt-4 uppercase tracking-tighter">
                 Pan: ID 1 | Tilt: ID 2
               </p>
+            </div>
+
+            {/* GPIO Headlight */}
+            <div className="bg-[#0f0f12]/80 border border-white/5 rounded-3xl p-6 backdrop-blur-xl shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Zap className="text-amber-500 w-5 h-5" />
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    GPIO
+                  </h3>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-slate-300">Headlight LED</span>
+                <button
+                  onClick={() => { const nv = !headlight; setHeadlight(nv); api.gpioSet("headlight", nv) }}
+                  className={`w-12 h-6 rounded-full transition-all ${headlight ? "bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5)]" : "bg-slate-700"}`}
+                >
+                  <div className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform ${headlight ? "translate-x-6" : "translate-x-0.5"}`} />
+                </button>
+              </div>
             </div>
 
             {/* Keyboard visual mockup (Simplified) */}

@@ -471,6 +471,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ duration }),
     }),
+  gpioSet: (pin: string, value: boolean) =>
+    request<{ success: boolean }>("/api/v1/gpio", {
+      method: "POST",
+      body: JSON.stringify({ pin, value }),
+    }),
+  gpioStatus: () => request<{ success: boolean; pins: Record<string, boolean> }>("/api/v1/gpio"),
   getDiagLogs: (lines = 80) =>
     request<{ success: boolean; logs: string }>(`/api/v1/diagnostics/logs?lines=${lines}`),
   getDiagStack: () => request<DiagStackResponse>("/api/v1/diagnostics/stack"),

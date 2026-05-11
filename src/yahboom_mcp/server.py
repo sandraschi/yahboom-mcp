@@ -793,13 +793,83 @@ async def video_feed():
 async def snapshot():
     """Single JPEG frame for embodied AI / VLM. Returns 204 if no frame yet."""
     video_bridge = _state.get("video_bridge")
-    if not video_bridge or not video_bridge.active:
-        return Response(status_code=204)
+    if video_bridge and video_bridge.active:
+        jpeg = video_bridge.get_latest_frame_jpeg()
+        if jpeg:
+            return Response(content=jpeg, media_type="image/jpeg")
+    # Fallback: capture frame via SSH from container
+    ssh = _state.get("ssh")
+    if ssh and ssh.connected:
+        try:
+            import base64
+            cmd = (
+                "docker exec yahboom_ros2_final python3 -c \""
+                "import cv2; c=cv2.VideoCapture(0); "
+                "c.set(cv2.CAP_PROP_FRAME_WIDTH,640); c.set(cv2.CAP_PROP_FRAME_HEIGHT,480); "
+                "ret,f=c.read(); "
+                "print(cv2.imencode('.jpg',f,[cv2.IMWRITE_JPEG_QUALITY,75])[1].tobytes().hex()) if ret else print('NOFRAME'); "
+                "c.release()\""
+            )
+            stdout, _, rc = await ssh.execute(cmd)
+            if rc == 0 and stdout and stdout != "NOFRAME":
+                jpeg = bytes.fromhex(stdout.strip())
+                if jpeg:
+                    return Response(content=jpeg, media_type="image/jpeg")
+        except Exception:
+            pass
+    return Response(status_code=204)
 
-    jpeg = video_bridge.get_latest_frame_jpeg()
-    if not jpeg:
-        return Response(status_code=204)
-    return Response(content=jpeg, media_type="image/jpeg")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GPIO endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+_GPIO_PINS = {
+    "headlight": 17,  # GPIO 17 for LED headlight
+    "led1": 23,       # GPIO 23 for additional LED
+    "led2": 24,       # GPIO 24 for additional LED
+}
+
+_gpio_state: dict[str, bool] = {pin: False for pin in _GPIO_PINS}
+
+
+async def _set_gpio(pin_name: str, value: bool) -> dict:
+    pin = _GPIO_PINS.get(pin_name)
+    if pin is None:
+        return {"success": False, "error": f"Unknown GPIO pin: {pin_name}"}
+    ssh = _state.get("ssh")
+    if not ssh or not ssh.connected:
+        return {"success": False, "error": "SSH not connected"}
+    try:
+        val = "1" if value else "0"
+        cmd = (
+            f"if [ ! -d /sys/class/gpio/gpio{pin} ]; then "
+            f"echo {pin} > /sys/class/gpio/export 2>/dev/null; sleep 0.1; "
+            f"echo out > /sys/class/gpio/gpio{pin}/direction 2>/dev/null; fi; "
+            f"echo {val} > /sys/class/gpio/gpio{pin}/value"
+        )
+        await ssh.execute(cmd)
+        _gpio_state[pin_name] = value
+        return {"success": True, "pin": pin_name, "gpio": pin, "value": value}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+class GpioRequest(BaseModel):
+    pin: str
+    value: bool
+
+
+@app.post("/api/v1/gpio")
+async def gpio_set(req: GpioRequest):
+    """Set a GPIO pin on the Raspberry Pi (e.g. headlight LED)."""
+    return await _set_gpio(req.pin, req.value)
+
+
+@app.get("/api/v1/gpio")
+async def gpio_status():
+    """Get all GPIO pin states."""
+    return {"success": True, "pins": dict(_gpio_state), "available": list(_GPIO_PINS.keys())}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
