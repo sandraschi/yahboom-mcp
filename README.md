@@ -1,19 +1,41 @@
-# Yahboom Raspbot v2 (Boomy) - MCP Server, Webapp & Documentation
+# Yahboom Raspbot v2 (Boomy) — MCP Server, Webapp & Documentation
 
-[![FastMCP Version](https://img.shields.io/badge/FastMCP-3.2.0-blue?style=flat-square&logo=python&logoColor=white)](https://github.com/sandraschi/fastmcp)
+<p align="center">
+  <a href="https://github.com/casey/just"><img src="https://img.shields.io/badge/just-ready_to_go-7c5cfc?style=flat-square&logo=just&logoColor=white" alt="Just"></a>
+  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
+  <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.13+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
+  <a href="https://biomejs.dev"><img src="https://img.shields.io/badge/Linted_with-Biome-60a5fa?style=flat-square&logo=biome&logoColor=white" alt="Biome"></a>
+  <a href="https://github.com/PrefectHQ/fastmcp"><img src="https://img.shields.io/badge/FastMCP-3.2-7c5cfc?style=flat-square" alt="FastMCP"></a>
+</p>
+
+[![CI](https://github.com/sandraschi/yahboom-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/sandraschi/yahboom-mcp/actions/workflows/ci.yml)
+[![FastMCP 3.2](https://img.shields.io/badge/FastMCP-3.2.0-6366f1?style=flat-square&logo=python&logoColor=white)](https://github.com/jlowin/fastmcp)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![ROS 2 Humble](https://img.shields.io/badge/ROS_2-Humble-22314E?style=flat-square&logo=ros&logoColor=white)](https://docs.ros.org/en/humble/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Linted with Biome](https://img.shields.io/badge/Linted_with-Biome-60a5fa?style=flat-square&logo=biome&logoColor=white)](https://biomejs.dev/)
-[![Built with Just](https://img.shields.io/badge/Built_with-Just-000000?style=flat-square&logo=gnu-bash&logoColor=white)](https://github.com/casey/just)
-[![GitHub stars](https://img.shields.io/github/stars/sandraschi/yahboom-mcp?style=flat-square&logo=github&logoColor=white)](https://github.com/sandraschi/yahboom-mcp/stargazers)
-[![GitHub last commit](https://img.shields.io/github/last-commit/sandraschi/yahboom-mcp?style=flat-square&logo=github&logoColor=white)](https://github.com/sandraschi/yahboom-mcp/commits/master)
-[![Python version](https://img.shields.io/badge/python-3.12%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/)
-[![ROS 2](https://img.shields.io/badge/ROS_2-Humble-22314E?style=flat-square&logo=ros&logoColor=white)](https://docs.ros.org/en/humble/)
-[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
-[![Open issues](https://img.shields.io/github/issues/sandraschi/yahboom-mcp?style=flat-square&logo=github&logoColor=white)](https://github.com/sandraschi/yahboom-mcp/issues)
-[![Tests](https://img.shields.io/badge/tests-92%20passing-brightgreen?style=flat-square&logo=pytest&logoColor=white)](https://github.com/sandraschi/yahboom-mcp/actions)
-[![Ollama](https://img.shields.io/badge/Ollama-Gemma3:1b-5a5aff?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJzNC40OCAxMCAxMCAxMCAxMC00LjQ4IDEwLTEwUzE3LjUyIDIgMTIgMnptMCAxOGMtNC40MSAwLTgtMy41OS04LThzMy41OS04IDgtOCA4IDMuNTkgOCA4LTMuNTkgOC04IDh6IiBmaWxsPSIjNWE1YWZmIi8+PC9zdmc+)](https://ollama.ai/)
+[![Biome](https://img.shields.io/badge/linted-Biome-60a5fa?style=flat-square&logo=biome&logoColor=white)](https://biomejs.dev/)
+[![License](https://img.shields.io/github/license/sandraschi/yahboom-mcp?style=flat-square)](https://github.com/sandraschi/yahboom-mcp/blob/main/LICENSE)
+[![Stars](https://img.shields.io/github/stars/sandraschi/yahboom-mcp?style=flat-square&logo=github)](https://github.com/sandraschi/yahboom-mcp/stargazers)
+[![Last commit](https://img.shields.io/github/last-commit/sandraschi/yahboom-mcp?style=flat-square)](https://github.com/sandraschi/yahboom-mcp/commits/main)
+[![Ollama](https://img.shields.io/badge/Ollama-ready-5a5aff?style=flat-square&logo=ollama)](https://ollama.com/)
+[![LM Studio](https://img.shields.io/badge/LM_Studio-ready-8b5cf6?style=flat-square)](https://lmstudio.ai/)
+[![Topics](https://img.shields.io/badge/topics-robot%20%7C%20autonomous%20%7C%20lidar%20%7C%20agentic_ai-f97316?style=flat-square)](https://github.com/sandraschi/yahboom-mcp)
 
 ![Boomy Hero Shot](assets/boomy_hero.png)
+
+## Quick Start
+
+```powershell
+git clone https://github.com/sandraschi/yahboom-mcp
+cd yahboom-mcp
+just
+```
+
+This opens an interactive dashboard showing all available commands. Run `just bootstrap` to install dependencies, then `just serve` or `just dev` to start.
+
+### Manual Setup
+
+If you don't have `just` installed:
 
 ## Overview
 
@@ -83,10 +105,10 @@ This project clearly distinguishes between human-operable controls and machine-o
 
 ## 🛡️ Industrial Quality Stack
 
-This project adheres to **SOTA 14.1** industrial standards for high-fidelity agentic orchestration:
+This project adheres to **SOTA 2026** industrial standards for high-fidelity agentic orchestration:
 
 - **Python (Core)**: [Ruff](https://astral.sh/ruff) for linting and formatting. Zero-tolerance for `print` statements in core handlers (`T201`).
-- **Webapp (UI)**: [Biome](https://biomejs.dev/) for sub-millisecond linting. Strict `noConsoleLog` enforcement.
-- **Protocol Compliance**: Hardened `stdout/stderr` isolation to ensure crash-resistant JSON-RPC communication.
+- **Webapp (UI)**: [Biome](https://biomejs.dev/) for sub-millisecond linting.
+- **MCP**: [FastMCP 3.2](https://github.com/jlowin/fastmcp) with Unified Gateway, portmanteau tools, skills, and agentic sampling.
+- **LLM Providers**: Auto-discovery of [Ollama](https://ollama.com/) (`:11434`) and [LM Studio](https://lmstudio.ai/) (`:1234`). GPU metrics via nvidia-smi.
 - **Automation**: [Justfile](./justfile) recipes for all fleet operations (`just lint`, `just fix`, `just dev`).
-- **Security**: Automated audits via `bandit` and `safety`.

@@ -47,6 +47,9 @@ robot-pi = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[project.scripts]
+yahboom-mcp = "yahboom_mcp:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/yahboom_mcp"]
 

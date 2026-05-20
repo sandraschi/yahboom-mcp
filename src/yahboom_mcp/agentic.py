@@ -75,10 +75,15 @@ async def yahboom_agentic_workflow(
     ctx: Context,
 ) -> str:
     """
-    Achieve a high-level robot goal by planning and executing a sequence of operations (SEP-1577). Uses get_robot_health, move_robot, read_sensors as sub-tools.
+    Achieve a high-level robot goal by planning and executing a sequence of operations (SEP-1577).
+    Uses ctx.sample() so the LLM can call get_robot_health, move_robot, and read_sensors as sub-tools.
 
-    Returns:
-        str: Summary of steps executed and the outcome (or error message if the workflow failed).
+    ## Return Format
+    str: Summary of steps executed and the outcome, or error message if the workflow failed.
+
+    ## Examples
+    yahboom_agentic_workflow(goal="patrol in a square and report battery")
+    yahboom_agentic_workflow(goal="check health, then move forward 2 seconds")
     """
 
     async def get_robot_health() -> str:

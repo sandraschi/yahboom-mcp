@@ -116,16 +116,12 @@ Write-Host "----------------------------------------------------"
 Write-Host "If ROSBridge fails: on robot run 'ros2 launch rosbridge_server rosbridge_websocket_launch.xml' (default 9090). Try: start.bat $RobotIP 9091"
 Write-Host "Press Ctrl+C to stop all processes..."
 
-# 5. Open browser (give Vite 2 seconds to initialize the proxy)
-Start-Sleep -Seconds 2
-Start-Process "http://localhost:$WEBAPP_PORT"
-
-try {
-
-# 4b. Launch background task to open browser once frontend is ready (Auto-opened by Antigravity)
+# 5. Open browser once frontend is reachable (polling, not fixed sleep)
 $frontendUrl = "http://127.0.0.1:$WEBAPP_PORT/"
 $pollAndOpen = "for (`$i = 0; `$i -lt 60; `$i++) { try { `$null = Invoke-WebRequest -Uri '$frontendUrl' -TimeoutSec 2 -UseBasicParsing -ErrorAction Stop; Start-Process '$frontendUrl'; exit } catch { Start-Sleep -Seconds 1 } }"
 Start-Process powershell -ArgumentList "-NoProfile", "-WindowStyle", "Hidden", "-Command", $pollAndOpen
+
+try {
 
     while ($true) { Start-Sleep -Seconds 1 }
 }

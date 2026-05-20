@@ -87,7 +87,7 @@ def extract_json_object(text: str) -> dict[str, Any]:
     raw = (text or "").strip()
     if not raw:
         raise ValueError("empty model output")
-    fence = re.match(r"^```(?:json)?\s*([\s\S]*?)\s*```$", raw, re.IGNORECASE)
+    fence = re.match(r"^```(?:json)?\s*([\s\S]*?)\s*```\s*$", raw, re.IGNORECASE)
     if fence:
         raw = fence.group(1).strip()
     start = raw.find("{")

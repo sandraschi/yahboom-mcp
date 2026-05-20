@@ -5,15 +5,27 @@ if ($Headless -and ($Host.UI.RawUI.WindowTitle -notmatch 'Hidden')) {
     Start-Process pwsh -ArgumentList '-NoProfile', '-File', $PSCommandPath, '-Headless' -WindowStyle Hidden
     exit
 }
-$WindowStyle = if ($Headless) { 'Hidden' } else { 'Normal' }
 # ------------------------------
 
+$WebPort = 10892
+
+# Clear port zombie
+$conns = Get-NetTCPConnection -LocalPort $WebPort -State Listen -ErrorAction SilentlyContinue
+if ($conns) {
+    $portPids = $conns.OwningProcess | Select-Object -Unique
+    foreach ($pid in $portPids) {
+        if ($pid -and $pid -ne 0) {
+            try { Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue } catch { }
+        }
+    }
+    Start-Sleep -Seconds 1
+}
+
 $env:FASTMCP_LOG_LEVEL = 'WARNING'
-# yahboom-mcp Start — HTTP + MCP SSE on 10892 (same as webapp\start.ps1 backend).
-# Do not use `python -m yahboom_mcp` here: there is no __main__, and stdio-only mode has no REST for the dashboard.
-Write-Host 'Starting yahboom-mcp Unified Gateway (dual) on http://127.0.0.1:10892 ...' -ForegroundColor Cyan
+$env:PYTHONPATH = "src"
+
+Write-Host "[YAHBOOM-MCP] Starting Unified Gateway (dual) on http://127.0.0.1:${WebPort} ..." -ForegroundColor Cyan
 
 Push-Location $PSScriptRoot
-$env:PYTHONPATH = "src"
-uv run python -m yahboom_mcp.server --mode dual --host 127.0.0.1 --port 10892
+uv run python -m yahboom_mcp.server --mode dual --host 127.0.0.1 --port $WebPort
 Pop-Location

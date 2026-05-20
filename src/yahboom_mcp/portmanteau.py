@@ -38,8 +38,21 @@ async def yahboom_tool(
 ) -> dict:
     """
     Unified control for Yahboom Raspbot v2 (ROS 2 Humble).
-    Routes motion, sensors, diagnostics, and peripheral commands to hardware drivers.
-    Returns success (bool) and operation-specific telemetry or status dictionaries.
+
+    [RATIONALE]
+    Portmanteau dispatcher: routes 30+ hardware operations to specialized modules
+    (motion, sensors, voice, display, lightstrip, camera_ptz, diagnostics, safety,
+    trajectory) through a single function signature. This keeps the MCP tool list
+    compact while surfacing the full hardware surface.
+
+    ## Return Format
+    {"success": bool, "operation": str, "result": {...}, "correlation_id": str}
+    On error: {"success": false, "operation": str, "error": str, "correlation_id": str}
+
+    ## Examples
+    yahboom_tool(operation="health_check")
+    yahboom_tool(operation="forward", param1=0.3)
+    yahboom_tool(operation="read_imu")
     """
     correlation_id = ctx.correlation_id if ctx else "manual-execution"
     logger.info(
