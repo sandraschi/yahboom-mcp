@@ -16,3 +16,5 @@ SOTA 2026 Yahboom Raspbot v2 ROS 2 MCP Server
 - `README.md` — full documentation
 - `pyproject.toml` — build config and entry points
 - `CLAUDE.md` — Claude Code context (if present)
+
+Install docs: follow mcp-central-docs/standards/AGENT_INSTALL_REFERENCE.md
