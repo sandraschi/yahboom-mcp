@@ -16,7 +16,7 @@ async def yahboom_tool(
     operation: Annotated[
         str,
         Field(
-            description="Operation: health_check, forward/backward, turn_left/right, strafe_left/right, stop/stop_all, read_imu/battery/encoders/lidar, say/play, display/clear_display, led/off/light_effect/patrol_car, camera_up/down/left/right, camera_reset, stack_inspect, execute_command."
+            description="Operation: health_check, forward/backward, turn_left/right, strafe_left/right, stop/stop_all, read_imu/battery/encoders/lidar, say/play/play_beep, audio_play/audio_store/audio_play_stored/audio_list_stored/audio_stop, display/clear_display, led/off/light_effect/patrol_car, camera_up/down/left/right, camera_reset, stack_inspect, execute_command."
         ),
     ] = "health_check",
     param1: Annotated[
@@ -89,6 +89,17 @@ async def yahboom_tool(
             from .operations import voice
 
             return await voice.execute(ctx, op_lower, param1, param2, payload)
+        elif op_lower in ["audio_play", "audio_store", "audio_play_stored", "audio_list_stored", "audio_delete_stored", "audio_stop", "audio_sound"]:
+            from .operations import audio
+
+            sub_op = op_lower.replace("audio_", "")
+            if sub_op == "sound":
+                file_path = ""
+                file_name = str(param1) if param1 else ""
+            else:
+                file_path = str(param1) if param1 else ""
+                file_name = str(param2) if param2 else ""
+            return await audio.execute(operation=sub_op, file_path=file_path, file_name=file_name)
         elif op_lower in ["display", "clear_display"]:
             from .operations import display
 
@@ -152,6 +163,10 @@ async def yahboom_tool(
             from .operations import safety
 
             return await safety.execute(ctx, "stop_all", param1, param2, payload)
+        elif op_lower in ("explore", "explore_and_map"):
+            from .operations import missions
+
+            return await missions.execute("run", mission_id="explore_and_map")
     except Exception as e:
         logger.error(f"Operation {operation} failed: {e}", exc_info=True)
         return {

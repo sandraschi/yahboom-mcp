@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.3] - 2026-05-27
+
+### 🔊 Audio Soundboard & Module (NEW)
+- **`operations/audio.py`** — standalone audio module: upload, store, play files through C-Media USB speaker (plughw:2,0). Direct paramiko SSH (bypasses SSHBridge for reliability).
+- **17 built-in sound effects**: ding, buzzer, tada, sad_trombone, fart, clap, boo, applause, reveille, deguello, siren, circus, elevator, take_five, coin, zap, beep — procedurally generated via math.sin waveforms, no audio files needed.
+- **Audio depot**: store files permanently at `~/boomy_audio/` on Pi. `list_stored`, `play_stored`, `delete_stored` operations.
+- **MCP tool `audio`**: `audio(operation="sound", file_name="ding")`, `audio(operation="play", file_path="C:/song.mp3")`, etc.
+- **Webapp `/audio` page**: Soundboard grid with 4 categories (Feedback, Comedy, Military, Signature). File upload/play/store. Stored file browser with play/delete. Fleet audio cross-connect panel (reaper-mcp, virtualdj-mcp, plex-mcp, speech-mcp, suno-mcp, songgeneration-mcp, magentart-mcp, audiotool-nexus, directmedia-mcp).
+- **Portmanteau routing**: `audio_sound`, `audio_play`, `audio_store`, `audio_play_stored`, `audio_list_stored`, `audio_delete_stored`, `audio_stop` all routed through yahboom_tool.
+
+### 🔧 Voice Module Fixes
+- **USB audio device**: Changed default from `hw:2,0` to `plughw:2,0` — the C-Media USB Audio chip is stereo-only and rejects mono WAVs. `plughw` handles channel auto-conversion.
+- **Device paths**: Added `/dev/myspeech` to candidate devices (Yahboom default udev symlink from Pi's 99-boomy.rules).
+- **espeak-ng routing**: `say` now pipes `espeak-ng --stdout | aplay -D plughw:2,0` — routes TTS through USB speaker.
+- **MP3/WAV routing**: `say_file` (play_file) now routes mpg123/aplay through `plughw:2,0`.
+- **Volume control**: `_set_volume_cmd` now also sets C-Media Speaker via `amixer -c 2 sset Speaker`.
+- **SSH password**: Added `YAHBOOM_PASSWORD` export to justfile.
+
+### 🌐 Webapp
+- **`POST /api/v1/upload`** endpoint — multipart file upload for audio files.
+- **`/audio` route** — Audio Soundboard page in sidebar (Chassis & Payload group).
+- **Audio API methods** in `lib/api.ts`: `audioSound`, `audioPlay`, `audioStore`, `audioPlayStored`, `audioListStored`, `audioStop`.
+
 ## [2.4.2] - 2026-05-11
 
 ### 🤖 Container Hygiene & Bringup

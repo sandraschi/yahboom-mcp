@@ -4,6 +4,7 @@ import ErrorBoundary from "./components/common/ErrorBoundary";
 import AppLayout from "./components/layout/AppLayout";
 import Analytics from "./pages/analytics/Analytics";
 import Apps from "./pages/apps/Apps";
+import Audio from "./pages/audio/Audio";
 import Chat from "./pages/chat/Chat";
 // Pages
 import Dashboard from "./pages/dashboard/Dashboard";
@@ -20,6 +21,7 @@ import LLM from "./pages/llm/LLM";
 import Logger from "./pages/logs/Logger";
 import MapPage from "./pages/map/Map";
 import MovementPage from "./pages/movement/Movement";
+import SlamMap from "./pages/slam/SlamMap";
 import Onboarding from "./pages/onboarding/Onboarding";
 import SensorsPage from "./pages/sensors/Sensors";
 import Settings from "./pages/settings/Settings";
@@ -56,6 +58,7 @@ function App() {
           <Route path="/map" element={<MapPage />} />
           <Route path="/lidar-map" element={<LidarMapPage />} />
           <Route path="/lidar-addon" element={<LidarAddonPage />} />
+          <Route path="/slam" element={<SlamMap />} />
           <Route path="/movement" element={<MovementPage />} />
           <Route path="/sensors" element={<SensorsPage />} />
           <Route path="/diagnostics" element={<DiagnosticsPage />} />
@@ -63,6 +66,7 @@ function App() {
 
           <Route path="/voice" element={<Voice />} />
           <Route path="/voice-upgrade" element={<VoiceUpgrade />} />
+          <Route path="/audio" element={<Audio />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

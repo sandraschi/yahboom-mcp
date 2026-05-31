@@ -1,8 +1,9 @@
 # Handover — yahboom-mcp (Boomy Raspbot v2)
 
-**Session**: 2026-05-07 (16h epic)
-**Operator**: Sandra
-**Next action**: Convert STEP → STL for Viz.tsx, connect speaker to 3.5mm jack
+**Session**: 2026-05-27 (audio soundboard + voice fixes)
+**Operator**: Sandra (AI-assisted)
+**Version**: v2.4.3
+**Key additions**: Audio soundboard (17 procedural effects), USB speaker routing fix, webapp audio page, fleet audio cross-connect
 
 ---
 

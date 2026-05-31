@@ -108,45 +108,37 @@ async def speak(text: str, volume: int = 80) -> dict[str, Any]:
         return {"success": False, "error": "edge-tts not installed"}
 
     voice = "de-DE-KatjaNeural" if any(ord(c) > 127 for c in text if c.isalpha()) else "en-US-AriaNeural"
-    wav = os.path.join(tempfile.gettempdir(), "tapo_tts.wav")
-    mulaw_path = os.path.join(tempfile.gettempdir(), "tapo_tts.ulaw")
 
     try:
+        import tempfile, subprocess
+        audio_path = os.path.join(tempfile.gettempdir(), "tapo_tts.mp3")
+
         tts = Communicate(text, voice=voice)
-        audio = b""
-        async for chunk in tts.stream():
-            if chunk["type"] == "audio":
-                audio += chunk["data"]
-        if not audio:
-            return {"success": False, "error": "TTS produced no audio"}
+        await tts.save(audio_path)
 
-        with open(wav, "wb") as f:
-            f.write(audio)
-
-        # Convert WAV to 8kHz μ-law
-        import subprocess
+        # Convert MP3 to 8kHz μ-law using ffmpeg
+        mulaw_path = audio_path + ".ulaw"
         subprocess.run([
-            "ffmpeg", "-y", "-i", wav, "-ar", "8000", "-ac", "1",
-            "-f", "mulaw", mulaw_path
+            "ffmpeg", "-y", "-i", audio_path, "-ar", "8000", "-ac", "1",
+            "-f", "mulaw", mulaw_path,
         ], capture_output=True, timeout=30)
 
-        if not os.path.isfile(mulaw_path):
-            return {"success": False, "error": "Audio conversion failed"}
+        mulaw = b""
+        if os.path.isfile(mulaw_path):
+            with open(mulaw_path, "rb") as f:
+                mulaw = f.read()
+        os.unlink(audio_path)
+        try: os.unlink(mulaw_path)
+        except: pass
 
-        with open(mulaw_path, "rb") as f:
-            mulaw = f.read()
+        if not mulaw:
+            return {"success": False, "error": "Audio conversion produced no output"}
 
         ok = await _stream_audio_to_tapo(mulaw)
-        return {
-            "success": ok,
-            "message": f"Spoke through Tapo: {text[:60]}...",
-        }
+        return {"success": ok, "message": f"Spoke through Tapo: {text[:60]}..."}
     except Exception as e:
+        logger.error("Tapo speak error: %s", e)
         return {"success": False, "error": str(e)}
-    finally:
-        for p in [wav, mulaw_path]:
-            try: os.unlink(p)
-            except: pass
 
 
 async def listen(duration_sec: int = 5, language: str = "en") -> dict[str, Any]:

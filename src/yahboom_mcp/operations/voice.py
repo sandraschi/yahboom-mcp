@@ -18,8 +18,8 @@ Baud rate: 115200 (not 9600 — that is the SYN6288 chip, which this is not).
 
 Arbitrary TTS
 -------------
-For saying arbitrary text we use espeak-ng on the Pi host, piped to the ALSA
-audio device.  espeak-ng is typically pre-installed on Pi OS; if not:
+For saying arbitrary text we use espeak-ng on the Pi host, piped to the C-Media
+USB audio device (plughw:2,0).  espeak-ng is typically pre-installed on Pi OS; if not:
   sudo apt-get install espeak-ng
 
 Device path
@@ -48,7 +48,8 @@ logger = logging.getLogger("yahboom-mcp.operations.voice")
 _BAUD = int(os.environ.get("YAHBOOM_VOICE_BAUD", "115200"))
 
 # USB audio card for voice module (HW:2,0 = C-Media USB Audio)
-_USB_AUDIO_DEV = os.environ.get("YAHBOOM_USB_AUDIO_DEV", "hw:2,0")
+# plughw handles channel auto-conversion (hw:2,0 rejects mono)
+_USB_AUDIO_DEV = os.environ.get("YAHBOOM_USB_AUDIO_DEV", "plughw:2,0")
 
 
 async def _play_beep_usb(ssh) -> bool:
@@ -70,7 +71,8 @@ _VOICE_USB_IDS = {"1a86:7522", "1a86:7523", "10c4:ea60", "0403:6001"}
 
 # Candidate device paths tried in order when YAHBOOM_VOICE_DEVICE is not set.
 _CANDIDATE_DEVICES = [
-    "/dev/ttyVOICE",  # udev symlink (preferred — see hardware doc)
+    "/dev/ttyVOICE",  # fleet standard udev symlink
+    "/dev/myspeech",  # Yahboom default udev symlink (99-boomy.rules)
     "/dev/ttyUSB1",  # second USB serial (Rosmaster is usually ttyUSB0)
     "/dev/ttyUSB0",
     "/dev/ttyACM0",
@@ -221,8 +223,11 @@ except Exception as e:
 
 
 def _say_cmd(text: str, voice: str, speed: int, pitch: int) -> str:
-    """Speak arbitrary text via espeak-ng on the Pi host."""
-    return f"espeak-ng -v {shlex.quote(voice)} -s {speed} -p {pitch} {shlex.quote(text)} 2>&1"
+    """Speak arbitrary text via espeak-ng piped to USB audio (plughw:2,0)."""
+    return (
+        f"espeak-ng --stdout -v {shlex.quote(voice)} -s {speed} -p {pitch} {shlex.quote(text)} 2>&1"
+        f" | aplay -q -D {_USB_AUDIO_DEV} 2>&1"
+    )
 
 
 def _check_espeak_cmd() -> str:
@@ -234,7 +239,11 @@ def _check_pyserial_cmd() -> str:
 
 
 def _set_volume_cmd(level: int) -> str:
-    return f"amixer -q sset Master {level}% 2>&1 || amixer -q sset PCM {level}% 2>&1"
+    return (
+        f"(amixer -q sset Master {level}% 2>&1; "
+        f"amixer -q -c 2 sset Speaker {level}% 2>&1) || "
+        f"amixer -q sset PCM {level}% 2>&1"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -268,18 +277,17 @@ async def execute(
         Returns the recognised command ID (int).
 
     say  (param1 = text, payload = {voice, speed, pitch})
-        Speak arbitrary text via espeak-ng on the Pi.
-        NOTE: outputs to Pi ALSA audio, not the voice module speaker.
+        Speak arbitrary text via espeak-ng piped through USB audio (plughw:2,0).
         Env overrides: YAHBOOM_ESPEAK_VOICE, YAHBOOM_ESPEAK_SPEED, YAHBOOM_ESPEAK_PITCH
 
     say_file  (param1 = local absolute path to .mp3/.wav)
-        Upload to Pi /tmp/ and play via mpg123 (mp3) or aplay (wav).
+        Upload to Pi /tmp/ and play through USB audio (mpg123 or aplay).
 
     chat_and_say  (param1 = prompt text, param2 = ollama model, default gemma3:1b)
-        Ask Ollama on the Pi, then speak the response via espeak-ng.
+        Ask Ollama on the Pi, then speak the response via espeak-ng (USB audio).
 
     volume  (param1 = 0-100)
-        Set Pi ALSA master volume.  Does not affect the module's internal speaker.
+        Set Pi ALSA master volume.  Also sets C-Media USB Speaker if card 2 present.
     """
     correlation_id = ctx.correlation_id if ctx else "manual-execution"
     logger.info("Voice: %s", operation, extra={"correlation_id": correlation_id})
@@ -424,9 +432,10 @@ async def execute(
             try:
                 await asyncio.to_thread(ssh.put_file, local_path, remote_tmp)
                 ext = os.path.splitext(local_path)[1].lower()
-                play_cmd = (
-                    f"mpg123 -q {shlex.quote(remote_tmp)}" if ext == ".mp3" else f"aplay -q {shlex.quote(remote_tmp)}"
-                )
+                if ext == ".mp3":
+                    play_cmd = f"mpg123 -q -a {_USB_AUDIO_DEV} {shlex.quote(remote_tmp)}"
+                else:
+                    play_cmd = f"aplay -q -D {_USB_AUDIO_DEV} {shlex.quote(remote_tmp)}"
                 out, err, code = await ssh.execute(play_cmd)
                 result = {
                     "success": code == 0,

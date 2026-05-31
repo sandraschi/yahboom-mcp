@@ -7,6 +7,7 @@ import {
   Cpu,
   Gamepad2,
   Gauge,
+  Headphones,
   HelpCircle,
   Layers,
   LayoutDashboard,
@@ -24,6 +25,7 @@ import {
   Shield,
   Sparkles,
   Target,
+  Volume2,
   Wrench,
 } from "lucide-react";
 import type React from "react";
@@ -45,6 +47,7 @@ const navGroups = [
       { path: "/analytics", label: "Analytics", icon: Activity },
       { path: "/viz", label: "Visualization", icon: ScanLine },
       { path: "/map", label: "Map", icon: MapIcon },
+      { path: "/slam", label: "SLAM Map", icon: Layers },
       { path: "/lidar-map", label: "Lidar Map", icon: Layers },
     ],
   },
@@ -56,6 +59,7 @@ const navGroups = [
       { path: "/movement", label: "Movement", icon: Gamepad2 },
       { path: "/sensors", label: "Sensors", icon: Gauge },
       { path: "/peripherals", label: "Peripherals", icon: Lightbulb },
+      { path: "/audio", label: "Audio Soundboard", icon: Volume2 },
       { path: "/voice", label: "Voice & Audio", icon: Mic },
       { path: "/voice-upgrade", label: "Voice Upgrade", icon: Sparkles },
       { path: "/lidar-addon", label: "Lidar Addon", icon: Package },

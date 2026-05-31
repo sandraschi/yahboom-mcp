@@ -9,11 +9,13 @@ import {
   Cpu,
   ExternalLink,
   HelpCircle,
+  Music,
   Package,
   Play,
   Radio,
   Target,
   Terminal,
+  Volume2,
   Wifi,
   Wrench,
   Zap,
@@ -134,6 +136,7 @@ const TABS = [
   { id: "hardware", label: "Yahboom & Raspbot", icon: Package },
   { id: "quickstart", label: "Quick Start", icon: Play },
   { id: "tools", label: "MCP Tools", icon: Cpu },
+  { id: "audio", label: "Audio Soundboard", icon: Volume2 },
   { id: "api", label: "REST API", icon: Terminal },
   { id: "connect", label: "Connection", icon: Wifi },
   { id: "ros", label: "ROS 2", icon: Radio },
@@ -625,6 +628,87 @@ const TabMissions = () => (
   </div>
 )
 
+const TabAudio = () => (
+  <div className="space-y-6">
+    <div className="bg-violet-500/10 border border-violet-500/30 rounded-2xl p-5">
+      <h3 className="text-sm font-bold text-violet-300 mb-2">Audio Soundboard (v2.4.3)</h3>
+      <p className="text-[13px] text-slate-400 leading-relaxed mb-2">
+        Play audio through the <strong className="text-slate-300">C-Media USB speaker</strong> on
+        the voice module (plughw:2,0). 17 built-in sound effects generated procedurally — no audio
+        files needed. Upload .mp3/.wav files to play/store on the Pi.
+      </p>
+    </div>
+    <div className="space-y-3">
+      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">MCP Tool: audio()</p>
+      <ToolRow
+        call='audio(operation="sound", file_name="ding")'
+        desc="Play a built-in sound effect"
+        example='audio(operation="sound", file_name="fart")      # 💨
+audio(operation="sound", file_name="tada")      # 🎉
+audio(operation="sound", file_name="reveille")  # 🌅
+audio(operation="sound", file_name="circus")    # 🎪
+audio(operation="sound", file_name="take_five") # 🎵'
+      />
+      <ToolRow
+        call='audio(operation="play", file_path="C:/music/song.mp3")'
+        desc="Upload and play a local .mp3/.wav through the USB speaker"
+      />
+      <ToolRow
+        call='audio(operation="store", file_path="C:/music/jazz.mp3", file_name="jazz.mp3")'
+        desc="Store file permanently on Pi (~/boomy_audio/)"
+      />
+      <ToolRow
+        call='audio(operation="play_stored", file_name="jazz.mp3")'
+        desc="Play a previously stored file"
+      />
+      <ToolRow
+        call='audio(operation="list_stored")'
+        desc="List files in the audio depot"
+      />
+      <ToolRow
+        call='audio(operation="stop")'
+        desc="Kill all running playback"
+      />
+    </div>
+    <div className="space-y-3">
+      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Portmanteau (yahboom_tool)</p>
+      <ToolRow
+        call='yahboom_tool(operation="audio_sound", param1="ding")'
+        desc="Same as audio(sound, ...) via portmanteau"
+      />
+    </div>
+    <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-5">
+      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+        Built-in Sound Effects (17)
+      </h3>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[11px] font-mono">
+        {["ding 🔔","buzzer ❌","tada 🎉","sad_trombone 😢","beep 📟","fart 💨","clap 👏","boo 👎","applause 🙌","reveille 🌅","deguello ⚔️","siren 🚨","take_five 🎵","circus 🎪","elevator 🛗","coin 🪙","zap ⚡"].map(s => (
+          <div key={s} className="px-3 py-1.5 rounded-lg bg-zinc-800/40 text-zinc-400">{s}</div>
+        ))}
+      </div>
+    </div>
+    <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-5">
+      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+        Fleet Audio Cross-Connect
+      </h3>
+      <p className="text-[12px] text-slate-400 leading-relaxed mb-2">
+        The audio soundboard links to 9 fleet audio repos for DAW, DJ, media, TTS, and AI music:
+      </p>
+      <ul className="text-[12px] text-slate-400 space-y-1 list-disc list-inside font-mono">
+        <li>reaper-mcp :10797 — DAW recording/mixing</li>
+        <li>virtualdj-mcp :10877 — DJ deck control</li>
+        <li>plex-mcp :10740 — Media server playback</li>
+        <li>speech-mcp :10909 — TTS / STT</li>
+        <li>suno-mcp :10883 — AI music generation</li>
+        <li>songgeneration-mcp :10885 — Song composition</li>
+        <li>magentart-mcp :10899 — Music AI models</li>
+        <li>audiotool-nexus :10901 — Audiotool bridge</li>
+        <li>directmedia-mcp :10827 — Direct media control</li>
+      </ul>
+    </div>
+  </div>
+)
+
 const TabTrouble = () => (
   <div className="space-y-4">
     {[
@@ -704,6 +788,7 @@ const Help = () => {
     hardware: <TabHardware />,
     quickstart: <TabQuickStart />,
     tools: <TabTools />,
+    audio: <TabAudio />,
     api: <TabApi />,
     connect: <TabConnect />,
     ros: <TabRos />,

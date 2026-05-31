@@ -3,9 +3,12 @@ import json
 import logging
 import math
 import os
+import struct
 import time
+import zlib
 from typing import Any
 
+import numpy as np
 import roslibpy
 
 logger = logging.getLogger("yahboom-mcp.core.ros2_bridge")
@@ -123,6 +126,58 @@ def _scan_to_obstacle_summary(ranges: list, angle_min: float, angle_increment: f
     return sectors
 
 
+def _scan_ranges_to_xy_points(
+    ranges: list,
+    angle_min: float,
+    angle_increment: float,
+    max_points: int = 360,
+) -> list[dict[str, float]]:
+    """Convert raw LaserScan ranges to cartesian (x,y) points for frontend overlay."""
+    points: list[dict[str, float]] = []
+    step = max(1, len(ranges) // max_points)
+    for i in range(0, len(ranges), step):
+        r = ranges[i]
+        if r is None or math.isnan(r) or math.isinf(r) or r <= 0:
+            continue
+        angle = angle_min + i * angle_increment
+        x = r * math.cos(angle)
+        y = r * math.sin(angle)
+        points.append({"x": round(x, 3), "y": round(y, 3)})
+    return points
+
+
+def _occupancy_grid_to_png(data: bytes, width: int, height: int) -> bytes:
+    """Convert ROS OccupancyGrid int8 data to a valid PNG using numpy+zlib (no PIL)."""
+    arr = np.frombuffer(data, dtype=np.int8).reshape(height, width)
+    img = np.full((height, width), 128, dtype=np.uint8)  # default: unknown
+    img[arr == 0] = 255   # free
+    occupied = (arr >= 1) & (arr < 100)
+    img[occupied] = (255 - (arr[occupied].astype(np.uint16) * 255 // 100)).astype(np.uint8)
+    img[arr >= 50] = 0    # occupied
+    raw = b"".join(b"\x00" + row.tobytes() for row in img)
+    compressed = zlib.compress(raw)
+
+    def _chunk(tag: bytes, data: bytes) -> bytes:
+        c = tag + data
+        return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
+
+    header = b"\x89PNG\r\n\x1a\n"
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)  # 8-bit RGB
+    # Color map: unknown=gray, free=white, occupied=black
+    palette_data = b""
+    for i in range(256):
+        if i == 0:
+            palette_data += b"\x00\x00\x00"     # occupied
+        elif i == 255:
+            palette_data += b"\xff\xff\xff"     # free
+        elif i == 128:
+            palette_data += b"\x80\x80\x80"     # unknown
+        else:
+            palette_data += b"\x40\x40\x40"     # other
+    # Use RGB grayscale via palette
+    return header + _chunk(b"IHDR", ihdr) + _chunk(b"PLTE", palette_data) + _chunk(b"IDAT", compressed) + _chunk(b"IEND", b"")
+
+
 class ROS2Bridge:
     """
     Functional Bridge for communicating with ROS 2 topics via rosbridge_suite.
@@ -150,6 +205,7 @@ class ROS2Bridge:
             "odom": {},
             "battery": {},
             "scan": {},
+            "map": None,  # OccupancyGrid from slam_toolbox: {width, height, resolution, origin, data}
             "ir_proximity": None,  # Optional: list of distances (m) when topic configured
             "line_sensors": None,  # Optional: list of line-follower readings when topic configured
             "last_image": None,  # Base64 or bytes of the latest frame
@@ -180,6 +236,7 @@ class ROS2Bridge:
         self.button_listener: roslibpy.Topic | None = None
         self.image_listener: roslibpy.Topic | None = None
         self.mission_topic: roslibpy.Topic | None = None
+        self.map_listener: roslibpy.Topic | None = None
 
     async def _tcp_reachable(self, host: str, port: int, timeout: float = 0.8) -> bool:
         """True if something accepts TCP on host:port (quick rosbridge preflight)."""
@@ -548,6 +605,10 @@ class ROS2Bridge:
         self.mission_topic = roslibpy.Topic(self.ros, self.mission_topic_name, "std_msgs/String")
         self.mission_topic.advertise()
 
+        # SLAM Map (OccupancyGrid from slam_toolbox — optional, starts when mapping begins)
+        self.map_listener = roslibpy.Topic(self.ros, "/map", "nav_msgs/OccupancyGrid")
+        self.map_listener.subscribe(self._map_callback)
+
         logger.info(
             "Subscribed using Verified Humble Registry: IMU=%s, Bat=%s, Vision=%s, Line=%s, Ultrasonic=%s, mission=%s",
             self.imu_topic,
@@ -596,6 +657,8 @@ class ROS2Bridge:
             self.button_listener.unsubscribe()
         if hasattr(self, "image_topic") and self.image_topic:
             self.image_topic.unsubscribe()
+        if hasattr(self, "map_listener") and self.map_listener:
+            self.map_listener.unsubscribe()
 
         await self._setup_topics()
         return True
@@ -639,6 +702,43 @@ class ROS2Bridge:
 
         self.state["last_update"] = time.time()
 
+    def get_map_png(self) -> bytes | None:
+        """Convert cached OccupancyGrid to PNG bytes. Returns None if no map data."""
+        m = self.state.get("map")
+        if not m or not m.get("data"):
+            return None
+        return _occupancy_grid_to_png(m["data"], m["width"], m["height"])
+
+    def get_map_data(self) -> dict[str, Any]:
+        """
+        Return map metadata + robot pose (from odom) + LIDAR scan points for frontend overlay.
+        Robot pose is in the odom frame, which slam_toolbox aligns to the map frame.
+        """
+        m = self.state.get("map")
+        odom = self.state.get("odom", {})
+        position = odom.get("position") or {}
+        heading = odom.get("heading", 0.0)
+        imu = self.state.get("imu", {})
+        ori_ok = imu.get("_orientation_valid")
+        if ori_ok:
+            heading = imu.get("heading", heading)
+        scan_points = self.state.get("scan_points", [])
+
+        return {
+            "map_available": bool(m and m.get("data")),
+            "width": m["width"] if m else 0,
+            "height": m["height"] if m else 0,
+            "resolution": m["resolution"] if m else 0.05,
+            "origin_x": m["origin_x"] if m else 0.0,
+            "origin_y": m["origin_y"] if m else 0.0,
+            "robot": {
+                "x": round(float(position.get("x", 0.0)), 4),
+                "y": round(float(position.get("y", 0.0)), 4),
+                "heading": round(float(heading), 2),
+            },
+            "scan_points": scan_points,
+        }
+
     def _battery_callback(self, message):
         """Cache battery state."""
         pct = message.get("percentage", None)
@@ -672,7 +772,7 @@ class ROS2Bridge:
         }
 
     def _scan_callback(self, message):
-        """Cache LIDAR scan as full ranges + obstacle summary."""
+        """Cache LIDAR scan as full ranges + obstacle summary + cartesian points."""
         ranges = message.get("ranges", [])
         angle_min = message.get("angle_min", -math.pi)
         angle_increment = message.get("angle_increment", 0.0)
@@ -680,13 +780,33 @@ class ROS2Bridge:
 
         obstacles = _scan_to_obstacle_summary(ranges, angle_min, angle_increment)
         nearest = min((v for v in obstacles.values() if v is not None), default=None)
+        scan_points = _scan_ranges_to_xy_points(ranges, angle_min, angle_increment)
 
         self.state["scan"] = {
             "obstacles": obstacles,  # nearest per sector (metres)
             "nearest_m": nearest,  # single closest reading
             "range_max_m": range_max,
             "num_points": len(ranges),
+            "angle_min": angle_min,
+            "angle_increment": angle_increment,
         }
+        self.state["scan_points"] = scan_points
+
+    def _map_callback(self, message):
+        """Cache SLAM occupancy grid from nav_msgs/OccupancyGrid (/map)."""
+        info = message.get("info") or {}
+        origin = info.get("origin") or {}
+        origin_pos = origin.get("position") or {}
+        data = message.get("data")
+        if data and info.get("width") and info.get("height"):
+            self.state["map"] = {
+                "width": int(info["width"]),
+                "height": int(info["height"]),
+                "resolution": float(info.get("resolution", 0.05)),
+                "origin_x": float(origin_pos.get("x", 0.0)),
+                "origin_y": float(origin_pos.get("y", 0.0)),
+                "data": bytes(data),
+            }
 
     def _sonar_callback(self, message):
         """Cache Ultrasound sonar range (m) from std_msgs/msg/Float32."""

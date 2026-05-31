@@ -8,6 +8,7 @@ export VER  := "2.3.0"
 export PORT := "10892"
 export MODE := "dual"
 export HOST := "0.0.0.0"
+export YAHBOOM_PASSWORD := "yahboom"
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,9 @@ check: lint test-unit
 # Run the complete test suite
 test:
     uv run pytest
+
+e2e:
+    pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File "D:\Dev\repos\mcp-central-docs\scripts\playwright-audit.ps1" -RepoPath "{{justfile_directory()}}"
 
 # Run fast unit tests (no hardware simulation)
 test-unit:

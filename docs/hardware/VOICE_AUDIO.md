@@ -2,8 +2,8 @@
 
 **Platform:** Yahboom Raspbot v2 (Boomy)  
 **Date:** 2026-04-14  
-**Tags:** `[yahboom-mcp, voice, audio, CSK4002, espeak-ng, vosk, chatrobot]`  
-**Status:** Active — `operations/voice.py` v2 (binary protocol), `operations/chatbot.py` planned  
+**Tags:** `[yahboom-mcp, voice, audio, CSK4002, espeak-ng, vosk, chatrobot, soundboard]`  
+**Status:** Active — `operations/voice.py` v2 (binary protocol), `operations/audio.py` (soundboard + depot), webapp `/audio` page  
 **Upgrade path:** [`VOICE_AUDIO_UPGRADE.md`](VOICE_AUDIO_UPGRADE.md) — ReSpeaker Lite + Piper TTS
 
 > [!NOTE]
@@ -455,16 +455,69 @@ All variables set on the **MCP host** (Goliath), not on the Pi.
 | `YAHBOOM_ESPEAK_VOICE` | `en` | espeak-ng voice code |
 | `YAHBOOM_ESPEAK_SPEED` | `150` | Words per minute (50–400) |
 | `YAHBOOM_ESPEAK_PITCH` | `50` | Pitch 0–99 |
+| `YAHBOOM_USB_AUDIO_DEV` | `plughw:2,0` | ALSA device for USB speaker |
+| `YAHBOOM_PASSWORD` | `yahboom` | Pi SSH password (for audio module direct SSH) |
 
 ---
 
-## 10. See Also
+## 10. Audio Soundboard Module (NEW — v2.4.3)
+
+The `operations/audio.py` module is a standalone audio player that bypasses the
+SSHBridge and uses direct paramiko SSH for reliability. It routes all playback
+through the C-Media USB speaker at `plughw:2,0`.
+
+### 10.1 Built-in Sound Effects (17)
+
+All sounds are generated procedurally via Python `math.sin` — no audio files
+are stored or downloaded. Each call generates a mono WAV on the Pi and plays
+it through `aplay -D plughw:2,0`.
+
+| Category | Sounds |
+|----------|--------|
+| **Feedback** | ding, buzzer, tada, sad_trombone, beep |
+| **Comedy** | fart, clap, boo, applause |
+| **Military** | reveille, deguello, siren |
+| **Signature** | take_five, circus, elevator, coin, zap |
+
+### 10.2 File Operations
+
+| Operation | Description |
+|-----------|-------------|
+| `play` | Upload local .mp3/.wav, play immediately via mpg123/aplay |
+| `store` | Upload to `~/boomy_audio/` for permanent storage |
+| `play_stored` | Play a file from the depot |
+| `list_stored` | List depot contents |
+| `delete_stored` | Remove a file from the depot |
+| `stop` | Kill all mpg123/aplay processes |
+
+### 10.3 MCP Tool
+
+```
+audio(operation="sound", file_name="ding")
+audio(operation="play", file_path="C:/music/song.mp3")
+audio(operation="store", file_path="C:/music/jazz.mp3", file_name="jazz.mp3")
+audio(operation="play_stored", file_name="jazz.mp3")
+audio(operation="stop")
+```
+
+Also available via portmanteau: `yahboom_tool(operation="audio_sound", param1="ding")`.
+
+### 10.4 Webapp
+
+The `/audio` page in the dashboard provides a clickable soundboard with four
+category grids, file upload/play/store UI, stored file browser, and fleet
+audio cross-connect links (reaper-mcp, virtualdj-mcp, plex-mcp, speech-mcp,
+suno-mcp, songgeneration-mcp, magentart-mcp, audiotool-nexus, directmedia-mcp).
+
+---
+
+## 11. See Also
 
 - [`VOICE_AUDIO_UPGRADE.md`](VOICE_AUDIO_UPGRADE.md) — **ReSpeaker Lite + Piper TTS upgrade plan** (recommended next step)
 - [`HARDWARE_DIAGNOSIS_VOICE_I2C.md`](HARDWARE_DIAGNOSIS_VOICE_I2C.md) — udev conflict diagnosis, Docker device mapping
 - [`SENSORS.md`](SENSORS.md) — IMU, battery, LIDAR, camera sensor reference
 - [`../ops/installation.md`](../ops/installation.md) — server startup, environment setup
-- [`../../src/yahboom_mcp/operations/voice.py`](../../src/yahboom_mcp/operations/voice.py) — implementation
-- [`../../src/yahboom_mcp/operations/chatbot.py`](../../src/yahboom_mcp/operations/chatbot.py) — chatrobot loop (planned)
+- [`../../src/yahboom_mcp/operations/voice.py`](../../src/yahboom_mcp/operations/voice.py) — voice module implementation
+- [`../../src/yahboom_mcp/operations/audio.py`](../../src/yahboom_mcp/operations/audio.py) — audio soundboard implementation
 - [Yahboom Voice Module GitHub](https://github.com/YahboomTechnology/Voice-interaction-module)
 - [CSK4002 product page](https://category.yahboom.net/products/voice-interaction)

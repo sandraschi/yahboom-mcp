@@ -1,25 +1,20 @@
-﻿# Yahboom ROS 2 MCP - SOTA 2026 Startup Script
-# Author: Sandra Schipal (v1.2.0 - 2026-03-04)
-
-Param(
+param(
     [Parameter(Position = 0)]
     [string]$RobotIP = "192.168.1.11",
     [Parameter(Position = 1)]
     [int]$BridgePort = 9090,
     [Parameter(Position = 2)]
     [string]$FallbackIP = "",
-    [switch]$Headless
+    [switch]$Headless,
+    [switch]$BackendOnly,
+    [switch]$FrontendOnly,
+    [switch]$NoBrowser
 )
 
-# --- SOTA Headless Standard ---
-if ($Headless -and ($Host.UI.RawUI.WindowTitle -notmatch 'Hidden')) {
-    Start-Process pwsh -ArgumentList '-NoProfile', '-File', $PSCommandPath, '-Headless' -WindowStyle Hidden
-    exit
-}
-$WindowStyle = if ($Headless) { 'Hidden' } else { 'Normal' }
-# ------------------------------
-
-$env:YAHBOOM_IP = $RobotIP
+. "D:/Dev/repos/mcp-central-docs/standards/FleetStartMode.ps1"
+$FleetStart = Initialize-FleetStartMode @PSBoundParameters
+Enter-FleetHeadlessConsole -Headless:$Headless -BackendOnly:$BackendOnly
+# Yahboom ROS 2 MCP - SOTA 2026 Startup Script
 $env:YAHBOOM_BRIDGE_PORT = [string]$BridgePort
 $env:YAHBOOM_FALLBACK_IP = $FallbackIP
 Write-Host "[YAHBOOM-MCP] Target Robot IP: $RobotIP" -ForegroundColor Cyan
@@ -98,6 +93,11 @@ $serverArgs = @("run", "python", "-m", "yahboom_mcp.server", "--mode", "dual", "
 $serverProc = Start-Process uv -ArgumentList $serverArgs -NoNewWindow -PassThru
 Pop-Location
 
+if (-not $FleetStart.RunFrontend) {
+    try { while ($true) { Start-Sleep -Seconds 1 } } finally { Stop-Process -Id $serverProc.Id -Force -ErrorAction SilentlyContinue }
+    return
+}
+
 # 4. Start Vite dashboard (always use webapp folder — npm cwd was wrong when script invoked from repo root)
 if (-not (Test-Path (Join-Path $PSScriptRoot "node_modules"))) {
     Write-Host "      node_modules missing -- running npm install..." -ForegroundColor Yellow
@@ -117,9 +117,11 @@ Write-Host "If ROSBridge fails: on robot run 'ros2 launch rosbridge_server rosbr
 Write-Host "Press Ctrl+C to stop all processes..."
 
 # 5. Open browser once frontend is reachable (polling, not fixed sleep)
+if (-not $FleetStart.SkipBrowser) {
 $frontendUrl = "http://127.0.0.1:$WEBAPP_PORT/"
 $pollAndOpen = "for (`$i = 0; `$i -lt 60; `$i++) { try { `$null = Invoke-WebRequest -Uri '$frontendUrl' -TimeoutSec 2 -UseBasicParsing -ErrorAction Stop; Start-Process '$frontendUrl'; exit } catch { Start-Sleep -Seconds 1 } }"
 Start-Process powershell -ArgumentList "-NoProfile", "-WindowStyle", "Hidden", "-Command", $pollAndOpen
+}
 
 try {
 

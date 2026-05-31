@@ -301,6 +301,19 @@ export interface MissionStatus {
 	last_error: string | null;
 }
 
+/** SLAM map overlay data (robot pose + scan points) from GET /api/v1/slam/data */
+export interface SlamMapData {
+	success?: boolean;
+	map_available: boolean;
+	width: number;
+	height: number;
+	resolution: number;
+	origin_x: number;
+	origin_y: number;
+	robot: { x: number; y: number; heading: number };
+	scan_points: { x: number; y: number }[];
+}
+
 export const api = {
 	getHealth: () => request<Health>("/api/v1/health"),
 	getTelemetry: () => request<Telemetry>("/api/v1/telemetry"),
@@ -510,6 +523,41 @@ export const api = {
 			method: "POST",
 			body: JSON.stringify({ duration }),
 		}),
+
+	/** Audio soundboard — built-in effects + file ops via portmanteau */
+	audioSound: (soundName: string) =>
+		request<{ success: boolean }>("/api/v1/control/tool", {
+			method: "POST",
+			body: JSON.stringify({ operation: "audio_sound", param1: soundName }),
+		}),
+	audioPlay: (filePath: string) =>
+		request<{ success: boolean }>("/api/v1/control/tool", {
+			method: "POST",
+			body: JSON.stringify({ operation: "audio_play", param1: filePath }),
+		}),
+	audioStore: (filePath: string, fileName: string) =>
+		request<{ success: boolean }>("/api/v1/control/tool", {
+			method: "POST",
+			body: JSON.stringify({ operation: "audio_store", param1: filePath, param2: fileName }),
+		}),
+	audioPlayStored: (fileName: string) =>
+		request<{ success: boolean }>("/api/v1/control/tool", {
+			method: "POST",
+			body: JSON.stringify({ operation: "audio_play_stored", param2: fileName }),
+		}),
+	audioListStored: () =>
+		request<{ success: boolean; files: string[]; count: number }>(
+			"/api/v1/control/tool",
+			{
+				method: "POST",
+				body: JSON.stringify({ operation: "audio_list_stored" }),
+			},
+		),
+	audioStop: () =>
+		request<{ success: boolean }>("/api/v1/control/tool", {
+			method: "POST",
+			body: JSON.stringify({ operation: "audio_stop" }),
+		}),
 	gpioSet: (pin: string, value: boolean) =>
 		request<{ success: boolean }>("/api/v1/gpio", {
 			method: "POST",
@@ -562,4 +610,8 @@ export const api = {
 		request<{ success: boolean; connected: boolean }>(
 			"/api/v1/tapo/audio/status",
 		),
+
+	/** SLAM Map */
+	getSlamMapUrl: () => "/api/v1/slam/map",
+	getSlamData: () => request<SlamMapData>("/api/v1/slam/data"),
 };

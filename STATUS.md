@@ -1,8 +1,8 @@
 # Project Status: Yahboom Raspbot v2 (Boomy)
 
-**Current SOTA:** v2.4.2
+**Current SOTA:** v2.4.3
 **Operational Status:** Production — Autonomous Missions Capable
-**Last Updated:** 2026-05-11
+**Last Updated:** 2026-05-27
 
 ## Connectivity & Infrastructure
 
@@ -39,7 +39,8 @@ yahboom_ros2_final (host networking, privileged)
 - **Lightstrip**: Working via ROS topic `/rgblight` (std_msgs/Int32MultiArray).
 - **PTZ Servos**: Working via ROS topic `/servo` (yahboomcar_msgs/ServoControl). Demo sweeps full 0–180° range.
 - **OLED Display**: Working via `smbus2` + PIL.
-- **Voice Module (CSK4002)**: Serial control via CH340 (ttyUSB0, 0xA5 protocol).
+- **Voice Module (CSK4002)**: Serial control via CH340 (ttyUSB0/myspeech, 0xA5 protocol). Audio output routed through C-Media USB speaker (plughw:2,0).
+- **Audio Soundboard**: 17 built-in procedural sound effects + file upload/play/store. `/audio` webapp page with fleet audio cross-connect.
 - **Camera**: SSH-based OpenCV snapshot fallback at `/api/v1/snapshot` (returns JPEG 200 OK). VideoBridge subscribes to `/image_raw/compressed` but rosbridge large-message delivery is unreliable.
 - **GPIO Headlight**: GPIO 17 via `/api/v1/gpio`. Toggle in Dashboard.
 - **Ollama chat**: Working (Gemma3:1b on Pi at 192.168.1.11:11434).
@@ -77,6 +78,7 @@ Natural-language goals → Ollama → structured JSON → ROS execution:
 | Chat | `/chat` | AI Companion via Ollama |
 | Settings | `/settings` | LLM model selection, provider config |
 | Peripherals | `/peripherals` | Lightstrip patterns, OLED status, voice controls |
+| Audio Soundboard | `/audio` | Built-in sound effects, file upload/play, stored depot, fleet audio cross-connect |
 | Visualization | `/viz` | 3D Three.js model with real-time telemetry |
 
 ##  Services Running in Docker (yahboom_ros2_final)

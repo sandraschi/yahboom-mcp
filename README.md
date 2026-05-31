@@ -90,7 +90,7 @@ This project clearly distinguishes between human-operable controls and machine-o
 | **[Hardware & Pinouts](docs/hardware/)** | Physical Layer | Wiring diagrams, I2C addresses, and sensor technical specs. |
 | **[Raspbot v2 hardware stack](docs/hardware/RASPBOT_V2_HARDWARE_STACK.md)** | **Boomy chassis** | Chassis, mecanum, motors, lightstrip, PTZ, camera, IMU, ultrasonic, line/cliff, **expansion board vs rosbridge software**, Pi ports, I2C, battery, switch. |
 | **[ROS 2 Bridge](docs/hardware/ROSBRIDGE.md)** | Connectivity | Bridge architecture, topic map, state cache, env vars, known bugs. |
-| **[Voice & Audio](docs/hardware/VOICE_AUDIO.md)** | Sound System | CSK4002 module protocol, espeak-ng TTS, chatrobot architecture. |
+| **[Voice & Audio](docs/hardware/VOICE_AUDIO.md)** | Sound System | CSK4002 module protocol, espeak-ng TTS, chatrobot architecture, audio soundboard with 17 built-in effects. |
 | **[Multi-Robot Integration](docs/fleet/)** | Ecosystem | Federated fleet standards and cross-robot communication protocols. |
 
 ---
