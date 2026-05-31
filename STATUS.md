@@ -1,6 +1,6 @@
 # Project Status: Yahboom Raspbot v2 (Boomy)
 
-**Current SOTA:** v2.4.3
+**Current SOTA:** v2.5.0-beta.1
 **Operational Status:** Production — Autonomous Missions Capable
 **Last Updated:** 2026-05-27
 

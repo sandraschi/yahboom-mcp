@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0-beta.1] - 2026-05-31
+
+### Boomy show-floor demos
+- **`yahboom_demo` MCP tool** (v2.5.0): floor chalk art (`draw`) and social talkbot (`talkbot`).
+- **REST** `/api/v1/demo/*` — draw/talkbot start, status, stop; speech-mcp TTS with espeak fallback.
+- **Patterns**: smiley, heart, boomy_b; mission aliases `boomy_draw`, `boomy_talkbot`.
+- **`YAHBOOM_DEMO_FAST=1`** for CI-safe fast demos.
+
+### Audio, SLAM, and webapp
+- **Audio soundboard** (`operations/audio.py`, `/audio` page): 17 built-in effects, depot, fleet audio panel.
+- **SLAM map page** (`/slam`) with YDLIDAR checklist docs.
+- **Voice/Tapo fixes**: `plughw:2,0` USB routing, espeak-ng through C-Media speaker.
+- **Meshes**: D435 + RPLidar S2 STL assets for dashboard 3D view.
+
 ## [2.4.3] - 2026-05-27
 
 ### 🔊 Audio Soundboard & Module (NEW)
