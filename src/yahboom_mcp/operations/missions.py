@@ -66,6 +66,12 @@ class MissionManager:
             self.active_mission = asyncio.create_task(self._morning_briefing_mission())
         elif mission_id == "kaffeehaus":
             self.active_mission = asyncio.create_task(self._kaffeehaus_mission())
+        elif mission_id in ("explore", "map", "explore_and_map"):
+            self.active_mission = asyncio.create_task(self._explore_and_map_mission())
+        elif mission_id in ("boomy_draw", "draw_floor"):
+            self.active_mission = asyncio.create_task(self._boomy_draw_mission())
+        elif mission_id in ("boomy_talkbot", "talkbot"):
+            self.active_mission = asyncio.create_task(self._boomy_talkbot_mission())
         else:
             self.status = "error"
             self.last_error = f"Unknown mission ID: {mission_id}"
@@ -98,15 +104,44 @@ class MissionManager:
             self.status = "aborted"
             raise asyncio.CancelledError("User manual override")
 
-    async def _sense_obstacle(self) -> bool:
-        """Returns True if sonar detects an obstacle within 20cm."""
-        sonar = self.ros_bridge.state.get("ir_proximity", 1.0)
-        return sonar < 0.20  # 20cm threshold for reactive avoidance
+    def _lidar_available(self) -> bool:
+        """Check if LIDAR (/scan) data is actually publishing."""
+        scan = self.ros_bridge.state.get("scan") or {}
+        return bool(scan.get("obstacles"))  # non-empty obstacles dict = live LIDAR
 
-    async def _avoid_obstacle(self):
+    def _lidar_front_obstructed(self, threshold: float = 0.30) -> bool:
+        """Check LIDAR front/front_left/front_right sectors. False when LIDAR absent."""
+        scan = self.ros_bridge.state.get("scan") or {}
+        obstacles = scan.get("obstacles") or {}
+        for sector in ("front", "front_left", "front_right"):
+            dist = obstacles.get(sector)
+            if dist is not None and dist < threshold:
+                return True
+        return False
+
+    async def _sense_obstacle(self) -> bool:
         """
-        Execute a Tangent-Pivot Avoidance maneuver.
+        Returns True if obstacle detected within threshold.
+        Checks ultrasonic (always available) + LIDAR front sectors (gracefully degraded).
+        """
+        # 1. Ultrasonic — primary, always available
+        sonar = self.ros_bridge.state.get("ir_proximity", 1.0)
+        if isinstance(sonar, (int, float)) and sonar < 0.20:
+            return True
+
+        # 2. LIDAR front sectors — optional, skipped if not mounted
+        if self._lidar_available():
+            return self._lidar_front_obstructed(threshold=0.30)
+
+        return False
+
+    async def _avoid_obstacle(self) -> bool:
+        """
+        Execute a Tangent-Pivot Avoidance maneuver with post-avoidance safety creep.
         1. Stop. 2. Sound alert. 3. Pivot 45°. 4. Move to bypass. 5. Re-pivot.
+        6. Safety creep — verify forward clearance before declaring success.
+
+        Returns True if obstacle cleared, False if still blocked.
         """
         self._add_log("🛡️ BENNY ALERT: Executing Tangent Avoidance...")
         # 1. Stop
@@ -135,7 +170,23 @@ class MissionManager:
         await asyncio.sleep(1.0)
         await self.ros_bridge.publish_velocity(0.0, 0.0)
 
-        await led_execute(None, operation="set", param1=0, param2=0, param3=100)  # Resume Blue
+        # 6. Safety creep — verify forward path before full resume
+        self._add_log("🛡️ Safety creep: verifying forward clearance...")
+        creep_clear = True
+        await self.ros_bridge.publish_velocity(linear_x=0.08, angular_z=0.0)
+        for _ in range(8):  # 800ms slow creep with active checking
+            await asyncio.sleep(0.1)
+            if await self._sense_obstacle():
+                self._add_log("🛡️ Obstacle STILL present after avoidance!")
+                creep_clear = False
+                break
+        await self.ros_bridge.publish_velocity(0.0, 0.0)
+
+        if creep_clear:
+            await led_execute(None, operation="set", param1=0, param2=0, param3=100)  # Resume Blue
+        else:
+            await led_execute(None, operation="set", param1=100, param2=0, param3=0)  # Stay red
+        return creep_clear
 
     async def stop_mission(self):
         if self.active_mission:
@@ -186,11 +237,24 @@ class MissionManager:
 
                 # Check safety and obstacles during movement
                 movement_time = 0
+                avoid_attempts = 0
                 while movement_time < 2.0:
                     await self._check_critical_safety()
                     if await self._sense_obstacle():
-                        await self._avoid_obstacle()
-                        self._add_log(f"Resuming Quadrant {i} movement...")
+                        cleared = await self._avoid_obstacle()
+                        if not cleared:
+                            avoid_attempts += 1
+                            if avoid_attempts >= 2:
+                                self._add_log(f"⚠️ Quadrant {i}: obstacle persistent after {avoid_attempts} attempts — diverting.")
+                                # Try opposite turn to find clear path
+                                await self.ros_bridge.publish_velocity(linear_x=0.0, angular_z=-0.8)
+                                await asyncio.sleep(1.5)
+                                await self.ros_bridge.publish_velocity(0.0, 0.0)
+                            else:
+                                self._add_log(f"Resuming Quadrant {i} movement (avoid attempt {avoid_attempts})...")
+                        else:
+                            avoid_attempts = 0
+                            self._add_log(f"Resuming Quadrant {i} movement...")
 
                     await self.ros_bridge.publish_velocity(linear_x=0.2, angular_z=0.0)
                     await asyncio.sleep(0.1)
@@ -364,6 +428,164 @@ class MissionManager:
             self._add_log(f"Kaffeehaus error: {e}")
             await self.ros_bridge.publish_velocity(0.0, 0.0)
 
+    async def _explore_and_map_mission(self):
+        """
+        SLAM-based apartment mapping exploration.
+        Requires LIDAR (/scan) mounted and slam_toolbox running on the robot.
+
+        Sequence:
+          1. Verify LIDAR is available — abort gracefully if not
+          2. Launch slam_toolbox async on robot via SSH
+          3. Drive boustrophedon (lawnmower) pattern covering the space
+          4. Check obstacles with LIDAR + ultrasonic during traversal
+          5. After coverage, save the occupancy grid map via SSH
+          6. Return to approximate start position
+        """
+        try:
+            # ── 1. LIDAR preflight ────────────────────────────────────────────
+            self._add_log("Mapping: checking LIDAR availability...")
+            await display_execute(None, operation="scroll", param1="LIDAR CHECK")
+
+            if not self._lidar_available():
+                self._add_log("❌ LIDAR not detected. SLAM mapping requires /scan topic.")
+                self._add_log("   Mount YDLIDAR X4 (or compatible) and verify ros2 topic list shows /scan.")
+                await voice_execute(
+                    None, operation="say",
+                    param1="LIDAR not found. Cannot map without laser scanner.",
+                )
+                self.status = "error"
+                self.last_error = "LIDAR unavailable: /scan topic not publishing"
+                return {
+                    "success": False,
+                    "error": "LIDAR not detected. Mount YDLIDAR X4 and verify /scan on the robot.",
+                }
+
+            self._add_log("✅ LIDAR detected — proceeding with SLAM mapping.")
+            self.progress = 10
+
+            # ── 2. Launch slam_toolbox on robot ──────────────────────────────
+            self._add_log("Mapping: launching slam_toolbox async...")
+            ssh = getattr(self.ros_bridge, "ssh", None)
+            slam_launched = False
+            if ssh and ssh.connected:
+                slam_cmd = (
+                    'docker exec yahboom_ros2_final bash -c "'
+                    'source /opt/ros/humble/setup.bash && '
+                    'source /root/yahboomcar_ws/install/setup.bash && '
+                    'setsid ros2 run slam_toolbox async_slam_toolbox_node '
+                    '--ros-args -p odom_frame:=odom -p base_frame:=base_footprint '
+                    '-p map_frame:=map -p use_sim_time:=false '
+                    '> /tmp/slam_output.log 2>&1 &"'
+                )
+                await ssh.execute(slam_cmd)
+                await asyncio.sleep(3)  # Give slam_toolbox time to initialize
+                slam_launched = True
+                self._add_log("✅ slam_toolbox async launched on robot.")
+            else:
+                self._add_log("⚠️ SSH not available — cannot auto-launch slam_toolbox. Start it manually.")
+            self.progress = 20
+
+            # ── 3. Boustrophedon exploration ─────────────────────────────────
+            self._add_log("Mapping: beginning boustrophedon coverage...")
+            await display_execute(None, operation="scroll", param1="MAPPING")
+            await voice_execute(None, operation="say", param1="Beginning apartment mapping")
+
+            # Pattern: forward sweep, turn 180°, forward sweep, repeat
+            # Each forward sweep: 4.0s at 0.15 m/s (~0.6m)
+            # Turning: 0.6 rad/s × π/0.6 ~ 5.2s for 180°
+            SWEEP_SECS = 4.0
+            TURN_SECS = 5.2
+            SWEEPS = 5
+            SWEEP_SPEED = 0.15
+
+            for sweep in range(SWEEPS):
+                await self._check_critical_safety()
+
+                # Forward sweep
+                self._add_log(f"Mapping: sweep {sweep + 1}/{SWEEPS}")
+                sweep_time = 0.0
+                while sweep_time < SWEEP_SECS:
+                    await self._check_critical_safety()
+                    if await self._sense_obstacle():
+                        cleared = await self._avoid_obstacle()
+                        if not cleared:
+                            self._add_log("Mapping: obstruction blocking path — widening search.")
+                            # Try strafe to find gap (mecanum advantage)
+                            await self.ros_bridge.publish_velocity(linear_x=0.0, linear_y=0.15)
+                            await asyncio.sleep(1.0)
+                            await self.ros_bridge.publish_velocity(0.0, 0.0)
+                    await self.ros_bridge.publish_velocity(linear_x=SWEEP_SPEED, angular_z=0.0)
+                    await asyncio.sleep(0.1)
+                    sweep_time += 0.1
+
+                await self.ros_bridge.publish_velocity(0.0, 0.0)
+                self.progress = 20 + int((sweep + 1) / SWEEPS * 60)
+
+                # Turn 180° for next sweep (except after last)
+                if sweep < SWEEPS - 1:
+                    self._add_log("Mapping: turning for next sweep...")
+                    turn_time = 0.0
+                    while turn_time < TURN_SECS:
+                        await self._check_critical_safety()
+                        await self.ros_bridge.publish_velocity(linear_x=0.0, angular_z=0.6)
+                        await asyncio.sleep(0.1)
+                        turn_time += 0.1
+                    await self.ros_bridge.publish_velocity(0.0, 0.0)
+
+            self.progress = 80
+
+            # ── 4. Save the map ──────────────────────────────────────────────
+            self._add_log("Mapping: saving occupancy grid...")
+            await display_execute(None, operation="scroll", param1="SAVING MAP")
+
+            map_saved = False
+            if ssh and ssh.connected and slam_launched:
+                save_cmd = (
+                    'docker exec yahboom_ros2_final bash -c "'
+                    'source /opt/ros/humble/setup.bash && '
+                    'mkdir -p /home/pi/maps && '
+                    'ros2 run nav2_map_server map_saver_cli '
+                    '-f /home/pi/maps/apartment '
+                    '--ros-args -p map_subscribe_transient_local:=true"'
+                )
+                _, err, code = await ssh.execute(save_cmd)
+                if code == 0:
+                    map_saved = True
+                    self._add_log("✅ Map saved to /home/pi/maps/apartment (.pgm + .yaml)")
+                else:
+                    self._add_log(f"⚠️ Map save exit code {code}: {err}")
+            else:
+                self._add_log("⚠️ SSH unavailable — map not saved. Run map_saver_cli manually.")
+
+            self.progress = 90
+
+            # ── 5. Return to start ──────────────────────────────────────────
+            self._add_log("Mapping: returning to start position...")
+            await voice_execute(None, operation="say", param1="Mapping complete. Returning home.")
+            await self.ros_bridge.publish_velocity(linear_x=-0.12, angular_z=0.0)
+            await asyncio.sleep(2.0)
+            await self.ros_bridge.publish_velocity(0.0, 0.0)
+
+            # ── Complete ──────────────────────────────────────────────────────
+            self._add_log("✅ Apartment mapping complete!")
+            await led_execute(None, operation="set", param1=0, param2=80, param3=40)
+            status_msg = f"Mapping {'saved' if map_saved else 'completed (map NOT saved)'}."
+            self.status = "completed"
+            self.progress = 100
+            await display_execute(None, operation="write", param1="MAP  DONE", param2=2)
+            return {"success": True, "map_saved": map_saved, "message": status_msg}
+
+        except asyncio.CancelledError:
+            self._add_log("Mapping mission cancelled.")
+            await self.ros_bridge.publish_velocity(0.0, 0.0)
+            raise
+        except Exception as e:
+            self.status = "error"
+            self.last_error = str(e)
+            self._add_log(f"Mapping error: {e}")
+            await self.ros_bridge.publish_velocity(0.0, 0.0)
+            return {"success": False, "error": str(e)}
+
     async def _morning_briefing_mission(self):
         try:
             self._add_log("Fetching news and sensor briefing...")
@@ -387,6 +609,62 @@ class MissionManager:
             self._add_log("Briefing complete.")
 
         except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            self.status = "error"
+            self.last_error = str(e)
+
+
+    async def _boomy_draw_mission(self):
+        from ..operations import demo_showcase
+
+        try:
+            self._add_log("Starting Boomy floor-draw demo")
+            self.progress = 10
+            result = await demo_showcase.execute("draw", pattern="smiley", skip_color_swap_pause=True)
+            while True:
+                st = await demo_showcase.execute("draw_status")
+                self.progress = min(95, self.progress + 5)
+                if st.get("status") in ("completed", "error", "stopped", "cancelled"):
+                    break
+                if st.get("running") is False and st.get("status") != "running":
+                    break
+                await asyncio.sleep(0.5)
+            self.progress = 100
+            self.status = "completed" if result.get("success") else "error"
+            self._add_log("Draw demo finished")
+        except asyncio.CancelledError:
+            await demo_showcase.execute("draw_stop")
+            raise
+        except Exception as e:
+            self.status = "error"
+            self.last_error = str(e)
+
+    async def _boomy_talkbot_mission(self):
+        from ..operations import demo_showcase
+
+        try:
+            self._add_log("Starting Boomy talkbot demo")
+            self.progress = 10
+            await demo_showcase.execute(
+                "talkbot",
+                max_turns=2,
+                use_speech_mcp=False,
+                scripted_user_lines=["My name is Alex", "Can you draw?"],
+            )
+            while True:
+                st = await demo_showcase.execute("talkbot_status")
+                self.progress = min(95, self.progress + 5)
+                if st.get("status") in ("completed", "error", "stopped", "cancelled"):
+                    break
+                if st.get("running") is False:
+                    break
+                await asyncio.sleep(0.5)
+            self.progress = 100
+            self.status = "completed"
+            self._add_log("Talkbot demo finished")
+        except asyncio.CancelledError:
+            await demo_showcase.execute("talkbot_stop")
             raise
         except Exception as e:
             self.status = "error"

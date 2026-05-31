@@ -18,8 +18,9 @@ import time
 from contextlib import asynccontextmanager
 
 import httpx
+import paramiko
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from fastmcp import FastMCP
@@ -29,7 +30,7 @@ from .core.esp32_bridge import ESP32Bridge
 from .core.ros2_bridge import ROS2Bridge
 from .core.ssh_bridge import SSHBridge
 from .core.video_bridge import VideoBridge
-from .operations import lightstrip, missions, voice
+from .operations import audio, lightstrip, missions, voice
 from .operations.trajectory import TrajectoryManager
 from .stack_probe import build_stack_overview, driver_stack_snapshot, invalidate_stack_caches
 from .state import _state
@@ -383,6 +384,47 @@ async def yahboom_tool(
         param2=param2,
         param3=param3,
         payload=payload,
+    )
+
+
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False}, version="2.5.0")
+async def yahboom_demo(
+    operation: str = "describe",
+    pattern: str = "smiley",
+    speed: float | None = None,
+    skip_color_swap_pause: bool = False,
+    approach: bool | None = None,
+    max_turns: int | None = None,
+    use_speech_mcp: bool = True,
+    scripted_user_lines: list[str] | None = None,
+) -> dict:
+    """
+    Boomy show-floor demos: floor chalk art and social talkbot.
+
+    Operations: describe, draw, draw_status, draw_stop, talkbot, talkbot_status,
+    talkbot_stop, status, stop.
+
+    draw — mecanum path drawing (patterns: smiley, heart, boomy_b). Two-color layers
+    pause for chalk swap unless skip_color_swap_pause=True.
+
+    talkbot — optional approach, PTZ wiggle, "Hi, I am Boomy. Who are you?", then
+    listen/reply turns. Uses speech-mcp TTS when reachable, else espeak on Pi.
+
+    Examples:
+    yahboom_demo(operation='draw', pattern='smiley')
+    yahboom_demo(operation='talkbot', max_turns=3)
+    """
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute(
+        operation,
+        pattern=pattern,
+        speed=speed,
+        skip_color_swap_pause=skip_color_swap_pause,
+        approach=approach,
+        max_turns=max_turns,
+        use_speech_mcp=use_speech_mcp,
+        scripted_user_lines=scripted_user_lines,
     )
 
 
@@ -741,6 +783,19 @@ class ToolRequest(BaseModel):
     param2: str | int | float | None = None
     param3: str | int | float | None = None
     payload: dict | None = None
+
+
+@app.post("/api/v1/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """Upload an audio file for use with Audio Soundboard."""
+    upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    safe_name = file.filename or "untitled"
+    dest = os.path.join(upload_dir, safe_name)
+    with open(dest, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    return {"success": True, "filename": safe_name, "path": dest, "size": len(content)}
 
 
 @app.post("/api/v1/control/tool")
@@ -1137,6 +1192,46 @@ async def telemetry():
     return data
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# SLAM Map Endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@app.get("/api/v1/slam/map")
+async def get_slam_map():
+    """
+    Return the SLAM occupancy grid as a PNG image.
+    Requires slam_toolbox async running on the robot, publishing /map.
+    Returns 404 if no map data available yet.
+    """
+    bridge = _state.get("bridge")
+    if not bridge:
+        return Response(content=b"Bridge not connected", status_code=503, media_type="text/plain")
+
+    png = bridge.get_map_png()
+    if png is None:
+        return Response(content=b"No map data", status_code=404, media_type="text/plain")
+
+    return Response(content=png, media_type="image/png")
+
+
+@app.get("/api/v1/slam/data")
+async def get_slam_data():
+    """
+    Return SLAM map metadata + robot pose + LIDAR scan points for frontend overlay.
+
+    Returns JSON with map_available, dimensions, robot {x,y,heading}, and scan_points[].
+    Poll this every ~500ms alongside /api/v1/slam/map for a smooth real-time view.
+    """
+    bridge = _state.get("bridge")
+    if not bridge:
+        return {"success": False, "error": "Bridge not connected"}
+
+    data = bridge.get_map_data()
+    data["success"] = True
+    return data
+
+
 # --- Legacy Compatibility Aliases (Dashboard Support) ---
 
 
@@ -1204,6 +1299,79 @@ async def get_mission_status():
 async def stop_mission():
     """Abort the current mission."""
     return await missions.execute("stop")
+
+
+class DemoDrawRequest(BaseModel):
+    pattern: str = "smiley"
+    speed: float | None = None
+    skip_color_swap_pause: bool = False
+
+
+class DemoTalkbotRequest(BaseModel):
+    approach: bool | None = None
+    max_turns: int | None = 3
+    use_speech_mcp: bool = True
+    scripted_user_lines: list[str] | None = None
+
+
+@app.get("/api/v1/demo")
+async def demo_describe():
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute("describe")
+
+
+@app.post("/api/v1/demo/draw")
+async def demo_draw(req: DemoDrawRequest):
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute(
+        "draw",
+        pattern=req.pattern,
+        speed=req.speed,
+        skip_color_swap_pause=req.skip_color_swap_pause,
+    )
+
+
+@app.get("/api/v1/demo/draw/status")
+async def demo_draw_status():
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute("draw_status")
+
+
+@app.post("/api/v1/demo/draw/stop")
+async def demo_draw_stop():
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute("draw_stop")
+
+
+@app.post("/api/v1/demo/talkbot")
+async def demo_talkbot(req: DemoTalkbotRequest):
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute(
+        "talkbot",
+        approach=req.approach,
+        max_turns=req.max_turns,
+        use_speech_mcp=req.use_speech_mcp,
+        scripted_user_lines=req.scripted_user_lines,
+    )
+
+
+@app.get("/api/v1/demo/talkbot/status")
+async def demo_talkbot_status():
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute("talkbot_status")
+
+
+@app.post("/api/v1/demo/talkbot/stop")
+async def demo_talkbot_stop():
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute("talkbot_stop")
 
 
 class VoiceRequest(BaseModel):
@@ -1801,6 +1969,46 @@ async def yahboom_agent_mission(
     return out
 
 
+@mcp.tool()
+async def audio(
+    file_path: str = "",
+    operation: str = "play",
+    file_name: str = "",
+) -> dict:
+    """
+    Play/store/manage audio files through the USB voice module speaker.
+
+    Operations:
+    - play: upload a local .mp3/.wav, play immediately
+    - sound: built-in sound effect (fart, ding, buzzer, clap, boo, circus,
+      elevator, siren, applause, tada, sad_trombone, take_five, coin, zap,
+      reveille, deguello, beep)
+    - store: upload to ~/boomy_audio/ for permanent storage
+    - play_stored: play a previously stored file by name
+    - list_stored: list all stored audio files
+    - delete_stored: remove a file from the depot
+    - stop: kill all running playback
+
+    ## Return Format
+    {"success": bool, "operation": str, "status": str}
+
+    ## Examples
+    audio(operation="sound", file_name="ding")
+    audio(operation="sound", file_name="fart")
+    audio(operation="play", file_path="C:/music/song.mp3")
+    audio(operation="store", file_path="C:/music/jazz.mp3", file_name="jazz.mp3")
+    audio(operation="play_stored", file_name="jazz.mp3")
+    audio(operation="stop")
+    """
+    from .operations import audio as audio_mod
+
+    return await audio_mod.execute(
+        operation=operation,
+        file_path=file_path,
+        file_name=file_name,
+    )
+
+
 # --- Entry Points ---
 
 
@@ -1867,6 +2075,7 @@ async def get_capabilities():
         "execute_command",
     ]
     atomic_tools = [
+        "yahboom_demo",
         "yahboom_agentic_workflow",
         "yahboom_agent_mission",
         "yahboom_help_tool",
