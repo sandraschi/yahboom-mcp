@@ -1,4 +1,4 @@
-set windows-shell := ["pwsh.exe", "-NoLogo", "-Command"]
+﻿set windows-shell := ["pwsh.exe", "-NoLogo", "-Command"]
 
 # ── Project Configuration ─────────────────────────────────────────────────────
 
@@ -14,7 +14,7 @@ export YAHBOOM_PASSWORD := "yahboom"
 
 # Open the interactive recipe dashboard in the browser
 default:
-    @pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ../mcp-central-docs/scripts/just-dashboard.ps1 -Path .
+    @just --list
 
 # ── Lifecycle ─────────────────────────────────────────────────────────────────
 
@@ -160,3 +160,4 @@ check-sec:
 # Execute dependency security audit
 audit-deps:
     uv run safety check
+

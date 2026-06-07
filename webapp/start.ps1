@@ -1,3 +1,4 @@
+﻿$ProjectRoot = Split-Path -Parent $PSScriptRoot
 param(
     [Parameter(Position = 0)]
     [string]$RobotIP = "192.168.1.11",
@@ -11,7 +12,12 @@ param(
     [switch]$NoBrowser
 )
 
-. "D:/Dev/repos/mcp-central-docs/standards/FleetStartMode.ps1"
+$FleetStartPath = Join-Path $ProjectRoot "scripts\FleetStartMode.ps1"
+if (-not (Test-Path -LiteralPath $FleetStartPath)) {
+    Write-Host "ERROR: Missing vendored launcher helper: $FleetStartPath" -ForegroundColor Red
+    exit 1
+}
+. $FleetStartPath
 $FleetStart = Initialize-FleetStartMode @PSBoundParameters
 Enter-FleetHeadlessConsole -Headless:$Headless -BackendOnly:$BackendOnly
 # Yahboom ROS 2 MCP - SOTA 2026 Startup Script
@@ -26,25 +32,13 @@ if ($FallbackIP) {
 $APP_PORT = 10892
 $WEBAPP_PORT = 10893
 
-# Helper: kill every process listening on a given port
+# Helper: kill every process listening on a given port (delegates to fleet standard)
 function Clear-Port {
     param([int]$Port)
-    $conns = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-    if (-not $conns) { return $false }
-
-    $portPids = $conns.OwningProcess | Select-Object -Unique
-    foreach ($procId in $portPids) {
-        if ($procId -and $procId -ne 0) {
-            try {
-                Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
-                Write-Host "      -> PID $procId culled (port $Port)" -ForegroundColor Gray
-            }
-            catch { }
-        }
-    }
-    # Wait for the OS to release the socket
-    Start-Sleep -Seconds 1
-    return $true
+    $before = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue).Count
+    Stop-FleetPortSquatters -Ports @($Port) -Label "yahboom-mcp"
+    $after = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue).Count
+    return ($before -gt 0 -and $after -eq 0)
 }
 
 Write-Host ""
@@ -98,7 +92,7 @@ if (-not $FleetStart.RunFrontend) {
     return
 }
 
-# 4. Start Vite dashboard (always use webapp folder — npm cwd was wrong when script invoked from repo root)
+# 4. Start Vite dashboard (always use webapp folder - npm cwd was wrong when script invoked from repo root)
 if (-not (Test-Path (Join-Path $PSScriptRoot "node_modules"))) {
     Write-Host "      node_modules missing -- running npm install..." -ForegroundColor Yellow
     Start-Process cmd -WorkingDirectory $PSScriptRoot -ArgumentList "/c", "npm", "install", "--quiet", "--legacy-peer-deps" -Wait -NoNewWindow
@@ -134,6 +128,7 @@ finally {
     Stop-Process -Id $dashboardProc.Id -Force -ErrorAction SilentlyContinue
     Write-Host "[DONE] Cleanup complete." -ForegroundColor Green
 }
+
 
 
 
