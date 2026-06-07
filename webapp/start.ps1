@@ -35,9 +35,9 @@ $WEBAPP_PORT = 10893
 # Helper: kill every process listening on a given port (delegates to fleet standard)
 function Clear-Port {
     param([int]$Port)
-    $before = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue).Count
+    $before = @(Get-FleetPortListenerPids -Port $Port).Count
     Stop-FleetPortSquatters -Ports @($Port) -Label "yahboom-mcp"
-    $after = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue).Count
+    $after = @(Get-FleetPortListenerPids -Port $Port).Count
     return ($before -gt 0 -and $after -eq 0)
 }
 
@@ -128,6 +128,7 @@ finally {
     Stop-Process -Id $dashboardProc.Id -Force -ErrorAction SilentlyContinue
     Write-Host "[DONE] Cleanup complete." -ForegroundColor Green
 }
+
 
 
 
