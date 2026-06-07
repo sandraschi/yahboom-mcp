@@ -1,4 +1,3 @@
-﻿$ProjectRoot = Split-Path -Parent $PSScriptRoot
 param(
     [Parameter(Position = 0)]
     [string]$RobotIP = "192.168.1.11",
@@ -12,6 +11,7 @@ param(
     [switch]$NoBrowser
 )
 
+$ProjectRoot = Split-Path -Parent $PSScriptRoot
 $FleetStartPath = Join-Path $ProjectRoot "scripts\FleetStartMode.ps1"
 if (-not (Test-Path -LiteralPath $FleetStartPath)) {
     Write-Host "ERROR: Missing vendored launcher helper: $FleetStartPath" -ForegroundColor Red
@@ -35,9 +35,9 @@ $WEBAPP_PORT = 10893
 # Helper: kill every process listening on a given port (delegates to fleet standard)
 function Clear-Port {
     param([int]$Port)
-    $before = @(Get-FleetPortListenerPids -Port $Port).Count
+    $before = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue).Count
     Stop-FleetPortSquatters -Ports @($Port) -Label "yahboom-mcp"
-    $after = @(Get-FleetPortListenerPids -Port $Port).Count
+    $after = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue).Count
     return ($before -gt 0 -and $after -eq 0)
 }
 
@@ -128,7 +128,6 @@ finally {
     Stop-Process -Id $dashboardProc.Id -Force -ErrorAction SilentlyContinue
     Write-Host "[DONE] Cleanup complete." -ForegroundColor Green
 }
-
 
 
 
