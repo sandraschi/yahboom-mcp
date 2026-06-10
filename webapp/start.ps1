@@ -8,10 +8,14 @@ param(
     [switch]$Headless,
     [switch]$BackendOnly,
     [switch]$FrontendOnly,
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    [switch]$ReuseIfRunning
 )
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
+$APP_PORT = 10892
+$WEBAPP_PORT = 10893
+
 $FleetStartPath = Join-Path $ProjectRoot "scripts\FleetStartMode.ps1"
 if (-not (Test-Path -LiteralPath $FleetStartPath)) {
     Write-Host "ERROR: Missing vendored launcher helper: $FleetStartPath" -ForegroundColor Red
@@ -20,6 +24,27 @@ if (-not (Test-Path -LiteralPath $FleetStartPath)) {
 . $FleetStartPath
 $FleetStart = Initialize-FleetStartMode @PSBoundParameters
 Enter-FleetHeadlessConsole -Headless:$Headless -BackendOnly:$BackendOnly
+
+$portResolve = @{
+    Ports      = @($APP_PORT, $WEBAPP_PORT)
+    Label      = "yahboom-mcp"
+    AllowReuse = $ReuseIfRunning
+}
+if ($ReuseIfRunning) {
+    $portResolve.HealthChecks = @{
+        $APP_PORT     = "http://127.0.0.1:$APP_PORT/api/v1/health"
+        $WEBAPP_PORT  = "http://127.0.0.1:$WEBAPP_PORT/"
+    }
+}
+$portState = Resolve-FleetPortConflict @portResolve
+if ($portState.Action -eq 'Blocked') { exit 1 }
+if ($portState.Reuse) {
+    if (-not $FleetStart.SkipBrowser -and $FleetStart.RunFrontend) {
+        Start-Process "http://127.0.0.1:$WEBAPP_PORT/"
+    }
+    return
+}
+
 # Yahboom ROS 2 MCP - SOTA 2026 Startup Script
 $env:YAHBOOM_BRIDGE_PORT = [string]$BridgePort
 $env:YAHBOOM_FALLBACK_IP = $FallbackIP
@@ -29,43 +54,17 @@ if ($FallbackIP) {
     Write-Host "[YAHBOOM-MCP] Fallback (ethernet recovery): $FallbackIP" -ForegroundColor DarkGray
 }
 
-$APP_PORT = 10892
-$WEBAPP_PORT = 10893
-
-# Helper: kill every process listening on a given port (delegates to fleet standard)
-function Clear-Port {
-    param([int]$Port)
-    $before = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue).Count
-    Stop-FleetPortSquatters -Ports @($Port) -Label "yahboom-mcp"
-    $after = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue).Count
-    return ($before -gt 0 -and $after -eq 0)
-}
-
 Write-Host ""
 Write-Host "[YAHBOOM-MCP] Initializing SOTA 2026 Environment..." -ForegroundColor Cyan
 
-# 1. Port safety: cull zombies on BOTH ports and kill any existing MCP server processes
-Write-Host "[1/4] Port Safety & Process Cleanup..." -ForegroundColor Cyan
-
-# Kill any existing uv/python processes running the yahboom_mcp server module (to clear ghost stdio instances)
-$mcpProcs = Get-CimInstance Win32_Process -Filter "Name = 'python.exe' OR Name = 'uv.exe'" -ErrorAction SilentlyContinue | Where-Object { 
-    $_.CommandLine -like "*yahboom_mcp.server*" 
+Write-Host "[1/4] Process cleanup..." -ForegroundColor Cyan
+$mcpProcs = Get-CimInstance Win32_Process -Filter "Name = 'python.exe' OR Name = 'uv.exe'" -ErrorAction SilentlyContinue | Where-Object {
+    $_.CommandLine -like "*yahboom_mcp.server*"
 }
 if ($mcpProcs) {
     Write-Host "      Found $($mcpProcs.Count) ghost MCP processes. Cleaning up..." -ForegroundColor Yellow
     foreach ($p in $mcpProcs) {
         Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
-    }
-}
-
-foreach ($port in @($APP_PORT, $WEBAPP_PORT)) {
-    Write-Host "      Port $port ..." -NoNewline
-    $killed = Clear-Port -Port $port
-    if ($killed) {
-        Write-Host " [ZOMBIE(S) CLEARED]" -ForegroundColor Yellow
-    }
-    else {
-        Write-Host " [CLEAN]" -ForegroundColor Green
     }
 }
 
@@ -112,13 +111,12 @@ Write-Host "Press Ctrl+C to stop all processes..."
 
 # 5. Open browser once frontend is reachable (polling, not fixed sleep)
 if (-not $FleetStart.SkipBrowser) {
-$frontendUrl = "http://127.0.0.1:$WEBAPP_PORT/"
-$pollAndOpen = "for (`$i = 0; `$i -lt 60; `$i++) { try { `$null = Invoke-WebRequest -Uri '$frontendUrl' -TimeoutSec 2 -UseBasicParsing -ErrorAction Stop; Start-Process '$frontendUrl'; exit } catch { Start-Sleep -Seconds 1 } }"
-Start-Process powershell -ArgumentList "-NoProfile", "-WindowStyle", "Hidden", "-Command", $pollAndOpen
+    $frontendUrl = "http://127.0.0.1:$WEBAPP_PORT/"
+    $pollAndOpen = "for (`$i = 0; `$i -lt 60; `$i++) { try { `$null = Invoke-WebRequest -Uri '$frontendUrl' -TimeoutSec 2 -UseBasicParsing -ErrorAction Stop; Start-Process '$frontendUrl'; exit } catch { Start-Sleep -Seconds 1 } }"
+    Start-Process powershell -ArgumentList "-NoProfile", "-WindowStyle", "Hidden", "-Command", $pollAndOpen
 }
 
 try {
-
     while ($true) { Start-Sleep -Seconds 1 }
 }
 finally {
@@ -128,7 +126,3 @@ finally {
     Stop-Process -Id $dashboardProc.Id -Force -ErrorAction SilentlyContinue
     Write-Host "[DONE] Cleanup complete." -ForegroundColor Green
 }
-
-
-
-
