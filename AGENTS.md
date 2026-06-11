@@ -11,6 +11,7 @@ SOTA 2026 Yahboom Raspbot v2 ROS 2 MCP Server
 - Responses: structured dicts with `success`, `message`, domain-specific fields
 - Dual transport: stdio (Claude Desktop) + HTTP (`MCP_TRANSPORT=http`)
 - See [mcp-central-docs](https://github.com/sandraschi/mcp-central-docs) for fleet-wide coding standards
+- **Voice Command Bus:** entity `boomy` → `yahboom_agent_mission`. See `docs/VOICE_COMMAND_BUS.md`
 
 ## Key Files
 - `README.md` — full documentation

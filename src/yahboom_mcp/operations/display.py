@@ -292,6 +292,8 @@ while True:
 
     return {
         "success": result.get("success", False),
+        "message": result.get("message", result.get("error", "Display operation completed")),
+        "next_steps": result.get("next_steps", []),
         "operation": operation,
         "status": result.get("status", "unknown"),
         "log": result.get("log", ""),

@@ -86,6 +86,12 @@ $serverArgs = @("run", "python", "-m", "yahboom_mcp.server", "--mode", "dual", "
 $serverProc = Start-Process uv -ArgumentList $serverArgs -NoNewWindow -PassThru
 Pop-Location
 
+# 3b. Wait for backend to be ready
+Write-Host "[3b] Waiting for backend on port $APP_PORT ..." -ForegroundColor Cyan
+for ($i = 0; $i -lt 60; $i++) {
+    try { $null = Invoke-WebRequest -Uri "http://127.0.0.1:$APP_PORT/api/v1/health" -TimeoutSec 2 -UseBasicParsing -ErrorAction Stop; Write-Host "      Backend ready!" -ForegroundColor Green; break } catch { Start-Sleep -Seconds 1 }
+}
+
 if (-not $FleetStart.RunFrontend) {
     try { while ($true) { Start-Sleep -Seconds 1 } } finally { Stop-Process -Id $serverProc.Id -Force -ErrorAction SilentlyContinue }
     return

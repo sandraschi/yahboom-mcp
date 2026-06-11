@@ -498,6 +498,8 @@ async def execute(
 
     return {
         "success": result.get("success", False),
+        "message": result.get("message", result.get("error", "Voice operation completed")),
+        "next_steps": result.get("next_steps", []),
         "operation": operation,
         "status": result.get("status", "ok" if result.get("success") else "error"),
         "log": result.get("log", ""),
