@@ -1,0 +1,54 @@
+{
+  "manifest_version": "0.2",
+  "name": "yahboom-mcp",
+  "version": "2.5.0b1",
+  "description": "SOTA 2026 Yahboom Raspbot v2 ROS 2 MCP Server — motion, sensors, LIDAR, voice, camera PTZ, display, lightstrip, audio, diagnostics, agentic missions, and ROS 2 management for the Yahboom Raspbot v2 robot.",
+  "author": { "name": "sandraschi" },
+  "server": {
+    "type": "python",
+    "entry_point": "src/yahboom_mcp/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run","--directory","${PWD}","python","-m","yahboom_mcp"],
+      "env": {
+        "PYTHONPATH": "${PWD}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  },
+  "tools": [
+    { "name": "yahboom_tool", "description": "Unified portmanteau for 30+ Yahboom hardware operations: motion (forward, backward, turn, strafe, stop), sensors (IMU, battery, encoders, LIDAR), voice (say, play, play_beep), camera PTZ (up, down, left, right, reset, set_pos), display (write, clear), lightstrip (set RGB, off, light_effect, patrol_car), audio (play, store, play_stored, list_stored, delete_stored, stop, sound), trajectory (start/stop recording, list), diagnostics (health_check, config_show, inspect_stack, execute_command), and safety (stop_all)." },
+    { "name": "yahboom_demo", "description": "Boomy show-floor demos: floor chalk art drawing (smiley, heart, boomy_b patterns) and social talkbot with approach, PTZ wiggle, TTS speech." },
+    { "name": "yahboom_agentic_workflow", "description": "High-level robot goal planning via MCP sampling (SEP-1577). Plans and executes sequences of operations: get_robot_health, move_robot, read_sensors." },
+    { "name": "yahboom_agent_mission", "description": "LLM mission planner: natural-language goal to structured JSON plan with optional ROS publish and TTS speech feedback." },
+    { "name": "yahboom_help_tool", "description": "Multi-level help system with drill-down by category (motion, sensors, connection, api, mcp_tools, startup, troubleshooting) and topic." },
+    { "name": "ros_topic_list", "description": "List all active ROS 2 topics and their message types for full sensor/control stack visibility." },
+    { "name": "ros_node_info", "description": "Get detailed info about a specific ROS 2 node: publishers, subscribers, services via SSH." },
+    { "name": "ros_resync", "description": "Force re-discovery of all ROS 2 topics and re-subscribe to sensors." },
+    { "name": "ros_restart_bringup", "description": "Remotely restart Yahboom bringup nodes via SSH — nuclear option for unresponsive robot." },
+    { "name": "lidar", "description": "LIDAR and map data from Yahboom /scan (per-sector obstacle distances) or Dreame D20 Pro floorplan maps." },
+    { "name": "audio", "description": "Play/store/manage audio files through USB voice module speaker: play MP3/WAV, built-in sound effects, store/play_stored/list_stored/delete_stored/stop." }
+  ],
+  "prompts": [
+    {
+      "name": "yahboom_quick_start",
+      "text": "Step-by-step connection instructions. 1. Ensure robot powered and on same LAN with rosbridge running. 2. Set YAHBOOM_IP and start server: uv run python -m yahboom_mcp.server --mode dual --port 10892. 3. Open dashboard at http://localhost:10893. 4. Use yahboom_tool(operation='health_check') first, then motion operations. 5. For high-level goals use yahboom_agentic_workflow."
+    },
+    {
+      "name": "yahboom_patrol",
+      "text": "Generate a patrol plan for the Yahboom robot. Use yahboom_agentic_workflow with a goal like 'Patrol in a square: move forward 2 seconds, turn left 90 degrees, repeat 4 times, then stop and report battery.' Always check health first."
+    },
+    {
+      "name": "yahboom_diagnostics",
+      "text": "Run diagnostics: 1. Call yahboom_tool(operation='health_check') for ROS bridge and battery. 2. If connected, call read_imu and read_battery. 3. Check dashboard at http://localhost:10893. 4. If disconnected, verify YAHBOOM_IP and rosbridge_server."
+    },
+    {
+      "name": "yahboom_patrol_apartment",
+      "text": "Execute apartment patrol: 1. Call health_check, ensure battery > 20%. 2. Use agentic workflow: 'Patrol the apartment: do a full circuit of main rooms, move forward along walls, turn at corners, avoid obstacles using LIDAR.' 3. Return to start and stop."
+    },
+    {
+      "name": "yahboom_go_to_recharge",
+      "text": "Send robot to charging station. 1. health_check — if battery < 15% prioritise short path. 2. Use agentic workflow: 'Go to recharge: drive to charging station and stop, aligned with dock.' 3. If dock position known use forward/turn sequence."
+    }
+  ]
+}

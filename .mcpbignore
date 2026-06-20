@@ -1,0 +1,105 @@
+# Dependencies
+.venv/
+.venv
+node_modules/
+node_modules
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Tests
+tests/
+*.test.*
+test_*
+
+# Git
+.git/
+.gitignore
+.github/
+.gitattributes
+
+# Fleet metadata (not shipped with bundle)
+glama.json
+llms.txt
+llms-full.txt
+
+# Build artifacts
+dist/
+build/
+*.mcpb
+*.egg-info/
+
+# Non-MCP components
+native/
+web_sota/
+webapp/
+scripts/
+*.ps1
+*.bat
+justfile
+justfile.bak
+restart.bat
+start.bat
+start.ps1
+stop.bat
+
+# Documentation
+README.md
+AGENTS.md
+CHANGELOG.md
+CLAUDE.md
+HANDOVER.md
+INSTALL.md
+STATUS.md
+
+# Temp and cache
+tmp/
+tmp_pkgs/
+scratch/
+data/
+*.snap.jpg
+*.jpg
+*.png
+*.tar.gz
+backup_*.tar.gz
+
+# ROS
+ros2/
+mcp_bringup.launch.py
+yahboom_sota.launch.py
+
+# Legacy
+Mcnamu_driver_patched.py
+vision_bridge.py
+yahboom_cam_host.py
+deploy_key.py
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data and coverage
+.coverage
+*raspbot*.STEP
+*.STEP
+
+# mcpb artifacts (duplicate source, not the main src/)
+mcpb/src/
+mcpb/pyproject.toml
+
+# Other tests/diagnostics
+check_topics.py
+check_topics2.py
+debug_routes.py
+git_diff_out.txt
+git_diff_ssh.txt
+minimal_mission_executor.py
+server_output.log
+server_pid.txt
+test_disconnected.log
+test_fastmcp_fix.py
+test_output.log
+test_output2.log

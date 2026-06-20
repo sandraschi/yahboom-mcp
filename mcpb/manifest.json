@@ -1,0 +1,49 @@
+{
+  "manifest_version": "0.2",
+  "name": "yahboom-mcp",
+  "version": "2.5.0b1",
+  "description": "SOTA 2026 Yahboom Raspbot v2 ROS 2 MCP Server — motion, sensors, LIDAR, voice, camera PTZ, display, lightstrip, audio, diagnostics, agentic missions, and ROS 2 management for the Yahboom Raspbot v2 robot.",
+  "author": { "name": "sandraschi" },
+  "server": {
+    "type": "python",
+    "entry_point": "src/yahboom_mcp/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run","--directory","${PWD}","python","-m","yahboom_mcp"],
+      "env": {
+        "PYTHONPATH": "${PWD}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  },
+  "tools": [
+    { "name": "yahboom_tool", "description": "Unified portmanteau for 30+ Yahboom hardware operations: motion (forward, backward, turn, strafe, stop), sensors (IMU, battery, encoders, LIDAR), voice (say, play, play_beep), camera PTZ (up, down, left, right, reset, set_pos), display (write, clear), lightstrip (set RGB, off, light_effect, patrol_car), audio (play, store, play_stored, list_stored, delete_stored, stop, sound), trajectory (start/stop recording, list), diagnostics (health_check, config_show, inspect_stack, execute_command), and safety (stop_all)." },
+    { "name": "yahboom_demo", "description": "Boomy show-floor demos: floor chalk art drawing (smiley, heart, boomy_b patterns) and social talkbot with approach, PTZ wiggle, TTS speech." },
+    { "name": "yahboom_agentic_workflow", "description": "High-level robot goal planning via MCP sampling (SEP-1577). Plans and executes sequences of operations: get_robot_health, move_robot, read_sensors." },
+    { "name": "yahboom_agent_mission", "description": "LLM mission planner: natural-language goal to structured JSON plan with optional ROS publish and TTS speech feedback." },
+    { "name": "yahboom_help_tool", "description": "Multi-level help system with drill-down by category (motion, sensors, connection, api, mcp_tools, startup, troubleshooting) and topic." },
+    { "name": "ros_topic_list", "description": "List all active ROS 2 topics and their message types for full sensor/control stack visibility." },
+    { "name": "ros_node_info", "description": "Get detailed info about a specific ROS 2 node: publishers, subscribers, services via SSH." },
+    { "name": "ros_resync", "description": "Force re-discovery of all ROS 2 topics and re-subscribe to sensors." },
+    { "name": "ros_restart_bringup", "description": "Remotely restart Yahboom bringup nodes via SSH — nuclear option for unresponsive robot." },
+    { "name": "lidar", "description": "LIDAR and map data from Yahboom /scan (per-sector obstacle distances) or Dreame D20 Pro floorplan maps." },
+    { "name": "audio", "description": "Play/store/manage audio files through USB voice module speaker: play MP3/WAV, built-in sound effects, store/play_stored/list_stored/delete_stored/stop." }
+  ],
+  "prompts": [
+    { "name": "yahboom_quick_start", "description": "Step-by-step instructions to connect and run the Yahboom Raspbot v2." },
+    { "name": "yahboom_patrol", "description": "Generate a patrol plan (square or figure-8) for a given duration." },
+    { "name": "yahboom_diagnostics", "description": "Diagnostic checklist for the Yahboom robot and MCP server." },
+    { "name": "yahboom_patrol_apartment", "description": "Standard action: patrol the apartment (full circuit, avoid obstacles)." },
+    { "name": "yahboom_go_to_recharge", "description": "Standard action: drive to charging station and stop." }
+  ],
+  "skills": [
+    { "name": "yahboom_quick_pilot", "description": "Quick pilot skill for immediate robot control." },
+    { "name": "yahboom_patrol_sweep", "description": "Patrol sweep skill for autonomous area coverage." },
+    { "name": "yahboom_emergency_halt", "description": "Emergency halt skill for immediate robot stop." },
+    { "name": "yahboom_diagnostic_triage", "description": "Diagnostic triage skill for robot health checks." }
+  ],
+  "resources": {
+    "streaming": ["/stream (MJPEG video)", "/api/v1/logs/stream (SSE logs)"],
+    "rest": ["GET /api/v1/health", "GET /api/v1/telemetry", "GET /api/v1/slam/map", "POST /api/v1/control/move"]
+  }
+}
