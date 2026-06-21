@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Yahboom MCP",
+  "version": "0.1.0",
+  "identifier": "com.sandraschi.yahboom-mcp",
+  "build": {
+    "frontendDist": "../webapp/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Yahboom MCP Operator",
+        "width": 1280,
+        "height": 860,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "resources": [
+      "resources/yahboom-mcp-backend.exe"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "skip"
+      },
+      "nsis": {}
+    }
+  },
+  "plugins": {}
+}
