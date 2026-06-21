@@ -1,0 +1,80 @@
+# yahboom-mcp — Full Reference
+
+## Architecture
+
+FastMCP 3.2 Unified Gateway on FastAPI. Dual transport: stdio (MCP clients) and HTTP SSE (port 10892). Web dashboard on port 10893 (Vite React). Connects to robot via ROSBridge websocket (rosbridge_suite, port 9090), ESP32 direct (port 2323), or SSH for hardware recovery.
+
+### Components
+
+- **ROS2Bridge** — rosbridge websocket client for topic pub/sub
+- **SSHBridge** — SSH executor for remote Pi commands (bringup restart, GPIO, diagnostics)
+- **VideoBridge** — MJPEG frame capture from robot camera (/stream endpoint)
+- **ESP32Bridge** — Direct serial-to-TCP connection for low-latency motor control
+- **TrajectoryManager** — Record and replay motion sequences
+- **StackProbe** — Docker container health check for ROS driver stack
+
+## Tools — Full Reference
+
+### yahboom_tool (portmanteau)
+
+Single entry point for all robot hardware operations. Operation parameter routes to:
+- **motion**: forward, backward, turn_left/right, strafe_left/right, stop
+- **sensors**: read_imu, read_battery, read_encoders, read_lidar
+- **lightstrip**: led, off, light_effect, patrol_car
+- **camera_ptz**: camera_up/down/left/right, camera_reset
+- **voice**: say, play, play_beep
+- **audio**: audio_play, audio_store, audio_play_stored, audio_list_stored, audio_stop
+- **display**: display, clear_display
+- **diagnostics**: health_check, stack_inspect
+- **trajectory**: trajectory_record, trajectory_replay, trajectory_stop
+- **safety**: emergency_mode, stop_all
+
+### yahboom_demo
+
+- `draw` — Mecanum path drawing (patterns: smiley, heart, boomy_b) with two-color chalk layers
+- `talkbot` — Social talkbot: approach, PTZ wiggle, speech-mcp TTS conversation, listen/reply turns
+
+### yahboom_agentic_workflow
+
+Takes a natural-language goal (e.g. "patrol in a square and report battery"), uses MCP sampling to plan and execute sub-operations.
+
+### lidar (portmanteau)
+
+- `read` — Obstacle sectors + nearest_m from Yahboom /scan
+- `read_raw` — Raw laser scan data
+- `read_dreame_map` — House floorplan map from Dreame D20 Pro (DREAME_MAP_URL)
+
+### ROS management
+
+- `ros_topic_list` — /cmd_vel, /battery, /imu, /odom, /scan
+- `ros_node_info` — Node publishers/subscribers/services
+- `ros_resync` — Re-discover topics, restore missing telemetry
+- `ros_restart_bringup` — SSH docker exec bringup launch
+
+## Prompts
+
+- **yahboom_setup**: Robot power-on, WiFi connect (hotspot 192.168.1.11), env vars, start server
+- **yahboom_troubleshooting**: Blank dashboard, bot offline, ROSBridge down, CORS, npm errors
+
+## REST API
+
+- `GET /api/v1/health` — Robot connection status + driver stack
+- `GET /api/v1/telemetry` — Battery, IMU, velocity
+- `GET /stream` — MJPEG video feed
+- `GET /api/v1/snapshot` — Single JPEG frame for VLM
+- `POST /api/v1/control/move` — Twist command to /cmd_vel
+- `POST /api/v1/control/tool` — Bridge for dashboard tool calls
+- `GET /api/v1/slam/map` — SLAM occupancy grid PNG
+- `POST /api/v1/gpio` — GPIO control on Pi
+- `POST /api/v1/display` — OLED/LCD write
+- `POST /api/v1/missions/run/{id}` — Run automated mission
+
+## Error Handling
+
+All tools return `{"success": bool, "operation": str, "result": {...}}` or `{"success": false, "error": str}` on failure. Bridge connection failures return clear messages. Mock mode available via YAHBOOM_USE_MOCK_BRIDGE=1 for testing.
+
+## Cross-repo Integration
+
+- **robotics-mcp** — Fleet-level orchestration across multiple robot types
+- **speech-mcp** — TTS for talkbot demo via speech-mcp server
+- **aiwatcher-mcp** — Ingest fleet events from robot missions
