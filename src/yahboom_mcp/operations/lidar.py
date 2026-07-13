@@ -9,6 +9,8 @@ import logging
 import os
 from typing import Any
 
+from .. import fail_response
+
 logger = logging.getLogger("yahboom-mcp.operations.lidar")
 
 
@@ -43,20 +45,10 @@ async def execute(
             return await _read_raw_scan(correlation_id, src_lower)
         if op_lower == "read_dreame_map":
             return await _read_dreame_map(correlation_id, param1, payload)
-        return {
-            "success": False,
-            "operation": operation,
-            "error": f"Unknown operation: {operation}. Use read, read_raw, or read_dreame_map.",
-            "correlation_id": correlation_id,
-        }
+        return fail_response(f"Unknown operation: {operation}. Use read, read_raw, or read_dreame_map.", operation=operation, correlation_id=correlation_id)
     except Exception as e:
         logger.error("LIDAR operation failed: %s", e, exc_info=True)
-        return {
-            "success": False,
-            "operation": operation,
-            "error": str(e),
-            "correlation_id": correlation_id,
-        }
+        return fail_response(str(e), operation=operation, correlation_id=correlation_id)
 
 
 async def _read_scan(correlation_id: str, source: str) -> dict:
@@ -74,20 +66,10 @@ async def _read_scan(correlation_id: str, source: str) -> dict:
         dreame_result = await _read_dreame_map(correlation_id, None, None)
         if dreame_result.get("success"):
             return dreame_result
-        return {
-            "success": False,
-            "source": "auto",
-            "error": "No LIDAR source available: Yahboom bridge disconnected and Dreame map not configured (set DREAME_MAP_URL).",
-            "correlation_id": correlation_id,
-        }
+        return fail_response("No LIDAR source available: Yahboom bridge disconnected and Dreame map not configured.", source="auto", correlation_id=correlation_id)
 
     if not yahboom_ok:
-        return {
-            "success": False,
-            "source": "yahboom",
-            "error": "Yahboom ROS bridge not connected. LIDAR requires /scan from robot.",
-            "correlation_id": correlation_id,
-        }
+        return fail_response("Yahboom ROS bridge not connected. LIDAR requires /scan from robot.", source="yahboom", correlation_id=correlation_id)
 
     return {
         "success": True,
@@ -112,12 +94,7 @@ async def _read_raw_scan(correlation_id: str, source: str) -> dict:
 
     bridge = _state.get("bridge")
     if not bridge or not bridge.connected:
-        return {
-            "success": False,
-            "source": "yahboom",
-            "error": "Yahboom ROS bridge not connected.",
-            "correlation_id": correlation_id,
-        }
+        return fail_response("Yahboom ROS bridge not connected.", source="yahboom", correlation_id=correlation_id)
 
     scan = await bridge.get_sensor_data("scan")
     return {
@@ -139,13 +116,7 @@ async def _read_dreame_map(correlation_id: str, param1: Any, payload: dict | Non
     """Fetch LIDAR/map data from Dreame D20 Pro scan if DREAME_MAP_URL is configured."""
     url = os.environ.get("DREAME_MAP_URL", "").strip()
     if not url:
-        return {
-            "success": False,
-            "source": "dreame",
-            "operation": "read_dreame_map",
-            "error": "DREAME_MAP_URL not set. Set to dreame-mcp or compatible JSON map URL (e.g. http://HOST:10894/api/v1/map).",
-            "correlation_id": correlation_id,
-        }
+        return fail_response("DREAME_MAP_URL not set. Set to dreame-mcp or compatible JSON map URL.", source="dreame", operation="read_dreame_map", correlation_id=correlation_id)
 
     try:
         import httpx
@@ -153,23 +124,13 @@ async def _read_dreame_map(correlation_id: str, param1: Any, payload: dict | Non
         async with httpx.AsyncClient(timeout=15.0) as client:
             r = await client.get(url)
             if r.status_code != 200:
-                return {
-                    "success": False,
-                    "source": "dreame",
-                    "error": f"Dreame map endpoint returned HTTP {r.status_code}",
-                    "correlation_id": correlation_id,
-                }
+                return fail_response(f"Dreame map endpoint returned HTTP {r.status_code}", source="dreame", correlation_id=correlation_id)
             data = (
                 r.json() if r.headers.get("content-type", "").startswith("application/json") else {"raw": r.text[:2000]}
             )
     except Exception as e:
         logger.debug("Dreame map fetch failed: %s", e)
-        return {
-            "success": False,
-            "source": "dreame",
-            "error": str(e),
-            "correlation_id": correlation_id,
-        }
+        return fail_response(str(e), source="dreame", correlation_id=correlation_id)
 
     return {
         "success": True,

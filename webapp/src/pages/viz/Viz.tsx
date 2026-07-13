@@ -52,11 +52,17 @@ function useTelemetry() {
 // Auto-discover available STL files in the meshes directory
 // ─────────────────────────────────────────────────────────────────────────────
 const KNOWN_STLS = [
-  "boomy_00_complete.stl", "boomy_00_base_link.stl", "boomy_chassis.stl",
-  "base_link_X3.STL", "base_link.STL",
-  "front_left_wheel_X3.STL", "front_right_wheel_X3.STL",
-  "back_left_wheel_X3.STL", "back_right_wheel_X3.STL",
-  "camera_link.STL", "laser_link.STL",
+  "boomy_00_complete.stl",
+  "boomy_00_base_link.stl",
+  "boomy_chassis.stl",
+  "base_link_X3.STL",
+  "base_link.STL",
+  "front_left_wheel_X3.STL",
+  "front_right_wheel_X3.STL",
+  "back_left_wheel_X3.STL",
+  "back_right_wheel_X3.STL",
+  "camera_link.STL",
+  "laser_link.STL",
 ];
 
 function useAvailableStls(): string[] {
@@ -70,10 +76,14 @@ function useAvailableStls(): string[] {
           if (r.ok && !cancelled) {
             setStls((prev) => (prev.includes(name) ? prev : [...prev, name]));
           }
-        } catch { /* not found */ }
+        } catch {
+          /* not found */
+        }
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
   return stls;
 }
@@ -254,7 +264,13 @@ function G1Robot({ yaw, linearVel }: { yaw: number; linearVel: number }) {
   });
 
   const wheelSpin = linearVel * 20;
-  const body_stl = pickFirst(stls, "boomy_00_complete.stl", "boomy_chassis.stl", "base_link_X3.STL", "base_link.STL");
+  const body_stl = pickFirst(
+    stls,
+    "boomy_00_complete.stl",
+    "boomy_chassis.stl",
+    "base_link_X3.STL",
+    "base_link.STL",
+  );
   const flw = pickFirst(stls, "boomy_wheel_fl.stl", "front_left_wheel_X3.STL");
   const frw = pickFirst(stls, "boomy_wheel_fr.stl", "front_right_wheel_X3.STL");
   const blw = pickFirst(stls, "boomy_wheel_bl.stl", "back_left_wheel_X3.STL");
@@ -293,10 +309,36 @@ function G1Robot({ yaw, linearVel }: { yaw: number; linearVel: number }) {
       <CameraMesh />
 
       {/* ── Wheels (URDF joint positions) ─────────────── */}
-      {flw && <WheelMesh url={`/assets/meshes/${flw}`} position={[WHEEL_X_OFF, WHEEL_AXLE_Y, WHEEL_Y_HALF]} spin={wheelSpin} />}
-      {frw && <WheelMesh url={`/assets/meshes/${frw}`} position={[WHEEL_X_OFF, WHEEL_AXLE_Y, -WHEEL_Y_HALF]} spin={-wheelSpin} flip />}
-      {blw && <WheelMesh url={`/assets/meshes/${blw}`} position={[-WHEEL_X_OFF, WHEEL_AXLE_Y, WHEEL_Y_HALF]} spin={wheelSpin} />}
-      {brw && <WheelMesh url={`/assets/meshes/${brw}`} position={[-WHEEL_X_OFF, WHEEL_AXLE_Y, -WHEEL_Y_HALF]} spin={-wheelSpin} flip />}
+      {flw && (
+        <WheelMesh
+          url={`/assets/meshes/${flw}`}
+          position={[WHEEL_X_OFF, WHEEL_AXLE_Y, WHEEL_Y_HALF]}
+          spin={wheelSpin}
+        />
+      )}
+      {frw && (
+        <WheelMesh
+          url={`/assets/meshes/${frw}`}
+          position={[WHEEL_X_OFF, WHEEL_AXLE_Y, -WHEEL_Y_HALF]}
+          spin={-wheelSpin}
+          flip
+        />
+      )}
+      {blw && (
+        <WheelMesh
+          url={`/assets/meshes/${blw}`}
+          position={[-WHEEL_X_OFF, WHEEL_AXLE_Y, WHEEL_Y_HALF]}
+          spin={wheelSpin}
+        />
+      )}
+      {brw && (
+        <WheelMesh
+          url={`/assets/meshes/${brw}`}
+          position={[-WHEEL_X_OFF, WHEEL_AXLE_Y, -WHEEL_Y_HALF]}
+          spin={-wheelSpin}
+          flip
+        />
+      )}
 
       {/* ── Heading arrow ─────────────────────────────── */}
       <Line

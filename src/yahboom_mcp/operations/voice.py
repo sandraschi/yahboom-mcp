@@ -38,6 +38,8 @@ import time
 
 from fastmcp import Context
 
+from .. import fail_response
+
 logger = logging.getLogger("yahboom-mcp.operations.voice")
 
 # ---------------------------------------------------------------------------
@@ -62,7 +64,7 @@ async def _play_beep_usb(ssh) -> bool:
         'f.close()" && '
         f'aplay -D {_USB_AUDIO_DEV} /tmp/beep.wav && echo OK'
     )
-    out, err, code = await ssh.execute(script)
+    out, _err, _code = await ssh.execute(script)
     return "OK" in (out or "")
 
 # USB VID:PID pairs for the CH340 and CP2102 USB-UART bridges used on Yahboom
@@ -297,13 +299,7 @@ async def execute(
     ssh = _state.get("ssh")
 
     if not ssh or not ssh.connected:
-        return {
-            "success": False,
-            "operation": operation,
-            "error": "SSH bridge not connected",
-            "status": "offline",
-            "correlation_id": correlation_id,
-        }
+        return fail_response("SSH bridge not connected", operation=operation, status="offline", correlation_id=correlation_id)
 
     espeak_voice = os.environ.get("YAHBOOM_ESPEAK_VOICE", "en")
     espeak_speed = int(os.environ.get("YAHBOOM_ESPEAK_SPEED", "150"))
@@ -348,11 +344,7 @@ async def execute(
         else:
             ps_out, _, _ = await ssh.execute(_check_pyserial_cmd())
             if "OK" not in (ps_out or ""):
-                result = {
-                    "success": False,
-                    "error": "pyserial not installed on robot Pi",
-                    "hint": "pip3 install pyserial",
-                }
+                result = fail_response("pyserial not installed on robot Pi", hint="pip3 install pyserial")
             else:
                 packet = _make_packet(phrase_id)
                 out, err, code = await ssh.execute(_play_cmd(device, packet))
@@ -379,33 +371,29 @@ async def execute(
             timeout = 5.0
         device, resolve_note = await _resolve_device(ssh)
         if not device:
-            result = {"success": False, "error": resolve_note or "Voice module not found"}
+            result = fail_response(resolve_note or "Voice module not found")
         else:
             out, err, code = await ssh.execute(_listen_cmd(device, timeout))
             out_s = (out or "").strip()
             if out_s == "TIMEOUT":
                 result = {"success": True, "command_id": None, "status": "timeout"}
             elif out_s.startswith("ERROR"):
-                result = {"success": False, "error": out_s, "log": (err or "").strip()}
+                result = fail_response(out_s, log=(err or "").strip())
             else:
                 try:
                     result = {"success": True, "command_id": int(out_s), "status": "recognised"}
                 except ValueError:
-                    result = {"success": False, "error": f"Unexpected output: {out_s!r}"}
+                    result = fail_response(f"Unexpected output: {out_s!r}")
 
     # ── say ─────────────────────────────────────────────────────────────────
     elif operation == "say":
         text = str(param1).strip() if param1 else "Hello, I am Boomy."
         if not text:
-            result = {"success": False, "error": "Empty text"}
+            result = fail_response("Empty text")
         else:
             chk_out, _, _ = await ssh.execute(_check_espeak_cmd())
             if "NOT_FOUND" in (chk_out or ""):
-                result = {
-                    "success": False,
-                    "error": "espeak-ng not installed on robot Pi",
-                    "hint": "sudo apt-get install espeak-ng",
-                }
+                result = fail_response("espeak-ng not installed on robot Pi", hint="sudo apt-get install espeak-ng")
             else:
                 v = str((payload or {}).get("voice", espeak_voice))
                 s = int((payload or {}).get("speed", espeak_speed))
@@ -426,7 +414,7 @@ async def execute(
 
         local_path = str(param1).strip() if param1 else ""
         if not local_path or not os.path.exists(local_path):
-            result = {"success": False, "error": f"Local file not found: {local_path!r}"}
+            result = fail_response(f"Local file not found: {local_path!r}")
         else:
             remote_tmp = f"/tmp/{os.path.basename(local_path)}"
             try:
@@ -445,7 +433,7 @@ async def execute(
                     "log": (err or "").strip(),
                 }
             except Exception as e:
-                result = {"success": False, "error": f"File playback failed: {e}"}
+                result = fail_response(f"File playback failed: {e}")
 
     # ── chat_and_say ─────────────────────────────────────────────────────────
     elif operation == "chat_and_say":
@@ -458,12 +446,7 @@ async def execute(
         curl_cmd = f"curl -sf -X POST http://localhost:11434/api/generate -d {shlex.quote(payload_json)}"
         out, err, code = await ssh.execute(curl_cmd)
         if code != 0 or not (out or "").strip():
-            result = {
-                "success": False,
-                "error": "Ollama request failed — is Ollama running on the Pi?",
-                "hint": "ollama serve  (then: ollama pull gemma3:1b)",
-                "raw_err": (err or "").strip(),
-            }
+            result = fail_response("Ollama request failed — is Ollama running on the Pi?", hint="ollama serve  (then: ollama pull gemma3:1b)", raw_err=(err or "").strip())
         else:
             try:
                 resp = json.loads(out)
@@ -477,7 +460,7 @@ async def execute(
                     "say_result": speak_res.get("result", {}),
                 }
             except Exception as e:
-                result = {"success": False, "error": f"Response parsing failed: {e}", "raw": out}
+                result = fail_response(f"Response parsing failed: {e}", raw=out)
 
     # ── volume ───────────────────────────────────────────────────────────────
     elif operation == "volume":
@@ -494,7 +477,7 @@ async def execute(
         }
 
     else:
-        result = {"success": False, "error": f"Unknown voice operation: {operation!r}"}
+        result = fail_response(f"Unknown voice operation: {operation!r}")
 
     return {
         "success": result.get("success", False),

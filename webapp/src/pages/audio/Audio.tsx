@@ -54,7 +54,10 @@ interface FleetAudioRepo {
 
 // ── Sound Effects ────────────────────────────────────────────────────────────
 
-const SOUND_CATEGORIES: { label: string; sounds: { id: string; label: string; emoji: string }[] }[] = [
+const SOUND_CATEGORIES: {
+  label: string;
+  sounds: { id: string; label: string; emoji: string }[];
+}[] = [
   {
     label: "Feedback",
     sounds: [
@@ -199,14 +202,17 @@ export default function Audio() {
 
   // ── Delete stored ────────────────────────────────────────────────────────
 
-  const deleteStored = useCallback(async (name: string) => {
-    try {
-      await audioTool("audio_delete_stored", "", name);
-      listStored();
-    } catch {
-      // silent
-    }
-  }, [listStored]);
+  const deleteStored = useCallback(
+    async (name: string) => {
+      try {
+        await audioTool("audio_delete_stored", "", name);
+        listStored();
+      } catch {
+        // silent
+      }
+    },
+    [listStored],
+  );
 
   // ── Stop ─────────────────────────────────────────────────────────────────
 
@@ -227,45 +233,48 @@ export default function Audio() {
     if (file) setUploadFile(file);
   }, []);
 
-  const uploadAndPlay = useCallback(async (store = false) => {
-    if (!uploadFile) return;
-    setLoading("upload");
-    setError("");
-    try {
-      const formData = new FormData();
-      formData.append("file", uploadFile);
-      const uploadRes = await fetch("/api/v1/upload", {
-        method: "POST",
-        body: formData,
-      });
-      if (!uploadRes.ok) throw new Error("Upload failed");
-      const { filename, path: savedPath } = await uploadRes.json();
+  const uploadAndPlay = useCallback(
+    async (store = false) => {
+      if (!uploadFile) return;
+      setLoading("upload");
+      setError("");
+      try {
+        const formData = new FormData();
+        formData.append("file", uploadFile);
+        const uploadRes = await fetch("/api/v1/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!uploadRes.ok) throw new Error("Upload failed");
+        const { filename, path: savedPath } = await uploadRes.json();
 
-      if (store) {
-        const data = await audioTool("audio_store", savedPath, storedName || filename);
-        if (data.success) {
-          setStatus(`Stored: ${storedName || filename}`);
-          setStoredName("");
-          setShowUpload(false);
-          setUploadFile(null);
-          listStored();
+        if (store) {
+          const data = await audioTool("audio_store", savedPath, storedName || filename);
+          if (data.success) {
+            setStatus(`Stored: ${storedName || filename}`);
+            setStoredName("");
+            setShowUpload(false);
+            setUploadFile(null);
+            listStored();
+          } else {
+            setError(data.error || "Store failed");
+          }
         } else {
-          setError(data.error || "Store failed");
+          const data = await audioTool("audio_play", savedPath);
+          if (data.success) {
+            setStatus(`Playing: ${filename}`);
+          } else {
+            setError(data.error || "Play failed");
+          }
         }
-      } else {
-        const data = await audioTool("audio_play", savedPath);
-        if (data.success) {
-          setStatus(`Playing: ${filename}`);
-        } else {
-          setError(data.error || "Play failed");
-        }
+      } catch (e: any) {
+        setError(e.message);
+      } finally {
+        setLoading(null);
       }
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(null);
-    }
-  }, [uploadFile, storedName, listStored]);
+    },
+    [uploadFile, storedName, listStored],
+  );
 
   // ── Parse stored file line ────────────────────────────────────────────────
 
@@ -297,7 +306,10 @@ export default function Audio() {
           <div className="flex gap-3">
             <motion.button
               whileTap={{ scale: 0.95 }}
-              onClick={() => { setShowUpload(!showUpload); setUploadFile(null); }}
+              onClick={() => {
+                setShowUpload(!showUpload);
+                setUploadFile(null);
+              }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-800/60 border border-zinc-700/50 hover:border-zinc-600 text-xs font-semibold text-zinc-300 transition-colors"
             >
               <Plus className="w-4 h-4" /> Upload
@@ -385,7 +397,11 @@ export default function Audio() {
                     disabled={!uploadFile || loading === "upload"}
                     className="flex items-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-xs font-bold text-white transition-colors"
                   >
-                    {loading === "upload" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                    {loading === "upload" ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Play className="w-4 h-4" />
+                    )}
                     Play
                   </motion.button>
                   <motion.button
@@ -428,17 +444,22 @@ export default function Audio() {
                         disabled={loading !== null}
                         className={`
                           flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 border
-                          ${isActive
-                            ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300"
-                            : "bg-zinc-800/40 border-zinc-700/30 hover:border-zinc-500/50 text-zinc-400 hover:text-zinc-200"
+                          ${
+                            isActive
+                              ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300"
+                              : "bg-zinc-800/40 border-zinc-700/30 hover:border-zinc-500/50 text-zinc-400 hover:text-zinc-200"
                           }
                           disabled:opacity-50
                         `}
                       >
                         <span className="text-sm">{s.emoji}</span>
                         <span className="truncate">{s.label}</span>
-                        {isLoading && <Loader2 className="w-3 h-3 animate-spin ml-auto flex-shrink-0" />}
-                        {isActive && !isLoading && <Play className="w-3 h-3 ml-auto flex-shrink-0 fill-current" />}
+                        {isLoading && (
+                          <Loader2 className="w-3 h-3 animate-spin ml-auto flex-shrink-0" />
+                        )}
+                        {isActive && !isLoading && (
+                          <Play className="w-3 h-3 ml-auto flex-shrink-0 fill-current" />
+                        )}
                       </motion.button>
                     );
                   })}
@@ -452,7 +473,8 @@ export default function Audio() {
         {storedFiles.length > 0 && (
           <div className="rounded-[2rem] bg-zinc-900/40 border border-white/5 p-6 backdrop-blur-xl space-y-4">
             <h2 className="text-sm font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-              <FolderOpen className="w-4 h-4 text-violet-500" /> Stored on Boomy ({storedFiles.length})
+              <FolderOpen className="w-4 h-4 text-violet-500" /> Stored on Boomy (
+              {storedFiles.length})
             </h2>
             <div className="space-y-2">
               {storedFiles.map((line, i) => {
@@ -465,8 +487,12 @@ export default function Audio() {
                     className="flex items-center gap-4 px-4 py-3 rounded-xl bg-zinc-800/30 border border-zinc-700/20 group"
                   >
                     <FileAudio className="w-4 h-4 text-zinc-500 flex-shrink-0" />
-                    <span className="flex-1 text-xs text-zinc-300 font-mono truncate">{f.name}</span>
-                    <span className="text-[10px] text-zinc-600 font-mono flex-shrink-0 hidden md:inline">{f.size}</span>
+                    <span className="flex-1 text-xs text-zinc-300 font-mono truncate">
+                      {f.name}
+                    </span>
+                    <span className="text-[10px] text-zinc-600 font-mono flex-shrink-0 hidden md:inline">
+                      {f.size}
+                    </span>
                     <motion.button
                       whileTap={{ scale: 0.9 }}
                       onClick={() => playStored(f.name)}
@@ -514,9 +540,7 @@ export default function Audio() {
                 <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wide">
                   {repo.name}
                 </span>
-                <span className="text-[9px] text-zinc-600 font-mono">
-                  :{repo.port}
-                </span>
+                <span className="text-[9px] text-zinc-600 font-mono">:{repo.port}</span>
               </a>
             ))}
           </div>

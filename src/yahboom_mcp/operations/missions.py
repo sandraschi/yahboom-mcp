@@ -3,6 +3,7 @@ import logging
 import time
 from typing import Any, Optional
 
+from .. import fail_response
 from ..core.ros2_bridge import ROS2Bridge
 from .display import execute as display_execute
 from .lightstrip import execute as led_execute
@@ -76,7 +77,7 @@ class MissionManager:
             self.status = "error"
             self.last_error = f"Unknown mission ID: {mission_id}"
             self._add_log(f"Error: {self.last_error}")
-            return {"success": False, "error": self.last_error}
+            return fail_response(self.last_error)
 
         return {"success": True, "mission": mission_id}
 
@@ -194,7 +195,7 @@ class MissionManager:
             self.status = "aborted"
             self._add_log("Mission manually aborted.")
             return {"success": True}
-        return {"success": False, "error": "No active mission"}
+        return fail_response("No active mission")
 
     def get_status(self) -> dict[str, Any]:
         return {
@@ -455,10 +456,7 @@ class MissionManager:
                 )
                 self.status = "error"
                 self.last_error = "LIDAR unavailable: /scan topic not publishing"
-                return {
-                    "success": False,
-                    "error": "LIDAR not detected. Mount YDLIDAR X4 and verify /scan on the robot.",
-                }
+                return fail_response("LIDAR not detected. Mount YDLIDAR X4 and verify /scan on the robot.")
 
             self._add_log("✅ LIDAR detected — proceeding with SLAM mapping.")
             self.progress = 10
@@ -584,7 +582,7 @@ class MissionManager:
             self.last_error = str(e)
             self._add_log(f"Mapping error: {e}")
             await self.ros_bridge.publish_velocity(0.0, 0.0)
-            return {"success": False, "error": str(e)}
+            return fail_response(str(e))
 
     async def _morning_briefing_mission(self):
         try:
@@ -682,4 +680,4 @@ async def execute(action: str, mission_id: str | None = None):
         return await mgr.stop_mission()
     elif action == "status":
         return mgr.get_status()
-    return {"success": False, "error": "Invalid action"}
+    return fail_response("Invalid action")

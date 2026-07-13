@@ -7,6 +7,8 @@ from typing import Any
 
 import httpx
 
+from .. import fail_response
+
 
 class SpeechMcpClient:
     def __init__(self, base_url: str | None = None) -> None:
@@ -19,8 +21,8 @@ class SpeechMcpClient:
                 if r.status_code == 200:
                     return {"success": True, "reachable": True, "url": self.base_url, "body": r.json()}
             except httpx.HTTPError as exc:
-                return {"success": False, "reachable": False, "url": self.base_url, "error": str(exc)}
-        return {"success": False, "reachable": False, "url": self.base_url}
+                return fail_response(str(exc), reachable=False, url=self.base_url)
+        return fail_response("Speech MCP unreachable", reachable=False, url=self.base_url)
 
     async def speak(self, text: str, *, voice_id: str | None = None) -> dict[str, Any]:
         payload: dict[str, Any] = {"text": text}
@@ -32,7 +34,7 @@ class SpeechMcpClient:
                 r.raise_for_status()
                 return {"success": True, "message": "TTS dispatched via speech-mcp", "response": r.json()}
             except httpx.HTTPError as exc:
-                return {"success": False, "error": str(exc), "url": self.base_url}
+                return fail_response(str(exc), url=self.base_url)
 
     async def transcribe_file(self, file_path: str, *, language: str | None = None) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=120.0) as client:
@@ -48,4 +50,4 @@ class SpeechMcpClient:
                 text = body.get("text") or body.get("transcript") or ""
                 return {"success": True, "text": text, "raw": body}
             except httpx.HTTPError as exc:
-                return {"success": False, "error": str(exc)}
+                return fail_response(str(exc))

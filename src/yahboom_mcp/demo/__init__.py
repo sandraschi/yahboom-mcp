@@ -1,13 +1,13 @@
 """Boomy show-floor demos: floor drawing and talkbot."""
 
-from .draw_patterns import list_patterns
 from .draw_executor import DrawExecutor
-from .talkbot import TalkbotDemo
+from .draw_patterns import list_patterns
 from .speech_client import SpeechMcpClient
+from .talkbot import TalkbotDemo
 
 __all__ = [
     "DrawExecutor",
-    "TalkbotDemo",
     "SpeechMcpClient",
+    "TalkbotDemo",
     "list_patterns",
 ]

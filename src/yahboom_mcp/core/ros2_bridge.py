@@ -947,10 +947,10 @@ class ROS2Bridge:
             'docker exec yahboom_ros2_final python3 -c '
             '"from Raspbot_Lib import Raspbot; '
             'c = Raspbot(); c.Ctrl_BEEP_Switch(1); '
-            'import time; time.sleep(%.1f); '
+            f'import time; time.sleep({duration_s:.1f}); '
             'c.Ctrl_BEEP_Switch(0); print(\\\"OK\\\")"'
-        ) % (duration_s)
-        out, err, _code = await ssh.execute(cmd)
+        )
+        out, _err, _code = await ssh.execute(cmd)
         ok = "OK" in out
         logger.info("SSH I2C beep %.1fs ok=%s", duration_s, ok)
         return ok

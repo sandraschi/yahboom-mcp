@@ -6,6 +6,7 @@ from typing import Annotated
 from fastmcp import Context
 from pydantic import Field
 
+from . import fail_response
 from .state import _state
 
 logger = logging.getLogger("yahboom-mcp.portmanteau")
@@ -16,7 +17,7 @@ async def yahboom_tool(
     operation: Annotated[
         str,
         Field(
-            description="Operation: health_check, forward/backward, turn_left/right, strafe_left/right, stop/stop_all, read_imu/battery/encoders/lidar, say/play/play_beep, audio_play/audio_store/audio_play_stored/audio_list_stored/audio_stop, display/clear_display, led/off/light_effect/patrol_car, camera_up/down/left/right, camera_reset, stack_inspect, execute_command."
+            description="Operation: health_check, forward/backward, turn_left/right, strafe_left/right, stop/stop_all, read_imu/battery/encoders/lidar, say/play/play_beep, audio_play/audio_store/audio_play_stored/audio_list_stored/audio_stop, display/clear_display, led/off/light_effect/patrol_car, camera_up/down/left/right, camera_reset, stack_inspect, execute_command, gripper_set/gripper_open/gripper_close/gripper_status."
         ),
     ] = "health_check",
     param1: Annotated[
@@ -136,11 +137,26 @@ async def yahboom_tool(
             step = int(param1) if param1 else 15
             return await camera_ptz.camera_move(bridge, direction, step=step, ssh_bridge=ssh)
 
+        elif op_lower in ["gripper_set", "gripper_open", "gripper_close", "gripper_status"]:
+            from .operations import gripper
+
+            bridge = _state.get("bridge")
+            ssh = _state.get("ssh")
+
+            if op_lower == "gripper_status":
+                return await gripper.gripper_status()
+            if op_lower == "gripper_open":
+                return await gripper.gripper_open(bridge, ssh_bridge=ssh)
+            if op_lower == "gripper_close":
+                return await gripper.gripper_close(bridge, ssh_bridge=ssh)
+            angle = int(param1) if param1 else 90
+            return await gripper.gripper_set(bridge, angle, ssh_bridge=ssh)
+
         elif op_lower in ["start_recording", "stop_recording", "list_trajectories"]:
             # Trajectory operations from global state
             manager = _state.get("trajectory_manager")
             if not manager:
-                return {"success": False, "error": "Trajectory manager not available"}
+                return fail_response("Trajectory manager not available")
 
             if op_lower == "start_recording":
                 manager.start_recording()
@@ -169,9 +185,4 @@ async def yahboom_tool(
             return await missions.execute("run", mission_id="explore_and_map")
     except Exception as e:
         logger.error(f"Operation {operation} failed: {e}", exc_info=True)
-        return {
-            "success": False,
-            "operation": operation,
-            "error": str(e),
-            "correlation_id": correlation_id,
-        }
+        return fail_response(str(e), operation=operation, correlation_id=correlation_id)

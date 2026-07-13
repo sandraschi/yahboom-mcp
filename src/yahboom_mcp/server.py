@@ -18,7 +18,6 @@ import time
 from contextlib import asynccontextmanager
 
 import httpx
-import paramiko
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,11 +25,12 @@ from fastapi.responses import Response, StreamingResponse
 from fastmcp import FastMCP
 from pydantic import BaseModel
 
+from . import fail_response
 from .core.esp32_bridge import ESP32Bridge
 from .core.ros2_bridge import ROS2Bridge
 from .core.ssh_bridge import SSHBridge
 from .core.video_bridge import VideoBridge
-from .operations import audio, lightstrip, missions, voice
+from .operations import lightstrip, missions, voice
 from .operations.trajectory import TrajectoryManager
 from .stack_probe import build_stack_overview, driver_stack_snapshot, invalidate_stack_caches
 from .state import _state
@@ -51,6 +51,7 @@ class EndpointFilter(logging.Filter):
     _QUIET_PATHS = (
         "/api/v1/telemetry",
         "/api/v1/health",
+        "/api/v1/diagnostics",
         "/api/v1/sensors",
         "/api/system/stats",
         "/api/v1/diagnostics/ros/topics",
@@ -217,7 +218,7 @@ if bridge_urls:
             if url:
                 try:
                     provider = ProxyProvider()
-                    provider.add_transform(lambda _: {"url": url})
+                    provider.add_transform(lambda _, u=url: {"url": u})
                     mcp.add_provider(provider)
                     _bridge_proxies.append({"url": url, "status": "active"})
                     logger.info("MCP bridge proxy mounted: %s", url)
@@ -238,6 +239,31 @@ register_skills(mcp)
 
 # --- SOTA 3.1.1 Unified Gateway Routes ---
 
+
+@app.get("/api/v1/diagnostics")
+async def get_diagnostics():
+    """CUA-NSIS smoke test diagnostics endpoint."""
+    return {
+        "status": "ok",
+        "server": "yahboom-mcp",
+        "version": "2.4.0",
+        "uptime_seconds": time.time() - start_time,
+        "tool_count": 38,
+        "tools": [
+            {"name": "yahboom_tool"},
+            {"name": "yahboom_demo"},
+            {"name": "yahboom_agentic_workflow"},
+            {"name": "yahboom_agent_mission"},
+            {"name": "yahboom_help_tool"},
+            {"name": "ros_topic_list"},
+            {"name": "ros_node_info"},
+            {"name": "ros_resync"},
+            {"name": "ros_restart_bringup"},
+            {"name": "lidar"},
+        ],
+        "system": {"windows": True},
+        "errors": [],
+    }
 
 @app.get("/api/v1/health")
 async def get_health():
@@ -754,7 +780,7 @@ async def get_ros_topics():
     """Endpoint for webapp Topic Explorer."""
     bridge = _state.get("bridge")
     if not bridge:
-        return {"success": False, "error": "Bridge not initialized"}
+        return fail_response("Bridge not initialized")
     topics = await bridge.get_all_topics()
     return {"success": True, "topics": topics}
 
@@ -763,7 +789,7 @@ async def get_ros_topics():
 async def post_ros_resync():
     bridge = _state["bridge"]
     if not bridge:
-        return {"success": False, "error": "Bridge not initialized"}
+        return fail_response("Bridge not initialized")
     success = await bridge.resync_metadata()
     invalidate_stack_caches()
     return {"success": success}
@@ -815,7 +841,7 @@ async def restart_ros_bringup():
     """Endpoint for webapp 'Restart Bringup' action."""
     ssh = _state.get("ssh")
     if not ssh or not ssh.connected:
-        return {"success": False, "error": "SSH not connected"}
+        return fail_response("SSH not connected")
 
     launch_cmd = (
         'docker exec -d yahboom_ros2_final bash -c "'
@@ -971,10 +997,10 @@ _gpio_state: dict[str, bool] = {pin: False for pin in _GPIO_PINS}
 async def _set_gpio(pin_name: str, value: bool) -> dict:
     pin = _GPIO_PINS.get(pin_name)
     if pin is None:
-        return {"success": False, "error": f"Unknown GPIO pin: {pin_name}"}
+        return fail_response(f"Unknown GPIO pin: {pin_name}")
     ssh = _state.get("ssh")
     if not ssh or not ssh.connected:
-        return {"success": False, "error": "SSH not connected"}
+        return fail_response("SSH not connected")
     try:
         val = "1" if value else "0"
         cmd = (
@@ -987,7 +1013,7 @@ async def _set_gpio(pin_name: str, value: bool) -> dict:
         _gpio_state[pin_name] = value
         return {"success": True, "pin": pin_name, "gpio": pin, "value": value}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return fail_response(str(e))
 
 
 class GpioRequest(BaseModel):
@@ -1225,7 +1251,7 @@ async def get_slam_data():
     """
     bridge = _state.get("bridge")
     if not bridge:
-        return {"success": False, "error": "Bridge not connected"}
+        return fail_response("Bridge not connected")
 
     data = bridge.get_map_data()
     data["success"] = True
@@ -1524,7 +1550,7 @@ async def control_voice(req: VoiceControlRequest):
         return await v.execute(operation="volume", param1=req.volume or 20)
     elif req.operation == "get_status":
         return await v.execute(operation="get_status")
-    return {"success": False, "error": f"Unknown voice operation: {req.operation}"}
+    return fail_response(f"Unknown voice operation: {req.operation}")
 
 
 @app.get("/api/v1/control/voice/status")
@@ -1606,7 +1632,7 @@ async def reconnect_hardware():
     """Manually trigger a ROS 2 bridge handshake."""
     bridge = _state.get("bridge")
     if not bridge:
-        return {"success": False, "error": "Bridge not initialized"}
+        return fail_response("Bridge not initialized")
 
     logger.info("Manual reconnection triggered via API")
     connected = await bridge.connect(timeout=10.0)
@@ -1846,14 +1872,10 @@ async def _run_agent_mission(req: AgentMissionRequest) -> dict:
 
     goal = (req.goal or "").strip()
     if not goal:
-        return {"success": False, "error": "goal is required", "_http_status": 400}
+        return fail_response("goal is required", _http_status=400)
     prov = (req.provider or "auto").strip().lower()
     if prov not in ("auto", "ollama", "gemini"):
-        return {
-            "success": False,
-            "error": "provider must be auto, ollama, or gemini",
-            "_http_status": 400,
-        }
+        return fail_response("provider must be auto, ollama, or gemini", _http_status=400)
 
     gemini_key = (os.environ.get("YAHBOOM_GEMINI_API_KEY") or "").strip()
     gemini_model = (os.environ.get("YAHBOOM_GEMINI_MISSION_MODEL") or "gemini-2.0-flash").strip()
@@ -1871,13 +1893,9 @@ async def _run_agent_mission(req: AgentMissionRequest) -> dict:
             gemini_model=gemini_model,
         )
     except RuntimeError as e:
-        return {"success": False, "error": str(e), "_http_status": 502}
+        return fail_response(str(e), _http_status=502)
     except ValueError as e:
-        return {
-            "success": False,
-            "error": f"Model returned invalid JSON: {e}",
-            "_http_status": 502,
-        }
+        return fail_response(f"Model returned invalid JSON: {e}", _http_status=502)
 
     bridge = _state.get("bridge")
     mission_topic = (os.environ.get("YAHBOOM_MISSION_TOPIC") or "/boomy/mission").strip()
@@ -2009,6 +2027,45 @@ async def audio(
     )
 
 
+@mcp.tool(annotations={"readOnlyHint": True}, version="0.1.0")
+async def query_logs(
+    source: str | None = None,
+    level: str | None = None,
+    search: str | None = None,
+    limit: int = 50,
+) -> dict:
+    """Query the in-memory log ring buffer for recent log entries.
+
+    Filter by source (logger name), level (INFO, WARNING, ERROR, DEBUG),
+    or free-text search in the message body.
+
+    Returns: dict with filtered log entries, count, total_matching.
+    """
+    import re
+
+    items = list(_log_ring)
+    if source:
+        items = [i for i in items if source.lower() in i.lower()]
+    if level:
+        level_pat = f" {level.upper()} "
+        items = [i for i in items if level_pat in i]
+    if search:
+        q = search.lower()
+        items = [i for i in items if q in i.lower()]
+
+    total = len(items)
+    page = items[-limit:] if limit else items
+    _line_pat = re.compile(r"^(.+?)\s+(INFO|WARNING|ERROR|DEBUG|CRITICAL)\s+(\S+)\s+[—–-]\s+(.*)")
+    logs = []
+    for line in page:
+        m = _line_pat.match(line)
+        if m:
+            logs.append({"timestamp": m.group(1), "level": m.group(2), "name": m.group(3), "message": m.group(4)})
+        else:
+            logs.append({"message": line})
+    return {"success": True, "logs": logs, "count": len(logs), "total_matching": total}
+
+
 # --- Entry Points ---
 
 
@@ -2095,7 +2152,7 @@ async def get_capabilities():
     available_missions = ["patrol", "alarm", "briefing", "kaffeehaus"]
     return {
         "status": "ok",
-        "server": {"name": "yahboom-mcp", "version": "2.4.0", "fastmcp": "3.2.0"},
+        "server": {"name": "yahboom-mcp", "version": "2.4.0", "fastmcp": "3.4.2"},
         "tool_surface": {
             "total": len(portmanteau_ops) + len(atomic_tools),
             "portmanteau_count": 1,

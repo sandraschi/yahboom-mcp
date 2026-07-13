@@ -2,7 +2,7 @@
   "name": "yahboom-mcp",
   "display_name": "Yahboom ROS 2 MCP",
   "version": "2.4.0",
-  "description": "MCP server for Yahboom Raspbot v2 (ROS 2 Humble) with FastMCP 3.2 Unified Gateway",
+  "description": "MCP server for Yahboom Raspbot v2 (ROS 2 Humble) with FastMCP 3.4 Unified Gateway",
   "long_running": true,
   "contact_email": "",
   "categories": ["robotics", "ros2", "iot"],
@@ -15,7 +15,7 @@
   },
   "runtime": {
     "python": ">=3.12",
-    "fastmcp": "3.2.0"
+    "fastmcp": "3.4.2"
   },
   "tags": ["yahboom", "raspbot", "ros2", "mecanum", "lidar", "camera", "voice", "patrol"],
   "capabilities": {

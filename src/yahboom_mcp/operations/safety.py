@@ -3,6 +3,8 @@ from typing import Any
 
 from fastmcp import Context
 
+from .. import fail_response
+
 logger = logging.getLogger("yahboom-mcp.operations.safety")
 
 
@@ -63,9 +65,4 @@ async def execute(
             "correlation_id": correlation_id,
         }
 
-    return {
-        "success": False,
-        "operation": operation,
-        "error": f"Unknown safety operation: {operation}",
-        "correlation_id": correlation_id,
-    }
+    return fail_response(f"Unknown safety operation: {operation}", operation=operation, correlation_id=correlation_id)

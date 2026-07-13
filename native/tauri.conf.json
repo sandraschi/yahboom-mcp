@@ -30,7 +30,8 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "resources/yahboom-mcp-backend.exe"
+      "resources/yahboom-mcp-backend.exe",
+            "resources/.env.example"
     ],
     "windows": {
       "webviewInstallMode": {
@@ -41,3 +42,4 @@
   },
   "plugins": {}
 }
+

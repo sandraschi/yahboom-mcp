@@ -101,12 +101,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     >
       {/* Brand Section */}
       <div className="h-20 flex items-center px-6 mb-4">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-1">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <Monitor className="text-white w-6 h-6" />
           </div>
           {!isCollapsed && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col flex-1"
+            >
               <span className="text-lg font-bold tracking-tight text-white leading-tight">
                 BOOMY CONTROL
               </span>
@@ -160,24 +164,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
           </div>
         ))}
       </nav>
-
-      {/* Footer / Toggle */}
-      <div className="p-4 border-t border-white/5">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="w-full flex items-center justify-center py-2.5 rounded-xl text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-colors"
-        >
-          {isCollapsed ? (
-            <ChevronRight size={20} />
-          ) : (
-            <div className="flex items-center gap-3 w-full px-2">
-              <ChevronLeft size={20} />
-              <span className="text-sm font-medium">Collapse</span>
-            </div>
-          )}
-        </button>
-      </div>
     </motion.aside>
   );
 };

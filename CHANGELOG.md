@@ -1,3 +1,15 @@
+
+## [Unreleased] — 2026-06-14
+
+### Added
+- Tauri native wrapper (native/ directory) with bundle.resources + std::process::Command
+- CUA-NSIS: just cua-nsis-test recipe, scripts/cua-smoke.py, scripts/cua-nsis-config.json
+- Tauri CORS: tauri://localhost origins for WebView API access
+- NSIS installer at dist/ and native/target/release/bundle/nsis/
+
+### Changed
+- Frontend API calls use absolute http://127.0.0.1:{port} URLs in production build
+- CORS middleware includes allow_origin_regex for tauri.localhost
 # Changelog - Yahboom ROS 2 MCP
 
 All notable changes to this project will be documented in this file.
@@ -347,3 +359,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Portmanteau Tool**: Scaffolding for unified `yahboom` tool.
 - **Documentation**: SOTA Architecture doc in `mcp-central-docs`.
 - **Fleet Registry**: Registered project at port 10892.
+

@@ -5,6 +5,8 @@ import time
 import roslibpy
 from fastmcp import Context
 
+from .. import fail_response
+
 logger = logging.getLogger("yahboom-mcp.operations.lightstrip")
 
 # ──────────────────────────────────────────────────────────────────
@@ -146,12 +148,7 @@ async def execute(
     bridge = _state.get("bridge")
 
     if not bridge or not (bridge.connected or (bridge.ros and bridge.ros.is_connected)):
-        return {
-            "success": False,
-            "operation": operation,
-            "error": "Bridge not connected",
-            "correlation_id": correlation_id,
-        }
+        return fail_response("Bridge not connected", operation=operation, correlation_id=correlation_id)
 
     topic = _get_rgblight_topic(bridge)
 
@@ -180,7 +177,7 @@ async def execute(
         else:
             runner_fn = _PATTERN_RUNNERS.get(canonical)
             if not runner_fn:
-                result = {"success": False, "error": f"Unknown pattern: {pattern_key}"}
+                result = fail_response(f"Unknown pattern: {pattern_key}")
             else:
                 await _stop_pattern()
                 _pattern_task = asyncio.create_task(runner_fn(bridge))
@@ -201,7 +198,7 @@ async def execute(
         }
 
     else:
-        result = {"success": False, "error": f"Unknown lightstrip operation: {operation}"}
+        result = fail_response(f"Unknown lightstrip operation: {operation}")
 
     return {
         "success": result.get("success", False),

@@ -1,8 +1,10 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, ShieldAlert, Square, Wifi, WifiOff } from "lucide-react";
+import { Loader2, RefreshCw, ShieldAlert, Square, Wifi, WifiOff } from "lucide-react";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { useBackendStore } from "../../lib/store";
+import { useZoom } from "../../lib/use-zoom";
 import Sidebar from "./Sidebar";
 
 interface AppLayoutProps {
@@ -12,22 +14,63 @@ interface AppLayoutProps {
 const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [restarting, setRestarting] = useState(false);
 
   const [connection, setConnection] = useState<"online" | "offline" | "loading">("loading");
+  const setOnline = useBackendStore((s) => s.setOnline);
+
+  useZoom();
+
+  const startBackend = useCallback(async () => {
+    setRestarting(true);
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("start_backend");
+    } catch {
+      setRestarting(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    (async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        unlisten = await listen<string>("backend-status", (event) => {
+          if (event.payload === "ready") {
+            setOnline(true);
+            setConnection("online");
+            setRestarting(false);
+          } else if (typeof event.payload === "string" && event.payload.startsWith("error:")) {
+            setOnline(false);
+            setConnection("offline");
+            setRestarting(false);
+          }
+        });
+      } catch {
+        /* not in Tauri -- HTTP polling handles it */
+      }
+    })();
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [setOnline]);
 
   useEffect(() => {
     const checkHealth = async () => {
       try {
         const health = await api.getHealth();
         setConnection(health.robot_connection.ros === "connected" ? "online" : "offline");
+        setOnline(true);
       } catch {
         setConnection("offline");
+        setOnline(false);
       }
     };
     checkHealth();
     const interval = setInterval(checkHealth, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [setOnline]);
 
   const handleEmergencyStop = async () => {
     setStopping(true);
@@ -50,7 +93,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         {/* Global Header with Emergency Stop */}
         <header className="h-20 border-b border-white/5 flex items-center justify-between px-10 relative z-20 backdrop-blur-xl bg-slate-900/20">
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3" data-testid="backend-dot">
               <ShieldAlert className="text-indigo-500 w-5 h-5 animate-pulse" />
               <span className="text-[10px] uppercase tracking-[0.3em] font-black text-slate-400">
                 Boomy System Core
@@ -58,6 +101,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             </div>
 
             <div
+              data-testid="backend-dot"
               className={`flex items-center gap-2 px-3 py-1 rounded-full border ${
                 connection === "online"
                   ? "bg-green-500/10 border-green-500/20 text-green-500"
@@ -73,6 +117,19 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 {connection === "online" ? "Link Active" : "Link Lost"}
               </span>
             </div>
+
+            {connection === "offline" && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={startBackend}
+                disabled={restarting}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-xs font-bold text-indigo-300 hover:bg-indigo-500/30 transition-colors"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${restarting ? "animate-spin" : ""}`} />
+                {restarting ? "Restarting..." : "Restart Backend"}
+              </motion.button>
+            )}
           </div>
 
           <motion.button

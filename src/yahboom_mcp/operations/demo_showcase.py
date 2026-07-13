@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .. import fail_response
 from ..demo.draw_executor import get_draw_executor
 from ..demo.talkbot import get_talkbot_demo
 
@@ -68,18 +69,6 @@ async def execute(
         t = await get_talkbot_demo().stop()
         return {"success": True, "draw": d, "talkbot": t}
 
-    return {
-        "success": False,
-        "error": f"Unknown demo operation: {operation}",
-        "recovery_options": [
-            "describe",
-            "draw",
-            "draw_status",
-            "draw_stop",
-            "talkbot",
-            "talkbot_status",
-            "talkbot_stop",
-            "status",
-            "stop",
-        ],
-    }
+    return fail_response(f"Unknown demo operation: {operation}", recovery_options=[
+        "describe", "draw", "draw_status", "draw_stop", "talkbot", "talkbot_status", "talkbot_stop", "status", "stop",
+    ])

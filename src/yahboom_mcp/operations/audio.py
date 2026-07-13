@@ -11,7 +11,8 @@ circus, elevator, siren, applause, tada, sad_trombone, take_five, coin, zap.
 import logging
 import os
 import shlex
-import time
+
+from .. import fail_response
 
 logger = logging.getLogger("yahboom-mcp.operations.audio")
 
@@ -142,7 +143,7 @@ def _direct_ssh():
     host = "192.168.1.11"
     pwd = os.environ.get("YAHBOOM_PASSWORD", "yahboom")
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507
     client.connect(host, username="pi", password=pwd, timeout=10)
     return client
 
@@ -190,8 +191,6 @@ async def execute(
     stop
         Kill all running mpg123/aplay processes.
     """
-    corr_id = "manual-audio"
-
     ext = os.path.splitext(file_path)[1].lower() if file_path else ""
     is_audio = ext in (".mp3", ".wav")
 
@@ -202,7 +201,7 @@ async def execute(
             _run_ssh(c, "pkill -f 'mpg123|aplay' 2>/dev/null; echo OK")
             c.close()
         except Exception as e:
-            return {"success": False, "operation": operation, "error": str(e)}
+            return fail_response(str(e), operation=operation)
         return {"success": True, "operation": "stop", "status": "stopped"}
 
     # --- LIST STORED ---
@@ -211,20 +210,17 @@ async def execute(
             c = _direct_ssh()
             out, _, _ = _run_ssh(c, f"ls -lah {_AUDIO_DIR}/ 2>/dev/null || echo EMPTY")
             c.close()
-            files = [l for l in out.split("\n") if l and "EMPTY" not in l and "total" not in l]
+            files = [line for line in out.split("\n") if line and "EMPTY" not in line and "total" not in line]
             return {"success": True, "operation": "list_stored", "files": files, "count": len(files)}
         except Exception as e:
-            return {"success": False, "operation": operation, "error": str(e)}
+            return fail_response(str(e), operation=operation)
 
     # --- SOUND (built-in effects) ---
     if operation == "sound":
         if not file_name or file_name not in _SOUNDS:
-            return {
-                "success": False,
-                "operation": "sound",
-                "error": f"Unknown sound: {file_name!r}",
-                "available": sorted(_SOUNDS),
-            }
+            return fail_response(
+                f"Unknown sound: {file_name!r}", operation="sound", available=sorted(_SOUNDS),
+            )
         try:
             c = _direct_ssh()
             # Write generator script, run it, play output
@@ -232,10 +228,10 @@ async def execute(
             with sftp.file("/tmp/boomy_gen_sound.py", "w") as f:
                 f.write(_SOUND_GENERATOR)
             sftp.close()
-            out, err, code = _run_ssh(c, f"python3 /tmp/boomy_gen_sound.py {shlex.quote(file_name)} 2>&1")
+            out, err, _code = _run_ssh(c, f"python3 /tmp/boomy_gen_sound.py {shlex.quote(file_name)} 2>&1")
             if "GENERATED" not in out:
                 c.close()
-                return {"success": False, "operation": "sound", "error": f"Generation failed: {out} {err}"}
+                return fail_response(f"Generation failed: {out} {err}", operation="sound")
 
             play_out, _, _ = _run_ssh(
                 c, f"aplay -q -D {_AUDIO_DEV} /tmp/boomy_sound.wav 2>&1; echo OK"
@@ -249,14 +245,14 @@ async def execute(
                 "samples": out.split(":")[-1] if ":" in out else "",
             }
         except Exception as e:
-            return {"success": False, "operation": "sound", "error": str(e)}
+            return fail_response(str(e), operation="sound")
 
     # --- PLAY ---
     if operation == "play":
         if not file_path or not os.path.exists(file_path):
-            return {"success": False, "operation": "play", "error": f"File not found: {file_path!r}"}
+            return fail_response(f"File not found: {file_path!r}", operation="play")
         if not is_audio:
-            return {"success": False, "operation": "play", "error": f"Unsupported: {ext} (use .mp3 or .wav)"}
+            return fail_response(f"Unsupported: {ext} (use .mp3 or .wav)", operation="play")
 
         remote = f"/tmp/audio_play_{os.path.basename(file_path)}"
         try:
@@ -269,7 +265,7 @@ async def execute(
                 cmd = f"nohup mpg123 -q -a {_AUDIO_DEV} {shlex.quote(remote)} >/dev/null 2>&1 & echo OK"
             else:
                 cmd = f"nohup aplay -q -D {_AUDIO_DEV} {shlex.quote(remote)} >/dev/null 2>&1 & echo OK"
-            out, err, code = _run_ssh(c, cmd)
+            out, err, _code = _run_ssh(c, cmd)
             c.close()
             return {
                 "success": "OK" in out,
@@ -279,14 +275,14 @@ async def execute(
                 "log": err or "",
             }
         except Exception as e:
-            return {"success": False, "operation": "play", "error": str(e)}
+            return fail_response(str(e), operation="play")
 
     # --- STORE ---
     if operation == "store":
         if not file_path or not os.path.exists(file_path):
-            return {"success": False, "operation": "store", "error": f"File not found: {file_path!r}"}
+            return fail_response(f"File not found: {file_path!r}", operation="store")
         if not is_audio:
-            return {"success": False, "operation": "store", "error": f"Unsupported: {ext}"}
+            return fail_response(f"Unsupported: {ext}", operation="store")
 
         name = file_name or os.path.basename(file_path)
         remote = f"{_AUDIO_DIR}/{name}"
@@ -299,19 +295,19 @@ async def execute(
             c.close()
             return {"success": True, "operation": "store", "file": file_path, "stored_as": remote}
         except Exception as e:
-            return {"success": False, "operation": "store", "error": str(e)}
+            return fail_response(str(e), operation="store")
 
     # --- PLAY STORED ---
     if operation == "play_stored":
         if not file_name:
-            return {"success": False, "operation": "play_stored", "error": "file_name required"}
+            return fail_response("file_name required", operation="play_stored")
         remote = f"{_AUDIO_DIR}/{file_name}"
         try:
             c = _direct_ssh()
             out, _, _ = _run_ssh(c, f"test -f {shlex.quote(remote)} && echo EXISTS || echo MISSING")
             if "MISSING" in out:
                 c.close()
-                return {"success": False, "operation": "play_stored", "error": f"Not found: {file_name!r}"}
+                return fail_response(f"Not found: {file_name!r}", operation="play_stored")
 
             if file_name.endswith(".mp3"):
                 cmd = f"nohup mpg123 -q -a {_AUDIO_DEV} {shlex.quote(remote)} >/dev/null 2>&1 & echo OK"
@@ -326,12 +322,12 @@ async def execute(
                 "status": "playing" if "OK" in out else "failed",
             }
         except Exception as e:
-            return {"success": False, "operation": "play_stored", "error": str(e)}
+            return fail_response(str(e), operation="play_stored")
 
     # --- DELETE STORED ---
     if operation == "delete_stored":
         if not file_name:
-            return {"success": False, "operation": "delete_stored", "error": "file_name required"}
+            return fail_response("file_name required", operation="delete_stored")
         remote = f"{_AUDIO_DIR}/{file_name}"
         try:
             c = _direct_ssh()
@@ -339,9 +335,9 @@ async def execute(
             c.close()
             if "OK" in out:
                 return {"success": True, "operation": "delete_stored", "file_name": file_name}
-            return {"success": False, "operation": "delete_stored", "error": "Delete failed"}
+            return fail_response("Delete failed", operation="delete_stored")
         except Exception as e:
-            return {"success": False, "operation": "delete_stored", "error": str(e)}
+            return fail_response(str(e), operation="delete_stored")
 
-    return {"success": False, "operation": operation, "error": f"Unknown: {operation!r}"}
+    return fail_response(f"Unknown: {operation!r}", operation=operation)
 

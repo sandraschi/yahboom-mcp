@@ -2,6 +2,8 @@ import logging
 
 from fastmcp import Context
 
+from .. import fail_response
+
 logger = logging.getLogger("yahboom-mcp.operations.diagnostics")
 
 
@@ -72,7 +74,7 @@ async def execute(
 
     elif operation == "execute_command":
         if not payload or "command" not in payload:
-            return {"success": False, "error": "Missing 'command' in payload"}
+            return fail_response("Missing 'command' in payload")
 
         command = payload["command"]
         use_sudo = payload.get("sudo", False)
@@ -90,7 +92,7 @@ async def execute(
                 "correlation_id": correlation_id,
             }
         else:
-            return {"success": False, "error": "SSH Bridge not connected"}
+            return fail_response("SSH Bridge not connected")
 
     elif operation == "config_show":
         return {
@@ -100,9 +102,4 @@ async def execute(
             "correlation_id": correlation_id,
         }
 
-    return {
-        "success": False,
-        "operation": operation,
-        "error": f"Unknown diagnostic operation: {operation}",
-        "correlation_id": correlation_id,
-    }
+    return fail_response(f"Unknown diagnostic operation: {operation}", operation=operation, correlation_id=correlation_id)

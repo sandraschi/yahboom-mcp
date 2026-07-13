@@ -3,6 +3,8 @@ from typing import Any
 
 import roslibpy
 
+from .. import fail_response
+
 logger = logging.getLogger("yahboom-mcp.operations.camera_ptz")
 
 _camera_state = {"pan": 90, "tilt": 90}
@@ -79,7 +81,7 @@ async def camera_move(ros_bridge, direction: str, step: int = 10, ssh_bridge=Non
     elif direction == "right":
         _camera_state["pan"] = max(0, _camera_state["pan"] - step)
     else:
-        return {"success": False, "error": f"Invalid direction: {direction}"}
+        return fail_response(f"Invalid direction: {direction}")
 
     pan = _camera_state["pan"]
     tilt = _camera_state["tilt"]

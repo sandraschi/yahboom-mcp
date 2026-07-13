@@ -4,16 +4,32 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 
 const SAMPLE_MISSIONS = [
-  { label: "Square Patrol", goal: "Patrol in a square: move forward 2 seconds, turn left 90 degrees, repeat 4 times, then stop and report battery." },
-  { label: "Spin Scan", goal: "Do a full 360 spin scan: turn right slowly for 5 seconds to look around, then stop and report what you see." },
-  { label: "Forward Recon", goal: "Move forward 3 seconds slowly, scanning for obstacles. If clear, report success. If blocked, stop and report." },
-  { label: "Room Search", goal: "Search the room in a sinusoidal pattern: move forward while weaving left and right. Stop if you detect an object." },
+  {
+    label: "Square Patrol",
+    goal: "Patrol in a square: move forward 2 seconds, turn left 90 degrees, repeat 4 times, then stop and report battery.",
+  },
+  {
+    label: "Spin Scan",
+    goal: "Do a full 360 spin scan: turn right slowly for 5 seconds to look around, then stop and report what you see.",
+  },
+  {
+    label: "Forward Recon",
+    goal: "Move forward 3 seconds slowly, scanning for obstacles. If clear, report success. If blocked, stop and report.",
+  },
+  {
+    label: "Room Search",
+    goal: "Search the room in a sinusoidal pattern: move forward while weaving left and right. Stop if you detect an object.",
+  },
 ];
 
 export default function Missions() {
   const [goal, setGoal] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ plan?: Record<string, unknown>; message?: string; error?: string } | null>(null);
+  const [result, setResult] = useState<{
+    plan?: Record<string, unknown>;
+    message?: string;
+    error?: string;
+  } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
 
@@ -22,7 +38,9 @@ export default function Missions() {
       try {
         const h = await api.getHealth();
         setConnected(h.robot_connection.ros === "connected");
-      } catch { setConnected(false); }
+      } catch {
+        setConnected(false);
+      }
     };
     poll();
     const id = setInterval(poll, 5000);
@@ -54,20 +72,29 @@ export default function Missions() {
         <Bot className="text-indigo-400 w-7 h-7" />
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Autonomous Missions</h1>
-          <p className="text-sm text-slate-400">Send natural-language goals to the robot. The onboard LLM plans and the mission executor runs them.</p>
+          <p className="text-sm text-slate-400">
+            Send natural-language goals to the robot. The onboard LLM plans and the mission executor
+            runs them.
+          </p>
         </div>
       </div>
 
       {/* Connection status */}
-      <div className={`rounded-xl border px-4 py-3 text-sm ${connected ? "border-emerald-500/30 bg-emerald-950/35 text-emerald-400" : "border-amber-500/30 bg-amber-950/35 text-amber-400"}`}>
-        {connected ? "ROS connected — robot is ready for missions." : "ROS disconnected — robot cannot receive missions."}
+      <div
+        className={`rounded-xl border px-4 py-3 text-sm ${connected ? "border-emerald-500/30 bg-emerald-950/35 text-emerald-400" : "border-amber-500/30 bg-amber-950/35 text-amber-400"}`}
+      >
+        {connected
+          ? "ROS connected — robot is ready for missions."
+          : "ROS disconnected — robot cannot receive missions."}
       </div>
 
       {/* Mission input */}
       <div className="bg-[#0f0f12]/80 border border-white/5 rounded-3xl p-6 backdrop-blur-xl">
         <div className="flex items-center gap-2 mb-4">
           <Target className="text-indigo-400 w-4 h-4" />
-          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Mission Prompt</h3>
+          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
+            Mission Prompt
+          </h3>
         </div>
         <textarea
           value={goal}
@@ -78,7 +105,9 @@ export default function Missions() {
           disabled={!connected || loading}
         />
         <div className="flex items-center justify-between mt-3">
-          <span className="text-xs text-slate-600">Uses Ollama (Gemma3:1b) on the Pi to generate a structured mission plan.</span>
+          <span className="text-xs text-slate-600">
+            Uses Ollama (Gemma3:1b) on the Pi to generate a structured mission plan.
+          </span>
           <button
             onClick={() => sendMission(goal)}
             disabled={!connected || loading || !goal.trim()}
@@ -95,7 +124,9 @@ export default function Missions() {
         {SAMPLE_MISSIONS.map((m) => (
           <button
             key={m.label}
-            onClick={() => { setGoal(m.goal); }}
+            onClick={() => {
+              setGoal(m.goal);
+            }}
             disabled={!connected || loading}
             className="text-left bg-[#0f0f12]/80 border border-white/5 rounded-2xl p-4 hover:border-indigo-500/20 hover:bg-indigo-500/5 transition-all disabled:opacity-40"
           >
@@ -118,8 +149,12 @@ export default function Missions() {
             className="bg-[#0f0f12]/80 border border-white/5 rounded-3xl p-6 backdrop-blur-xl"
           >
             <div className="flex items-center gap-2 mb-4">
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-indigo-400" : "text-emerald-400"}`} />
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Report Back</h3>
+              <RefreshCw
+                className={`w-4 h-4 ${loading ? "animate-spin text-indigo-400" : "text-emerald-400"}`}
+              />
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
+                Report Back
+              </h3>
             </div>
             {status && (
               <div className="mb-3 p-3 rounded-xl bg-white/5 border border-white/5">

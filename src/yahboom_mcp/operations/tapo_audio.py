@@ -9,8 +9,15 @@ Tapo streaming protocol (reverse-engineered from pytapo media_stream):
 - HTTP POST /stream with digest auth + multipart boundaries
 - Audio is G.711 μ-law (8kHz, 8-bit) sent in 160-byte frames (20ms)
 """
-import asyncio, hashlib, io, json, logging, os, struct, tempfile, time
+import asyncio
+import hashlib
+import logging
+import os
+import random
+import tempfile
 from typing import Any
+
+from .. import fail_response
 
 _TP_USER = os.environ.get("TAPO_USER", "admin")
 _TP_PASS = os.environ.get("TAPO_PASSWORD", "")
@@ -36,20 +43,20 @@ async def _get_tapo():
 async def _stream_audio_to_tapo(mulaw_bytes: bytes):
     """Stream μ-law audio to Tapo speaker via TCP port 8800."""
     tapo = await _get_tapo()
-    session = tapo.getMediaSession()
+    _ = tapo.getMediaSession()
     try:
         reader, writer = await asyncio.open_connection(_TP_IP, 8800)
         boundary = b"--client-stream-boundary--"
 
         def _nonce():
-            return "%016x" % random.getrandbits(64)
+            return f"{random.getrandbits(64):016x}"
 
         # Digest auth handshake
         realm = "IP Camera"
         nonce = _nonce()
-        ha1 = hashlib.md5(f"{_TP_USER}:{realm}:{_TP_PASS}".encode()).hexdigest()
-        ha2 = hashlib.md5(b"POST:/stream").hexdigest()
-        resp = hashlib.md5(f"{ha1}:{nonce}:{ha2}".encode()).hexdigest()
+        ha1 = hashlib.md5(f"{_TP_USER}:{realm}:{_TP_PASS}".encode()).hexdigest()  # noqa: S324
+        ha2 = hashlib.md5(b"POST:/stream").hexdigest()  # noqa: S324
+        resp = hashlib.md5(f"{ha1}:{nonce}:{ha2}".encode()).hexdigest()  # noqa: S324
 
         auth = f'Digest username="{_TP_USER}",realm="{realm}",nonce="{nonce}",uri="/stream",response="{resp}",algorithm=MD5'
         headers = (
@@ -105,12 +112,13 @@ async def speak(text: str, volume: int = 80) -> dict[str, Any]:
     try:
         from edge_tts import Communicate
     except ImportError:
-        return {"success": False, "error": "edge-tts not installed"}
+        return fail_response("edge-tts not installed")
 
     voice = "de-DE-KatjaNeural" if any(ord(c) > 127 for c in text if c.isalpha()) else "en-US-AriaNeural"
 
     try:
-        import tempfile, subprocess
+        import subprocess
+        import tempfile
         audio_path = os.path.join(tempfile.gettempdir(), "tapo_tts.mp3")
 
         tts = Communicate(text, voice=voice)
@@ -118,7 +126,7 @@ async def speak(text: str, volume: int = 80) -> dict[str, Any]:
 
         # Convert MP3 to 8kHz μ-law using ffmpeg
         mulaw_path = audio_path + ".ulaw"
-        subprocess.run([
+        subprocess.run([  # noqa: S603, S607
             "ffmpeg", "-y", "-i", audio_path, "-ar", "8000", "-ac", "1",
             "-f", "mulaw", mulaw_path,
         ], capture_output=True, timeout=30)
@@ -128,17 +136,19 @@ async def speak(text: str, volume: int = 80) -> dict[str, Any]:
             with open(mulaw_path, "rb") as f:
                 mulaw = f.read()
         os.unlink(audio_path)
-        try: os.unlink(mulaw_path)
-        except: pass
+        try:
+            os.unlink(mulaw_path)
+        except Exception:
+            pass
 
         if not mulaw:
-            return {"success": False, "error": "Audio conversion produced no output"}
+            return fail_response("Audio conversion produced no output")
 
         ok = await _stream_audio_to_tapo(mulaw)
         return {"success": ok, "message": f"Spoke through Tapo: {text[:60]}..."}
     except Exception as e:
         logger.error("Tapo speak error: %s", e)
-        return {"success": False, "error": str(e)}
+        return fail_response(str(e))
 
 
 async def listen(duration_sec: int = 5, language: str = "en") -> dict[str, Any]:
@@ -146,7 +156,7 @@ async def listen(duration_sec: int = 5, language: str = "en") -> dict[str, Any]:
     try:
         from faster_whisper import WhisperModel
     except ImportError:
-        return {"success": False, "error": "faster-whisper not installed"}
+        return fail_response("faster-whisper not installed")
 
     wav = os.path.join(tempfile.gettempdir(), "tapo_stt.wav")
     url = f"rtsp://{_TP_USER}:{_TP_PASS}@{_TP_IP}:554/stream2"
@@ -158,11 +168,11 @@ async def listen(duration_sec: int = 5, language: str = "en") -> dict[str, Any]:
     )
     try:
         await asyncio.wait_for(proc.wait(), timeout=duration_sec + 15)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         proc.kill()
 
     if not os.path.isfile(wav) or os.path.getsize(wav) < 1000:
-        return {"success": False, "error": "No audio captured"}
+        return fail_response("No audio captured")
 
     try:
         model = WhisperModel("base", device="cpu", compute_type="int8")
@@ -170,15 +180,16 @@ async def listen(duration_sec: int = 5, language: str = "en") -> dict[str, Any]:
         text = " ".join(s.text for s in segments)
         return {"success": bool(text.strip()), "text": text.strip(), "duration_sec": duration_sec}
     except Exception as e:
-        return {"success": False, "error": f"STT failed: {e}"}
+        return fail_response(f"STT failed: {e}")
     finally:
-        try: os.unlink(wav)
-        except: pass
+        try:
+            os.unlink(wav)
+        except Exception:
+            pass
 
 
 async def status() -> dict[str, Any]:
     """Check Tapo connectivity and audio abilities."""
-    import aiohttp
     try:
         tapo = await _get_tapo()
         info = tapo.getDeviceInfo()
@@ -192,4 +203,4 @@ async def status() -> dict[str, Any]:
             "mic_rtsp": f"rtsp://{_TP_USER}@**masked**@{_TP_IP}:554/stream2",
         }
     except Exception as e:
-        return {"success": False, "connected": False, "error": str(e)}
+        return fail_response(str(e), connected=False)

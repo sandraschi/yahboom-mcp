@@ -1,4 +1,17 @@
-import { Activity, ArrowDown, ArrowUp, Circle, Copy, Download, Filter, Pause, Play, Trash2, Wifi, WifiOff } from "lucide-react";
+import {
+  Activity,
+  ArrowDown,
+  ArrowUp,
+  Circle,
+  Copy,
+  Download,
+  Filter,
+  Pause,
+  Play,
+  Trash2,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { type Health, api } from "../../lib/api";
@@ -15,7 +28,9 @@ export default function Logger() {
   const pausedRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { pausedRef.current = paused; }, [paused]);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
 
   const appendLine = useCallback((raw: string) => {
     if (pausedRef.current) return;
@@ -37,21 +52,39 @@ export default function Logger() {
         const text = typeof ev.data === "string" ? ev.data : String(ev.data);
         if (text) appendLine(text);
       };
-      es.onerror = () => { setSseState("error"); es?.close(); };
+      es.onerror = () => {
+        setSseState("error");
+        es?.close();
+      };
     };
     connect();
-    return () => { es?.close(); };
+    return () => {
+      es?.close();
+    };
   }, [appendLine]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try { const h = await api.getHealth(); if (!cancelled) setHealth(h); } catch { if (!cancelled) setHealth(null); }
+      try {
+        const h = await api.getHealth();
+        if (!cancelled) setHealth(h);
+      } catch {
+        if (!cancelled) setHealth(null);
+      }
     })();
     const t = setInterval(async () => {
-      try { const h = await api.getHealth(); if (!cancelled) setHealth(h); } catch { if (!cancelled) setHealth(null); }
+      try {
+        const h = await api.getHealth();
+        if (!cancelled) setHealth(h);
+      } catch {
+        if (!cancelled) setHealth(null);
+      }
     }, 8000);
-    return () => { cancelled = true; clearInterval(t); };
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
   }, []);
 
   useEffect(() => {
@@ -74,7 +107,9 @@ export default function Logger() {
   const copyAll = async () => {
     const text = displayLines.join("\n");
     if (!text) return;
-    try { await navigator.clipboard.writeText(text); } catch {}
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {}
   };
 
   const exportLog = () => {
@@ -101,12 +136,15 @@ export default function Logger() {
             Server logs
           </h1>
           <p className="text-slate-400 mt-1 text-sm">
-            Live tail of <span className="font-mono text-slate-300">yahboom-mcp</span> in-process ring buffer.
+            Live tail of <span className="font-mono text-slate-300">yahboom-mcp</span> in-process
+            ring buffer.
           </p>
           {health && (
             <p className="text-sm font-mono text-slate-500 mt-1.5">
               Target <span className="text-indigo-400">{ip}</span> · ROS{" "}
-              <span className={ros === "connected" ? "text-emerald-400" : "text-amber-400"}>{ros}</span>
+              <span className={ros === "connected" ? "text-emerald-400" : "text-amber-400"}>
+                {ros}
+              </span>
             </p>
           )}
         </div>
@@ -124,45 +162,64 @@ export default function Logger() {
             className="bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-none w-full"
           />
           {filter && (
-            <button onClick={() => setFilter("")} className="text-slate-500 hover:text-slate-300 text-xs">clear</button>
+            <button
+              onClick={() => setFilter("")}
+              className="text-slate-500 hover:text-slate-300 text-xs"
+            >
+              clear
+            </button>
           )}
         </div>
 
-        <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-mono ${
-          sseState === "open" ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/5"
-            : sseState === "connecting" ? "border-amber-500/30 text-amber-400 bg-amber-500/5"
-            : "border-red-500/30 text-red-400 bg-red-500/5"
-        }`}>
+        <span
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-mono ${
+            sseState === "open"
+              ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/5"
+              : sseState === "connecting"
+                ? "border-amber-500/30 text-amber-400 bg-amber-500/5"
+                : "border-red-500/30 text-red-400 bg-red-500/5"
+          }`}
+        >
           {sseState === "open" ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
           {sseState}
         </span>
 
-        <button onClick={() => setPaused((p) => !p)}
+        <button
+          onClick={() => setPaused((p) => !p)}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs font-medium text-slate-300 hover:bg-white/5"
-          title={paused ? "Resume tail" : "Pause tail"}>
+          title={paused ? "Resume tail" : "Pause tail"}
+        >
           {paused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
           {paused ? "Tail off" : "Tail on"}
         </button>
 
-        <button onClick={() => setSortAsc((s) => !s)}
+        <button
+          onClick={() => setSortAsc((s) => !s)}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs font-medium text-slate-300 hover:bg-white/5"
-          title={sortAsc ? "Newest first" : "Oldest first"}>
+          title={sortAsc ? "Newest first" : "Oldest first"}
+        >
           {sortAsc ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />}
           {sortAsc ? "Newest" : "Oldest"}
         </button>
 
-        <button onClick={exportLog}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 text-xs font-medium text-emerald-300 hover:bg-emerald-500/10">
+        <button
+          onClick={exportLog}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 text-xs font-medium text-emerald-300 hover:bg-emerald-500/10"
+        >
           <Download className="w-3 h-3" /> Export
         </button>
 
-        <button onClick={copyAll}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-indigo-500/20 text-xs font-medium text-indigo-300 hover:bg-indigo-500/10">
+        <button
+          onClick={copyAll}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-indigo-500/20 text-xs font-medium text-indigo-300 hover:bg-indigo-500/10"
+        >
           <Copy className="w-3 h-3" /> Copy
         </button>
 
-        <button onClick={clear}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-500/20 text-xs font-medium text-red-300 hover:bg-red-500/10">
+        <button
+          onClick={clear}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-500/20 text-xs font-medium text-red-300 hover:bg-red-500/10"
+        >
           <Trash2 className="w-3 h-3" /> Clear
         </button>
       </div>
@@ -174,16 +231,24 @@ export default function Logger() {
             <Circle className="w-1.5 h-1.5 fill-emerald-500 text-emerald-500" />
             /api/v1/logs/stream
           </span>
-          <span>{filteredLines.length} of {lines.length} lines (max {MAX_LINES})</span>
+          <span>
+            {filteredLines.length} of {lines.length} lines (max {MAX_LINES})
+          </span>
         </div>
         <div className="h-[min(70vh,720px)] overflow-y-auto p-4 font-mono text-sm leading-relaxed text-slate-300 whitespace-pre-wrap break-all">
           {displayLines.length === 0 ? (
             <span className="text-slate-600 italic">
-              {sseState === "connecting" ? "Waiting for log lines..." : sseState === "error" ? "Stream error — is the backend running?" : "No log lines yet."}
+              {sseState === "connecting"
+                ? "Waiting for log lines..."
+                : sseState === "error"
+                  ? "Stream error — is the backend running?"
+                  : "No log lines yet."}
             </span>
           ) : (
             displayLines.map((line, i) => (
-              <div key={i} className="hover:bg-white/[0.03] py-px">{line}</div>
+              <div key={i} className="hover:bg-white/[0.03] py-px">
+                {line}
+              </div>
             ))
           )}
           {!sortAsc && <div ref={bottomRef} />}
@@ -192,7 +257,10 @@ export default function Logger() {
 
       <p className="text-xs text-slate-600">
         Application logs only (Uvicorn access filtered). For ROS introspection see{" "}
-        <Link to="/diagnostics" className="text-indigo-400 hover:underline">Diagnostic Hub</Link>.
+        <Link to="/diagnostics" className="text-indigo-400 hover:underline">
+          Diagnostic Hub
+        </Link>
+        .
       </p>
     </div>
   );

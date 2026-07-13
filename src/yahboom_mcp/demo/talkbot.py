@@ -9,6 +9,7 @@ import re
 import time
 from typing import Any
 
+from .. import fail_response
 from ..state import _state
 from .speech_client import SpeechMcpClient
 
@@ -113,7 +114,7 @@ class TalkbotDemo:
         scripted_user_lines: list[str] | None = None,
     ) -> dict[str, Any]:
         if self._task and not self._task.done():
-            return {"success": False, "error": "Talkbot demo already running"}
+            return fail_response("Talkbot demo already running")
         do_approach = approach if approach is not None else os.getenv("YAHBOOM_TALKBOT_APPROACH", "1") == "1"
         turns = max_turns or int(os.getenv("YAHBOOM_TALKBOT_TURNS", "3"))
         self.logs = []
@@ -249,7 +250,7 @@ class TalkbotDemo:
         except Exception as exc:
             self.status = "error"
             self._log(str(exc))
-            return {"success": False, "error": str(exc)}
+            return fail_response(str(exc))
 
 
 _talkbot: TalkbotDemo | None = None

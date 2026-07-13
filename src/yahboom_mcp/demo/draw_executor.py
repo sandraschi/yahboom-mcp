@@ -8,6 +8,7 @@ import os
 import time
 from typing import Any
 
+from .. import fail_response
 from ..state import _state
 from .draw_patterns import list_patterns, pattern_layers
 
@@ -73,7 +74,7 @@ class DrawExecutor:
         skip_color_swap_pause: bool = False,
     ) -> dict[str, Any]:
         if self._task and not self._task.done():
-            return {"success": False, "error": "Draw demo already running"}
+            return fail_response("Draw demo already running")
         draw_speed = speed or float(os.getenv("YAHBOOM_DRAW_SPEED", "0.06"))
         self.logs = []
         self._task = asyncio.create_task(
@@ -143,7 +144,7 @@ class DrawExecutor:
             self._log(f"Error: {exc}")
             if bridge and bridge.connected:
                 await bridge.publish_velocity(0.0, 0.0)
-            return {"success": False, "error": str(exc)}
+            return fail_response(str(exc))
 
     async def _exec_segment(self, bridge, seg: dict[str, Any]) -> None:
         kind = seg.get("kind")

@@ -4,6 +4,8 @@ import time
 
 from fastmcp import Context
 
+from .. import fail_response
+
 logger = logging.getLogger("yahboom-mcp.operations.display")
 
 # Common OLED I2C addresses on the Raspbot v2
@@ -126,13 +128,7 @@ async def execute(
     ssh = _state.get("ssh")
 
     if not ssh or not ssh.connected:
-        return {
-            "success": False,
-            "operation": operation,
-            "error": "SSH bridge not connected — display unreachable",
-            "status": "offline",
-            "correlation_id": correlation_id,
-        }
+        return fail_response("SSH bridge not connected — display unreachable", operation=operation, status="offline", correlation_id=correlation_id)
 
     driver = (payload or {}).get("driver", "ssd1306")
     address = (payload or {}).get("address", "0x3c")
@@ -288,7 +284,7 @@ while True:
         result = {"success": True, "status": "scrolling", "text": text}
 
     else:
-        result = {"success": False, "error": f"Unknown display operation: {operation}"}
+        result = fail_response(f"Unknown display operation: {operation}")
 
     return {
         "success": result.get("success", False),

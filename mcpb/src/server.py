@@ -1,0 +1,2160 @@
+#!/usr/bin/env python3
+"""
+SOTA 2026 Yahboom Raspbot v2 ROS 2 MCP Server
+**Timestamp**: 2026-04-14
+**Standards**: FastMCP 3.2.0, Unified Gateway, SEP-1577, v2.3.0 parity
+
+This server implements the Unified Gateway pattern, consolidating MCP SSE transport
+and custom API endpoints into a single high-performance FastAPI substrate.
+It supports native FastMCP 3.2.0 Prompts and formalized Claude Skills.
+"""
+
+import asyncio
+import collections
+import logging
+import os
+import sys
+import time
+from contextlib import asynccontextmanager
+
+import httpx
+import uvicorn
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response, StreamingResponse
+from fastmcp import FastMCP
+from pydantic import BaseModel
+
+from . import fail_response
+from .core.esp32_bridge import ESP32Bridge
+from .core.ros2_bridge import ROS2Bridge
+from .core.ssh_bridge import SSHBridge
+from .core.video_bridge import VideoBridge
+from .operations import lightstrip, missions, voice
+from .operations.trajectory import TrajectoryManager
+from .stack_probe import build_stack_overview, driver_stack_snapshot, invalidate_stack_caches
+from .state import _state
+
+start_time = time.time()
+
+# SOTA 2026 Logging Configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stderr,
+)
+
+
+class EndpointFilter(logging.Filter):
+    """Filter out high-frequency polling from access logs."""
+
+    _QUIET_PATHS = (
+        "/api/v1/telemetry",
+        "/api/v1/health",
+        "/api/v1/sensors",
+        "/api/system/stats",
+        "/api/v1/diagnostics/ros/topics",
+        "/api/v1/diagnostics/stack",
+    )
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        return not any(path in msg for path in self._QUIET_PATHS)
+
+
+logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
+logger = logging.getLogger("yahboom-mcp")
+
+# --- SOTA 3.1.1 Unified Gateway Integration ---
+
+
+@asynccontextmanager
+async def lifespan(fastapi_app: FastAPI):
+    """SOTA 2026 Life-cycle management for ROS 2 and Hardware resources."""
+    logger.info("Yahboom MCP Unified Gateway starting up")
+
+    robot_host = os.environ.get("YAHBOOM_IP", "192.168.1.11")
+    # Ethernet recovery (e.g. 192.168.0.250) is opt-in — WiFi-only setups should leave unset.
+    _fb = (os.environ.get("YAHBOOM_FALLBACK_IP") or "").strip()
+    fallback_host = _fb if _fb else None
+    if fallback_host:
+        logger.info("ROSBridge fallback host (ethernet recovery): %s", fallback_host)
+    else:
+        logger.info(
+            "ROSBridge: single host %s (set YAHBOOM_FALLBACK_IP=192.168.0.250 when ethernet is connected)",
+            robot_host,
+        )
+    connection_type = (os.environ.get("YAHBOOM_CONNECTION") or "rosbridge").strip().lower()
+    bridge_port = int(os.environ.get("YAHBOOM_BRIDGE_PORT", 9090))
+    esp32_port = int(os.environ.get("YAHBOOM_ESP32_PORT", 2323))
+    use_mock = (os.environ.get("YAHBOOM_USE_MOCK_BRIDGE") or "").strip().lower() in ("1", "true", "yes", "on")
+
+    # Initialize placeholders for resources
+    video_bridge = None
+    watchdog_task = None
+    trajectory_manager = TrajectoryManager()
+
+    # Store early in state so tools can access even before connected
+    _state["trajectory_manager"] = trajectory_manager
+
+    # Setup the appropriate bridge
+    if use_mock:
+        from .testing.mock_bridge import MockROS2Bridge
+
+        bridge = MockROS2Bridge(host=robot_host, port=bridge_port)
+        ssh = None
+    elif connection_type == "esp32":
+        bridge = ESP32Bridge(host=robot_host, port=esp32_port)
+        ssh = None
+    else:
+        bridge = ROS2Bridge(host=robot_host, port=bridge_port, fallback_host=fallback_host)
+        ssh = SSHBridge(robot_host)
+        bridge.ssh = ssh
+
+    _state["bridge"] = bridge
+    _state["ssh"] = ssh
+
+    # Pre-define resync logic so it can be captured by on_reconnect
+    async def resync_all_components():
+        nonlocal video_bridge
+        logger.info("Synchronizing peripherals and video stream...")
+        if getattr(bridge, "ros", None) and bridge.ros.is_connected:
+            if video_bridge:
+                video_bridge.stop()
+            if getattr(bridge, "skip_video_bridge", False):
+                logger.info("Mock bridge: skipping VideoBridge re-sync")
+            else:
+                video_bridge = VideoBridge(bridge.ros, ssh_bridge=ssh)
+                video_bridge.start()
+                _state["video_bridge"] = video_bridge
+                logger.info("Components successfully re-synchronized with robot.")
+
+    # Store resync callback so reconnect_hardware() endpoint can call it
+    _state["resync_all_components"] = resync_all_components
+
+    # Reconnection callback for watchdog
+    async def on_reconnect():
+        logger.info("Watchdog triggered RECONNECT sequence.")
+        await resync_all_components()
+
+    async def connect_robot_task():
+        """Background task to handle initial connection without blocking API startup."""
+        nonlocal video_bridge, watchdog_task
+        logger.info("Connecting to Yahboom robot at %s (Async)...", robot_host)
+
+        # 1. SSH connection (Mandatory for hardware bringup/recovery)
+        ssh_success = False
+        if ssh:
+            ssh_success = await asyncio.to_thread(ssh.connect)
+            if ssh_success:
+                logger.info("SSH Bridge established - enabling hardware recovery check.")
+            else:
+                logger.warning("SSH Bridge failed (check YAHBOOM_PASSWORD or connectivity).")
+
+        # 2. ROS/Bridge connection (will check for hardware nodes if SSH is up)
+        connected = await bridge.connect(timeout=15.0)
+
+        # 3. Initial video bridge activation if ROS is up
+        if connected and getattr(bridge, "ros", None) and bridge.ros.is_connected:
+            if getattr(bridge, "skip_video_bridge", False):
+                logger.info("Mock bridge: VideoBridge skipped (CI / no roslibpy)")
+            else:
+                video_bridge = VideoBridge(bridge.ros, ssh_bridge=ssh)
+                video_bridge.start()
+                _state["video_bridge"] = video_bridge
+                logger.info("Initial VideoBridge activation successful.")
+
+        # Start autonomous connection watchdog
+        watchdog_task = asyncio.create_task(bridge.monitor_connection(interval=5.0, on_reconnect=on_reconnect))
+        logger.info("Connection watchdog active.")
+
+    # Start the connection process but don't AWAIT it here
+    # This allows FastAPI to start listening for requests immediately
+    connection_task = asyncio.create_task(connect_robot_task())
+
+    yield
+
+    # Cleanup sequence
+    logger.info("Yahboom MCP Unified Gateway shutting down...")
+    if watchdog_task:
+        watchdog_task.cancel()
+    if video_bridge:
+        video_bridge.stop()
+    if bridge:
+        await bridge.disconnect()
+    if ssh:
+        ssh.close()
+    if connection_task:
+        connection_task.cancel()
+    logger.info("Cleanup complete.")
+
+
+# Create FastAPI app first for the Unified Gateway
+app = FastAPI(lifespan=lifespan)
+
+# Add CORS to the FastAPI app
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize MCP from FastAPI (Unified Gateway pattern)
+mcp = FastMCP.from_fastapi(app, name="Yahboom ROS 2")
+
+# MCP Bridge: ProxyProvider for multi-server federation (FastMCP 3.2+)
+_bridge_proxies: list[dict[str, str]] = []
+bridge_urls = os.getenv("MCP_BRIDGE_URLS", "")
+if bridge_urls:
+    try:
+        from fastmcp.server.providers.base import Provider as ProxyProvider
+    except ImportError:
+        logger.warning("MCP_BRIDGE_URLS set but ProxyProvider not available in this FastMCP version")
+    else:
+        for url in bridge_urls.split(","):
+            url = url.strip()
+            if url:
+                try:
+                    provider = ProxyProvider()
+                    provider.add_transform(lambda _, u=url: {"url": u})
+                    mcp.add_provider(provider)
+                    _bridge_proxies.append({"url": url, "status": "active"})
+                    logger.info("MCP bridge proxy mounted: %s", url)
+                except Exception as exc:
+                    _bridge_proxies.append({"url": url, "status": "failed", "error": str(exc)})
+                    logger.warning("MCP bridge proxy failed for %s: %s", url, exc)
+
+# --- SOTA 3.2.0 Prompt Registration ---
+from .prompts import register_prompts  # noqa: E402
+
+register_prompts(mcp)
+
+# --- SOTA 3.2.0 Skill Registration ---
+from .skills import register_skills  # noqa: E402
+
+register_skills(mcp)
+
+
+# --- SOTA 3.1.1 Unified Gateway Routes ---
+
+
+@app.get("/api/v1/health")
+async def get_health():
+    """Industrial-grade health diagnostics for the robot connection."""
+    bridge = _state.get("bridge")
+    video = _state.get("video_bridge")
+    ssh = _state.get("ssh")
+
+    ros_connected = False
+    if bridge and getattr(bridge, "ros", None):
+        ros_connected = bridge.ros.is_connected
+        # Keep bridge.connected flag in sync at query time
+        if ros_connected and not bridge.connected:
+            bridge.connected = True
+        elif not ros_connected and bridge.connected:
+            bridge.connected = False
+
+    cmd_ready = bool(bridge and ros_connected and getattr(bridge, "cmd_vel_topic", None) is not None)
+    robot_host = os.environ.get("YAHBOOM_IP", "192.168.1.11")
+    bridge_port = int(os.environ.get("YAHBOOM_BRIDGE_PORT", "9090"))
+    stack = await build_stack_overview(ssh, bridge, video, robot_host, bridge_port)
+    driver_stack_public = stack.get("ros_graph_in_container") or {}
+    ds_status = driver_stack_public.get("status")
+    hint = None
+    if ros_connected and not cmd_ready:
+        hint = (
+            "ROS websocket up but cmd_vel missing: wait for topics or tap Re-Sync. "
+            "Motion/lightstrip need rosbridge; OLED/voice need SSH."
+        )
+    if ds_status == "absent" and (ssh and ssh.connected):
+        hint = (hint + " " if hint else "") + (
+            f"Driver stack inside {driver_stack_public.get('container')} reports no hardware driver nodes — "
+            "check bringup in that container."
+        )
+    if ds_status == "running" and driver_stack_public.get("rosbridge_node_seen") is False:
+        hint = (hint + " " if hint else "") + (
+            "Driver nodes run in docker but rosbridge_websocket not in that graph — "
+            "web telemetry may still need rosbridge on the robot."
+        )
+
+    return {
+        "status": "online",
+        "robot_connection": {
+            "ros": "connected" if ros_connected else "disconnected",
+            "video": "active" if video and video.active else "inactive",
+            "ssh": "connected" if ssh and ssh.connected else "disconnected",
+            "ip": robot_host,
+            "cmd_vel_ready": cmd_ready,
+            "driver_stack": driver_stack_public,
+            "hint": hint,
+        },
+        "stack": stack,
+        "system": {"uptime": time.time() - start_time, "version": "2.0.0-alpha.1"},
+    }
+
+
+# --- Ollama / LLM (webapp Settings + Chat) ---
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://192.168.1.11:11434")
+LMSTUDIO_BASE_URL = os.environ.get("LMSTUDIO_BASE_URL", "http://localhost:1234")
+_llm_settings: dict = {"provider": "ollama", "model": ""}
+
+
+async def _ollama_get(path: str) -> dict | None:
+    """GET from Ollama API; returns None on failure."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(f"{OLLAMA_BASE_URL.rstrip('/')}{path}")
+            if r.status_code == 200:
+                return r.json()
+    except Exception as e:
+        logger.debug("Ollama request failed: %s", e)
+    return None
+
+
+async def _ollama_post(path: str, json: dict) -> dict | None:
+    """POST to Ollama API; returns None on failure."""
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            r = await client.post(f"{OLLAMA_BASE_URL.rstrip('/')}{path}", json=json)
+            if r.status_code == 200:
+                return r.json()
+    except Exception as e:
+        logger.debug("Ollama POST failed: %s", e)
+    return None
+
+
+async def _lmstudio_get(path: str) -> dict | None:
+    """GET from LM Studio API; returns None on failure."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(f"{LMSTUDIO_BASE_URL.rstrip('/')}{path}")
+            if r.status_code == 200:
+                return r.json()
+    except Exception as e:
+        logger.debug("LM Studio request failed: %s", e)
+    return None
+
+
+async def _lmstudio_post(path: str, json_data: dict) -> dict | None:
+    """POST to LM Studio API; returns None on failure."""
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            r = await client.post(f"{LMSTUDIO_BASE_URL.rstrip('/')}{path}", json=json_data)
+            if r.status_code == 200:
+                return r.json()
+    except Exception as e:
+        logger.debug("LM Studio POST failed: %s", e)
+    return None
+
+
+# --- SOTA 2026 Main Robot Tools ---
+
+
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False}, version="2.4.0")
+async def yahboom_tool(
+    operation: str,
+    param1: str | float | None = None,
+    param2: str | float | None = None,
+    param3: str | float | None = None,
+    payload: dict | None = None,
+) -> dict:
+    """
+    Unified control for Yahboom Raspbot v2 (ROS 2 Humble).
+
+    [RATIONALE]
+    Consolidates 30+ hardware operations into a single portmanteau tool to stay within
+    MCP tool visibility limits. Routes motion, sensors, diagnostics, trajectory, LEDs,
+    camera PTZ, and voice commands through a single dispatch interface.
+
+    ## Return Format
+    {"success": bool, "operation": str, "result": {...}, "correlation_id": str}
+    On error: {"success": false, "operation": str, "error": str, "correlation_id": str}
+
+    ## Examples
+    yahboom_tool(operation="health_check")
+    yahboom_tool(operation="forward", param1=0.3)
+    yahboom_tool(operation="read_imu")
+    """
+    from .portmanteau import yahboom_tool as portmanteau_exec
+
+    return await portmanteau_exec(
+        operation=operation,
+        param1=param1,
+        param2=param2,
+        param3=param3,
+        payload=payload,
+    )
+
+
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False}, version="2.5.0")
+async def yahboom_demo(
+    operation: str = "describe",
+    pattern: str = "smiley",
+    speed: float | None = None,
+    skip_color_swap_pause: bool = False,
+    approach: bool | None = None,
+    max_turns: int | None = None,
+    use_speech_mcp: bool = True,
+    scripted_user_lines: list[str] | None = None,
+) -> dict:
+    """
+    Boomy show-floor demos: floor chalk art and social talkbot.
+
+    Operations: describe, draw, draw_status, draw_stop, talkbot, talkbot_status,
+    talkbot_stop, status, stop.
+
+    draw — mecanum path drawing (patterns: smiley, heart, boomy_b). Two-color layers
+    pause for chalk swap unless skip_color_swap_pause=True.
+
+    talkbot — optional approach, PTZ wiggle, "Hi, I am Boomy. Who are you?", then
+    listen/reply turns. Uses speech-mcp TTS when reachable, else espeak on Pi.
+
+    Examples:
+    yahboom_demo(operation='draw', pattern='smiley')
+    yahboom_demo(operation='talkbot', max_turns=3)
+    """
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute(
+        operation,
+        pattern=pattern,
+        speed=speed,
+        skip_color_swap_pause=skip_color_swap_pause,
+        approach=approach,
+        max_turns=max_turns,
+        use_speech_mcp=use_speech_mcp,
+        scripted_user_lines=scripted_user_lines,
+    )
+
+
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False}, version="2.4.0")
+async def yahboom_agentic_workflow(goal: str) -> str:
+    """
+    Achieve a high-level robot goal by planning and executing a sequence of operations (SEP-1577).
+    Uses sampling to let the LLM call get_robot_health, move_robot, and read_sensors as sub-tools.
+
+    ## Return Format
+    str: Summary of steps executed and outcome, or error message if the workflow failed.
+
+    ## Examples
+    yahboom_agentic_workflow(goal="patrol in a square and report battery")
+    yahboom_agentic_workflow(goal="check health, then move forward 2 seconds")
+    """
+    from .agentic import yahboom_agentic_workflow as workflow_exec
+
+    return await workflow_exec(goal)
+
+
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True}, version="2.4.0")
+async def yahboom_help_tool(category: str | None = None, topic: str | None = None) -> dict:
+    """
+    Multi-level help system for the Yahboom MCP server.
+    Supports drill-down: category (motion/sensors/connection/api/mcp_tools/startup/troubleshooting),
+    then topic within each category.
+
+    ## Return Format
+    Without category: {"help": str, "categories": {...}}
+    With category only: {"category": str, "description": str, "topics": {...}}
+    With category+topic: {"category": str, "topic": str, "detail": str}
+
+    ## Examples
+    yahboom_help_tool()
+    yahboom_help_tool(category="motion")
+    yahboom_help_tool(category="connection", topic="wifi")
+    """
+    return await yahboom_help(category=category, topic=topic)
+
+
+# --- ROS 2 Management Tools ---
+
+
+@mcp.tool()
+async def ros_topic_list() -> list:
+    """
+    List all active ROS 2 topics and their message types.
+    Provides full visibility into the robot's sensory and control stack.
+    """
+    bridge = _state["bridge"]
+    if not bridge:
+        return ["Error: ROS 2 Bridge not initialized"]
+
+    topics = await bridge.get_all_topics()
+    return topics if topics else ["No topics discovered. Is the bringup running?"]
+
+
+@mcp.tool()
+async def ros_node_info(node_name: str) -> str:
+    """
+    Get detailed information about a specific ROS 2 node.
+    Reveals publishers, subscribers, and services for the specified node.
+    """
+    ssh: SSHBridge = _state["ssh"]
+    if not ssh or not ssh.connected:
+        return "Error: SSH connection to robot not available."
+
+    cmd = f"docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && source /home/pi/yahboomcar_ws/install/setup.bash && ros2 node info {node_name}'"
+    out, err, _ = await ssh.execute(cmd)
+    return out if out else f"Error: {err}"
+
+
+@mcp.tool()
+async def ros_resync() -> str:
+    """
+    Force a re-discovery of all ROS 2 topics and re-subscribe to sensors.
+    Use this if telemetry (Battery, IMU) is missing while wheels still work.
+    """
+    bridge = _state["bridge"]
+    if not bridge:
+        return "Error: Bridge not initialized"
+
+    success = await bridge.resync_metadata()
+    return "Total Synchronization triggered: Topics re-mapped." if success else "Resync failed."
+
+
+@mcp.tool()
+async def ros_restart_bringup() -> str:
+    """
+    Remotely restart the Yahboom bringup nodes via SSH.
+    Use this as a 'Nuclear Option' if the robot is unresponsive or nodes are missing.
+    """
+    ssh = _state.get("ssh")
+    if not ssh or not ssh.connected:
+        return "Error: SSH connection to robot not available."
+
+    logger.info("Triggering remote bringup restart...")
+    launch_cmd = (
+        'docker exec -d yahboom_ros2_final bash -c "'
+        "source /opt/ros/humble/setup.bash && "
+        "source /root/yahboomcar_ws/install/setup.bash && "
+        'ros2 launch yahboomcar_bringup yahboomcar_bringup.launch.py"'
+    )
+    await ssh.execute(launch_cmd)
+
+    # Give it time to initialize hardware before trying to connect bridge
+    await asyncio.sleep(5)
+
+    bridge: ROS2Bridge = _state.get("bridge")
+    if bridge:
+        await bridge.resync_metadata()
+
+    return "Native bringup triggered via SSH. Sensory resync in progress."
+
+
+class LLMSettingsUpdate(BaseModel):
+    model: str = ""
+    provider: str = "ollama"
+
+
+class ChatRequest(BaseModel):
+    messages: list[dict[str, str]]  # [{ "role": "user"|"assistant"|"system", "content": "..." }]
+
+
+# System preprompt so the chat LLM talks intelligently about Yahboom (hardware, tools, workflows).
+YAHBOOM_CHAT_PREPROMPT = """
+You are the AI companion for the Yahboom Raspbot v2 dashboard. You help users control and understand the robot.
+
+Platform: Raspberry Pi 5, ROS 2 Humble, four mecanum wheels (holonomic: forward, backward, strafe, rotate). Sensors: LIDAR, camera, IMU, wheel encoders. Battery and telemetry are available via the backend.
+
+You are in the web dashboard chat. You do NOT have direct access to MCP tools here; the user may use Cursor/Claude for that. In this chat you should:
+- Answer questions about the robot (hardware, motion, sensors, connection, troubleshooting).
+- Suggest next steps: e.g. "Check health and battery in the Dashboard, then try a short forward command from Mission Control."
+- If they ask to do something multi-step (patrol, record a path), suggest they use the agentic workflow in an MCP client, or use Mission Control + Dashboard for manual steps.
+- Warn if low battery (< 20%): avoid long motions and suggest charging.
+- Be concise and technical; avoid filler. When you don't know, say so.
+"""
+
+
+# --- Peripherals Sequencer (Emergency Mode) ---
+class EmergencySequencer:
+    """Manages the background LED strobe and siren cycle."""
+
+    def __init__(self):
+        self._active = False
+        self._task = None
+
+    async def _loop(self):
+        while self._active:
+            # Phase 1: Red Strobe + Siren
+            await lightstrip.execute(None, operation="set", param1=255, param2=0, param3=0)
+            await voice.execute(None, operation="play", param1=2)  # Siren ID 2
+            await asyncio.sleep(0.5)
+
+            # Phase 2: Blue Strobe
+            await lightstrip.execute(None, operation="set", param1=0, param2=0, param3=255)
+            await asyncio.sleep(0.5)
+
+            if not self._active:
+                break
+
+    def start(self):
+        if not self._active:
+            self._active = True
+            self._task = asyncio.create_task(self._loop())
+            logger.info("Emergency Mode activated")
+
+    async def stop(self):
+        self._active = False
+        if self._task:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            self._task = None
+            # Reset LEDs to OFF
+            await lightstrip.execute(None, operation="set", param1=0, param2=0, param3=0)
+            logger.info("Emergency Mode deactivated")
+
+    @property
+    def active(self):
+        return self._active
+
+
+_sequencer = EmergencySequencer()
+_state["sequencer"] = _sequencer
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Help System — multi-level drill-down
+# ─────────────────────────────────────────────────────────────────────────────
+
+_HELP: dict = {
+    "categories": {
+        "motion": {
+            "description": "Robot motion control — linear/angular velocity commands via ROS 2.",
+            "topics": {
+                "forward": "Move forward: yahboom(action='move', linear=0.2, angular=0.0). linear range 0.0–1.0 m/s.",
+                "backward": "Move backward: yahboom(action='move', linear=-0.2, angular=0.0). Negative linear values.",
+                "turn": "Turn in place: yahboom(action='move', linear=0.0, angular=0.5). Positive=left, negative=right (rad/s).",
+                "stop": "Emergency stop: yahboom(action='move', linear=0.0, angular=0.0). Always safe to call.",
+                "mecanum": "Mecanum kinematics: 4 independently driven wheels allow omnidirectional movement. Strafe with combined linear+angular.",
+                "limits": "Velocity limits: linear max ±1.0 m/s, angular max ±2.0 rad/s. Exceeding limits is clamped by firmware.",
+            },
+        },
+        "sensors": {
+            "description": "Telemetry and sensor data — IMU, battery, odometry, LIDAR.",
+            "topics": {
+                "imu": "IMU data: 9-axis (accel/gyro/mag). heading in degrees 0–360. yahboom(operation='read_imu').",
+                "battery": "Battery: percentage 0–100. Below 20% = low warning. yahboom(operation='health_check').",
+                "telemetry": "Full telemetry: battery + IMU + velocity. GET http://localhost:10892/api/v1/telemetry — only available when bridge connected.",
+                "odometry": "Odometry: wheel encoder-based position estimation via /odom ROS topic (in development).",
+                "lidar": "LIDAR: lidar(operation='read', source='yahboom'|'dreame'|'auto'). Yahboom /scan → obstacles (8 sectors) + nearest_m. Dreame D20 Pro map via DREAME_MAP_URL.",
+                "camera": "Camera: MJPEG stream at http://localhost:10892/stream — only active when VideoBridge is initialized.",
+            },
+        },
+        "connection": {
+            "description": "Connecting the MCP server to the Yahboom Raspbot v2 robot.",
+            "topics": {
+                "requirements": "Requirements: Yahboom Raspbot v2 powered on, Raspberry Pi running ROS 2 Humble, ROSBridge server running on port 9090.",
+                "rosbridge": "Start ROSBridge on the robot: `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`.",
+                "env_vars": "Configure robot IP: set YAHBOOM_IP=192.168.x.x and YAHBOOM_BRIDGE_PORT=9090 before starting the server.",
+                "cli": "CLI flags: `uv run yahboom-mcp --mode dual --robot-ip 192.168.1.100 --port 10892`.",
+                "verify": "Verify: GET http://localhost:10892/api/v1/health — returns {connected: true} when bridge is live.",
+                "wifi": "WiFi setup: Robot and workstation on same LAN. Raspbot v2 hotspot: SSID 'raspbot', password '12345678'. Robot IP 192.168.1.11, port 6000. Set YAHBOOM_IP=192.168.1.11 and YAHBOOM_BRIDGE_PORT=6000 (or 9090 for standard rosbridge), then restart server. Use Onboarding page at /onboarding to configure.",
+            },
+        },
+        "api": {
+            "description": "REST API endpoints served by the FastAPI Unified Gateway.",
+            "topics": {
+                "health": "GET /api/v1/health — returns {status, connected, timestamp}. No auth required.",
+                "telemetry": "GET /api/v1/telemetry — returns {battery, imu, velocity}. Returns error if bridge offline.",
+                "move": "POST /api/v1/control/move?linear=0.2&angular=0.0 — sends Twist command directly to /cmd_vel.",
+                "stream": "GET /stream — MJPEG video stream. Usable in <img src> tags. Requires VideoBridge active.",
+                "mcp_sse": "MCP over SSE: GET /sse connects AI clients (Claude Desktop, Cursor). Use with mcp_config.json.",
+                "docs": "Swagger UI: http://localhost:10892/docs — interactive API explorer for all REST endpoints.",
+            },
+        },
+        "mcp_tools": {
+            "description": "MCP tools exposed to AI clients via the portmanteau yahboom() interface.",
+            "topics": {
+                "yahboom": "Main portmanteau tool. action param routes to sub-operations.",
+                "move": "yahboom(action='move', linear=float, angular=float) — velocity command.",
+                "health": "yahboom(action='health') — returns bridge connection state and battery.",
+                "read_imu": "yahboom(action='read_imu') — returns heading, pitch, roll from 9-axis IMU.",
+                "lidar": "lidar(operation='read'|'read_raw'|'read_dreame_map', source='yahboom'|'dreame'|'auto') — Yahboom /scan (optional) or Dreame D20 Pro map (optional, DREAME_MAP_URL).",
+                "move_to": "yahboom(action='move_to', x=float, y=float) — autonomous waypoint navigation (requires odometry).",
+                "help": "yahboom_help(category=..., topic=...) — this help system.",
+            },
+        },
+        "startup": {
+            "description": "Starting the server and dashboard.",
+            "topics": {
+                "start_script": "Windows: run start.ps1 (double-click start.bat). Clears port 10892, starts Python server + Vite dashboard.",
+                "manual": "Manual start: `uv run yahboom-mcp --mode dual --port 10892` for server only.",
+                "dashboard": "Dashboard UI runs on http://localhost:10893 (Vite dev server).",
+                "modes": "Modes: stdio (MCP only), http (FastAPI+SSE only), dual (both). Default is stdio for MCP clients.",
+                "logs": "Logs: server logs to stderr. Vite logs to console. Check start.ps1 output for errors.",
+            },
+        },
+        "troubleshooting": {
+            "description": "Common issues and fixes.",
+            "topics": {
+                "blank_dashboard": "Dashboard blank: ensure BrowserRouter is present in main.tsx. Check browser console for TypeError.",
+                "server_down": "Server not on 10892: run start.ps1. If port blocked: `netstat -ano | findstr 10892` to find conflicting process.",
+                "bot_offline": "Bot offline banner: ROSBridge not reachable. Check robot IP with ping, confirm rosbridge_server running.",
+                "npm_error": "npm Win32 error: start.ps1 uses `cmd /c npm` — do not change to direct npm call.",
+                "fastmcp_error": "FastMCP version mismatch: use FastMCP.from_fastapi(app) pattern, not mcp.app (removed in v3.0).",
+                "cors": "CORS errors: FastAPI app must have CORSMiddleware before FastMCP.from_fastapi() is called.",
+            },
+        },
+    }
+}
+
+
+async def yahboom_help(
+    category: str | None = None,
+    topic: str | None = None,
+) -> dict:
+    """
+    Multi-level help system for the Yahboom MCP server.
+    Provides hierarchical navigation through categories and specific topics.
+    Supported categories: motion, sensors, connection, api, mcp_tools, startup, troubleshooting.
+    """
+    cats = _HELP["categories"]
+
+    if not category:
+        return {
+            "help": "Yahboom ROS 2 MCP Help System",
+            "usage": "Call with category= to drill down, then category+topic= for full detail.",
+            "categories": {k: v["description"] for k, v in cats.items()},
+        }
+
+    cat = cats.get(category)
+    if not cat:
+        return {
+            "error": f"Unknown category: '{category}'",
+            "available": list(cats.keys()),
+        }
+
+    if not topic:
+        return {
+            "category": category,
+            "description": cat["description"],
+            "topics": {k: v[:80] + "…" if len(v) > 80 else v for k, v in cat["topics"].items()},
+            "hint": f"Add topic= with one of: {', '.join(cat['topics'].keys())}",
+        }
+
+    detail = cat["topics"].get(topic)
+    if not detail:
+        return {
+            "error": f"Unknown topic: '{topic}' in category '{category}'",
+            "available": list(cat["topics"].keys()),
+        }
+
+    return {
+        "category": category,
+        "topic": topic,
+        "detail": detail,
+    }
+
+
+@app.get("/api/v1/diagnostics/ros/topics")
+async def get_ros_topics():
+    """Endpoint for webapp Topic Explorer."""
+    bridge = _state.get("bridge")
+    if not bridge:
+        return fail_response("Bridge not initialized")
+    topics = await bridge.get_all_topics()
+    return {"success": True, "topics": topics}
+
+
+@app.post("/api/v1/diagnostics/ros/resync")
+async def post_ros_resync():
+    bridge = _state["bridge"]
+    if not bridge:
+        return fail_response("Bridge not initialized")
+    success = await bridge.resync_metadata()
+    invalidate_stack_caches()
+    return {"success": success}
+
+
+class LightstripRequest(BaseModel):
+    operation: str = "set"
+    r: int = 0
+    g: int = 0
+    b: int = 0
+    effect: int | None = None
+
+
+class ToolRequest(BaseModel):
+    operation: str
+    param1: str | int | float | None = None
+    param2: str | int | float | None = None
+    param3: str | int | float | None = None
+    payload: dict | None = None
+
+
+@app.post("/api/v1/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """Upload an audio file for use with Audio Soundboard."""
+    upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    safe_name = file.filename or "untitled"
+    dest = os.path.join(upload_dir, safe_name)
+    with open(dest, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    return {"success": True, "filename": safe_name, "path": dest, "size": len(content)}
+
+
+@app.post("/api/v1/control/tool")
+async def post_tool_execution(req: ToolRequest):
+    """Bridge for the web Dashboard to trigger yahboom_tool operations."""
+    return await yahboom_tool(
+        operation=req.operation,
+        param1=req.param1,
+        param2=req.param2,
+        param3=req.param3,
+        payload=req.payload,
+    )
+
+
+@app.post("/api/v1/diagnostics/ros/restart")
+async def restart_ros_bringup():
+    """Endpoint for webapp 'Restart Bringup' action."""
+    ssh = _state.get("ssh")
+    if not ssh or not ssh.connected:
+        return fail_response("SSH not connected")
+
+    launch_cmd = (
+        'docker exec -d yahboom_ros2_final bash -c "'
+        "source /opt/ros/humble/setup.bash && "
+        "source /root/yahboomcar_ws/install/setup.bash && "
+        'ros2 launch yahboomcar_bringup yahboomcar_bringup.launch.py"'
+    )
+    await ssh.execute(launch_cmd)
+    invalidate_stack_caches()
+    return {"success": True, "message": "Docker bringup triggered"}
+
+
+# --- LIDAR portmanteau (Yahboom optional + Dreame D20 Pro scan) ---
+
+
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True}, version="2.4.0")
+async def lidar(
+    ctx=None,
+    operation: str = "read",
+    source: str = "auto",
+    param1: str | float | None = None,
+    param2: str | float | None = None,
+    payload: dict | None = None,
+) -> dict:
+    """
+    LIDAR and map data from Yahboom or Dreame D20 Pro.
+
+    [RATIONALE]
+    Combined sensor: the Yahboom /scan topic gives per-sector obstacle distances;
+    Dreame D20 Pro via DREAME_MAP_URL provides house floorplan maps. Single tool
+    avoids tool-list bloat while keeping both scanning surfaces accessible.
+
+    ## Return Format
+    {"success": bool, "operation": str, "source": str, "result": {"obstacles": {...}, "nearest_m": float|null, ...}}
+
+    ## Examples
+    lidar(operation="read", source="yahboom")
+    lidar(operation="read_dreame_map")
+    lidar(operation="read_raw", source="auto")
+    """
+    from .operations import lidar as lidar_ops
+
+    return await lidar_ops.execute(ctx, operation, source, param1, param2, payload)
+
+
+# --- Legacy Prompts Removed (Now in prompts.py) ---
+
+
+# --- Custom API Endpoints (Native to FastMCP App) ---
+
+
+@app.get("/stream")
+async def video_feed():
+    """MJPEG stream endpoint for Dashboard visualization with SOTA Fallback."""
+    video_bridge = _state.get("video_bridge")
+    bridge = _state.get("bridge")
+
+    # Use VideoBridge only if it has frames; otherwise proxy from the Raspbot demo
+    if video_bridge and video_bridge.active:
+        jpeg = video_bridge.get_latest_frame_jpeg()
+        if jpeg:
+            logger.info("Vision: Streaming from VideoBridge")
+            return StreamingResponse(
+                video_bridge.mjpeg_generator(),
+                media_type="multipart/x-mixed-replace; boundary=frame",
+            )
+        logger.info("Vision: VideoBridge active but no frames — trying demo proxy")
+
+    # Fallback: ROS bridge JPEG cache (no VideoBridge yet)
+    async def bridge_gen():
+        while True:
+            if not bridge:
+                await asyncio.sleep(0.2)
+                continue
+            img_data = bridge.state.get("last_image")
+            if img_data:
+                # img_data is base64 string from rosbridge
+                import base64
+
+                try:
+                    frame_bytes = base64.b64decode(img_data)
+                    yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n")
+                except Exception:
+                    pass
+            await asyncio.sleep(0.1)  # 10 FPS
+
+    logger.info("Vision: Streaming from Bridge Cache fallback")
+    # Third fallback: proxy from Raspbot demo video_feed (port 6001)
+    logger.info("Vision: proxying from Raspbot demo")
+    robot_ip = os.environ.get("YAHBOOM_IP", "192.168.1.11")
+
+    async def demo_proxy_gen():
+        client = httpx.AsyncClient(timeout=30.0)
+        try:
+            async with client.stream("GET", f"http://{robot_ip}:6001/video_feed") as resp:
+                if resp.status_code == 200:
+                    async for chunk in resp.aiter_bytes():
+                        yield chunk
+        except Exception:
+            await asyncio.sleep(0.5)
+        finally:
+            await client.aclose()
+
+    return StreamingResponse(
+        demo_proxy_gen(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+@app.get("/api/v1/snapshot")
+async def snapshot():
+    """Single JPEG frame for embodied AI / VLM. Returns 204 if no frame yet."""
+    video_bridge = _state.get("video_bridge")
+    if video_bridge and video_bridge.active:
+        jpeg = video_bridge.get_latest_frame_jpeg()
+        if jpeg:
+            return Response(content=jpeg, media_type="image/jpeg")
+    # Fallback: capture frame via SSH from container
+    ssh = _state.get("ssh")
+    if ssh and ssh.connected:
+        try:
+            cmd = (
+                "docker exec yahboom_ros2_final python3 -c \""
+                "import cv2; c=cv2.VideoCapture(0); "
+                "c.set(cv2.CAP_PROP_FRAME_WIDTH,640); c.set(cv2.CAP_PROP_FRAME_HEIGHT,480); "
+                "ret,f=c.read(); "
+                "print(cv2.imencode('.jpg',f,[cv2.IMWRITE_JPEG_QUALITY,75])[1].tobytes().hex()) if ret else print('NOFRAME'); "
+                "c.release()\""
+            )
+            stdout, _, rc = await ssh.execute(cmd)
+            if rc == 0 and stdout and stdout != "NOFRAME":
+                jpeg = bytes.fromhex(stdout.strip())
+                if jpeg:
+                    return Response(content=jpeg, media_type="image/jpeg")
+        except Exception:
+            pass
+    return Response(status_code=204)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GPIO endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+_GPIO_PINS = {
+    "headlight": 17,  # GPIO 17 for LED headlight
+    "led1": 23,       # GPIO 23 for additional LED
+    "led2": 24,       # GPIO 24 for additional LED
+}
+
+_gpio_state: dict[str, bool] = {pin: False for pin in _GPIO_PINS}
+
+
+async def _set_gpio(pin_name: str, value: bool) -> dict:
+    pin = _GPIO_PINS.get(pin_name)
+    if pin is None:
+        return fail_response(f"Unknown GPIO pin: {pin_name}")
+    ssh = _state.get("ssh")
+    if not ssh or not ssh.connected:
+        return fail_response("SSH not connected")
+    try:
+        val = "1" if value else "0"
+        cmd = (
+            f"if [ ! -d /sys/class/gpio/gpio{pin} ]; then "
+            f"echo {pin} > /sys/class/gpio/export 2>/dev/null; sleep 0.1; "
+            f"echo out > /sys/class/gpio/gpio{pin}/direction 2>/dev/null; fi; "
+            f"echo {val} > /sys/class/gpio/gpio{pin}/value"
+        )
+        await ssh.execute(cmd)
+        _gpio_state[pin_name] = value
+        return {"success": True, "pin": pin_name, "gpio": pin, "value": value}
+    except Exception as e:
+        return fail_response(str(e))
+
+
+class GpioRequest(BaseModel):
+    pin: str
+    value: bool
+
+
+@app.post("/api/v1/gpio")
+async def gpio_set(req: GpioRequest):
+    """Set a GPIO pin on the Raspberry Pi (e.g. headlight LED)."""
+    return await _set_gpio(req.pin, req.value)
+
+
+@app.get("/api/v1/gpio")
+async def gpio_status():
+    """Get all GPIO pin states."""
+    return {"success": True, "pins": dict(_gpio_state), "available": list(_GPIO_PINS.keys())}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Diagnostic endpoints (stack info, SSH exec, live log stream)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# In-process log ring buffer — captures all yahboom-mcp log records
+_log_ring: collections.deque = collections.deque(maxlen=500)
+
+
+class _RingHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        _log_ring.append(self.format(record))
+
+
+_ring_handler = _RingHandler()
+_ring_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s — %(message)s"))
+logging.getLogger("yahboom-mcp").addHandler(_ring_handler)
+
+
+@app.get("/api/v1/diagnostics/stack")
+async def get_diag_stack():
+    """ROS 2 node list + I2C/service status via SSH. Returns partial on failure."""
+    ssh = _state.get("ssh")
+    bridge = _state.get("bridge")
+
+    ros_nodes: list[str] = []
+    service_status = "unknown"
+    i2c_bus_state = "unknown"
+    voice_module_state = "unknown"
+    recent_kernel_i2c_logs = ""
+
+    snap = await driver_stack_snapshot(ssh)
+    container = (os.environ.get("YAHBOOM_ROS2_CONTAINER") or "yahboom_ros2_final").strip()
+
+    if ssh and ssh.connected:
+        cached = snap.get("node_lines")
+        if isinstance(cached, list) and cached:
+            ros_nodes = [str(line).strip() for line in cached if str(line).strip()]
+        else:
+            try:
+                out, _, _ = await ssh.execute(
+                    f"docker exec {container} bash -c "
+                    "'source /opt/ros/humble/setup.bash; "
+                    "source /root/yahboomcar_ws/install/setup.bash; "
+                    "ros2 node list 2>/dev/null' 2>/dev/null || ros2 node list 2>/dev/null"
+                )
+                ros_nodes = [ln.strip() for ln in out.splitlines() if ln.strip()]
+            except Exception as e:
+                ros_nodes = [f"[error: {e}]"]
+
+        try:
+            out2, _, _ = await ssh.execute("i2cdetect -y 1 2>/dev/null | head -5")
+            i2c_bus_state = out2.strip() or "no output"
+        except Exception:
+            i2c_bus_state = "i2cdetect unavailable"
+
+        try:
+            out3, _, _ = await ssh.execute("ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null")
+            voice_module_state = out3.strip() or "no serial devices"
+        except Exception:
+            voice_module_state = "unknown"
+
+        try:
+            out4, _, _ = await ssh.execute("dmesg | grep -i i2c | tail -5 2>/dev/null")
+            recent_kernel_i2c_logs = out4.strip()
+        except Exception:
+            recent_kernel_i2c_logs = ""
+    else:
+        ros_nodes = ["[SSH not connected — connect robot first]"]
+
+    ros_ok = bridge and bridge.ros and bridge.ros.is_connected
+    service_status = "rosbridge_connected" if ros_ok else "rosbridge_disconnected"
+
+    driver_stack_public = {k: v for k, v in snap.items() if k != "node_lines"}
+
+    return {
+        "success": True,
+        "ros_nodes": ros_nodes,
+        "service_status": service_status,
+        "driver_stack": driver_stack_public,
+        "i2c_bus_state": i2c_bus_state,
+        "voice_module_state": voice_module_state,
+        "recent_kernel_i2c_logs": recent_kernel_i2c_logs,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
+@app.get("/api/v1/diagnostics/logs")
+async def get_diag_logs(lines: int = 80):
+    """Return recent in-process log lines from the ring buffer."""
+    lines = max(1, min(500, lines))
+    tail = list(_log_ring)[-lines:]
+    return {"success": True, "logs": "\n".join(tail)}
+
+
+class ExecRequest(BaseModel):
+    command: str
+
+
+@app.post("/api/v1/diagnostics/exec")
+async def exec_command(req: ExecRequest):
+    """Execute a shell command on the robot via SSH. Sandboxed to read-mostly ops."""
+    ssh = _state.get("ssh")
+    if not ssh or not ssh.connected:
+        raise HTTPException(status_code=503, detail="SSH not connected")
+
+    BLOCKED = ["rm ", "mkfs", "dd ", "shutdown", "reboot", "passwd", "> /dev", "| dd"]
+    cmd = req.command.strip()
+    for b in BLOCKED:
+        if b in cmd:
+            raise HTTPException(status_code=403, detail=f"Command blocked: contains '{b}'")
+
+    try:
+        stdout, stderr, exit_code = await ssh.execute(cmd)
+        return {
+            "success": exit_code == 0,
+            "stdout": stdout,
+            "stderr": stderr,
+            "exit_code": exit_code,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/api/v1/logs/stream")
+async def stream_logs():
+    """Server-Sent Events stream of live log output from the ring buffer."""
+
+    async def generate():
+        sent = 0
+        # Drain existing buffer first
+        snapshot = list(_log_ring)
+        for line in snapshot:
+            yield f"data: {line}\n\n"
+        sent = len(snapshot)
+
+        # Then tail new entries
+        while True:
+            current = list(_log_ring)
+            if len(current) > sent:
+                for line in current[sent:]:
+                    yield f"data: {line}\n\n"
+                sent = len(current)
+            await asyncio.sleep(0.3)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.get("/api/v1/telemetry")
+async def telemetry():
+    """
+    Real-time telemetry from all connected ROS 2 sensors.
+    """
+    bridge = _state.get("bridge")
+    ros_live = bridge and bridge.ros and bridge.ros.is_connected
+    if ros_live and not bridge.connected:
+        bridge.connected = True  # sync stale flag
+    if ros_live:
+        data = bridge.get_full_telemetry()
+        data["status"] = "live"
+        data["source"] = "live"
+    else:
+        # ─────────────────────────────────────────────────────────────────────
+        # SOTA v12.0 Integrity: No Silent Mocks.
+        # ─────────────────────────────────────────────────────────────────────
+        data = {
+            "status": "offline",
+            "source": "simulated",
+            "message": "Robot bridge disconnected",
+            "battery": None,
+            "voltage": None,
+            "imu": {"heading": 0.0},
+            "velocity": {"linear": 0.0, "angular": 0.0},
+            "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "scan": {"nearest_m": None},
+        }
+    return data
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SLAM Map Endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@app.get("/api/v1/slam/map")
+async def get_slam_map():
+    """
+    Return the SLAM occupancy grid as a PNG image.
+    Requires slam_toolbox async running on the robot, publishing /map.
+    Returns 404 if no map data available yet.
+    """
+    bridge = _state.get("bridge")
+    if not bridge:
+        return Response(content=b"Bridge not connected", status_code=503, media_type="text/plain")
+
+    png = bridge.get_map_png()
+    if png is None:
+        return Response(content=b"No map data", status_code=404, media_type="text/plain")
+
+    return Response(content=png, media_type="image/png")
+
+
+@app.get("/api/v1/slam/data")
+async def get_slam_data():
+    """
+    Return SLAM map metadata + robot pose + LIDAR scan points for frontend overlay.
+
+    Returns JSON with map_available, dimensions, robot {x,y,heading}, and scan_points[].
+    Poll this every ~500ms alongside /api/v1/slam/map for a smooth real-time view.
+    """
+    bridge = _state.get("bridge")
+    if not bridge:
+        return fail_response("Bridge not connected")
+
+    data = bridge.get_map_data()
+    data["success"] = True
+    return data
+
+
+# --- Legacy Compatibility Aliases (Dashboard Support) ---
+
+
+@app.get("/api/v1/sensors")
+async def legacy_sensors():
+    """Legacy alias for /api/v1/telemetry."""
+    return await telemetry()
+
+
+# --- Hardware Peripheral Controls (Closed-Loop) ---
+
+
+class DisplayRequest(BaseModel):
+    text: str
+    line: int = 0
+    driver: str = "ssd1306"
+
+
+@app.post("/api/v1/display")
+async def write_display(req: DisplayRequest):
+    """Write text to the OLED/LCD display (Closed-Loop)."""
+    from .operations import display
+
+    return await display.execute(
+        operation="write",
+        param1=req.text,
+        param2=req.line,
+        payload={"driver": req.driver},
+    )
+
+
+@app.post("/api/v1/display/clear")
+async def clear_display():
+    """Clear the OLED display."""
+    from .operations import display
+
+    return await display.execute(operation="clear")
+
+
+class ScrollRequest(BaseModel):
+    text: str
+
+
+@app.post("/api/v1/display/scroll")
+async def scroll_display(req: ScrollRequest):
+    """Start background scrolling on the OLED display."""
+    from .operations import display
+
+    return await display.execute(operation="scroll", param1=req.text)
+
+
+@app.post("/api/v1/missions/run/{mission_id}")
+async def run_mission(mission_id: str):
+    """Start an automated mission."""
+    return await missions.execute("run", mission_id=mission_id)
+
+
+@app.get("/api/v1/missions/status")
+async def get_mission_status():
+    """Get the status of the current or last mission."""
+    return await missions.execute("status")
+
+
+@app.post("/api/v1/missions/stop")
+async def stop_mission():
+    """Abort the current mission."""
+    return await missions.execute("stop")
+
+
+class DemoDrawRequest(BaseModel):
+    pattern: str = "smiley"
+    speed: float | None = None
+    skip_color_swap_pause: bool = False
+
+
+class DemoTalkbotRequest(BaseModel):
+    approach: bool | None = None
+    max_turns: int | None = 3
+    use_speech_mcp: bool = True
+    scripted_user_lines: list[str] | None = None
+
+
+@app.get("/api/v1/demo")
+async def demo_describe():
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute("describe")
+
+
+@app.post("/api/v1/demo/draw")
+async def demo_draw(req: DemoDrawRequest):
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute(
+        "draw",
+        pattern=req.pattern,
+        speed=req.speed,
+        skip_color_swap_pause=req.skip_color_swap_pause,
+    )
+
+
+@app.get("/api/v1/demo/draw/status")
+async def demo_draw_status():
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute("draw_status")
+
+
+@app.post("/api/v1/demo/draw/stop")
+async def demo_draw_stop():
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute("draw_stop")
+
+
+@app.post("/api/v1/demo/talkbot")
+async def demo_talkbot(req: DemoTalkbotRequest):
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute(
+        "talkbot",
+        approach=req.approach,
+        max_turns=req.max_turns,
+        use_speech_mcp=req.use_speech_mcp,
+        scripted_user_lines=req.scripted_user_lines,
+    )
+
+
+@app.get("/api/v1/demo/talkbot/status")
+async def demo_talkbot_status():
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute("talkbot_status")
+
+
+@app.post("/api/v1/demo/talkbot/stop")
+async def demo_talkbot_stop():
+    from .operations import demo_showcase
+
+    return await demo_showcase.execute("talkbot_stop")
+
+
+class VoiceRequest(BaseModel):
+    text: str
+
+
+@app.post("/api/v1/voice")
+async def speak(req: VoiceRequest):
+    """Speak text via the Voice Module."""
+    from .operations import voice
+
+    return await voice.execute(operation="say", param1=req.text)
+
+
+class VoicePlayRequest(BaseModel):
+    sound_id: int
+
+
+@app.post("/api/v1/voice/play")
+async def play_voice(req: VoicePlayRequest):
+    """Play a built-in sound ID via the Voice Module."""
+    from .operations import voice
+
+    return await voice.execute(operation="play", param1=req.sound_id)
+
+
+@app.post("/api/v1/voice/say")
+async def legacy_voice_say(req: VoiceRequest):
+    """Legacy alias for /api/v1/voice."""
+    return await speak(req)
+
+
+# ── Tapo two-way audio ────────────────────────────────────────────────────────
+
+
+class TapoListenRequest(BaseModel):
+    duration_sec: int = 5
+    language: str = "en"
+
+
+class TapoSpeakRequest(BaseModel):
+    text: str
+    volume: int = 80
+
+
+@app.post("/api/v1/tapo/audio/listen")
+async def tapo_audio_listen(req: TapoListenRequest):
+    """Capture audio from Tapo's RTSP mic and transcribe via faster-whisper."""
+    from .operations import tapo_audio
+
+    return await tapo_audio.listen(duration_sec=req.duration_sec, language=req.language)
+
+
+@app.post("/api/v1/tapo/audio/speak")
+async def tapo_audio_speak(req: TapoSpeakRequest):
+    """Convert text to speech and play through Pi audio output."""
+    from .operations import tapo_audio
+
+    return await tapo_audio.speak(text=req.text, volume=req.volume)
+
+
+@app.get("/api/v1/tapo/audio/status")
+async def tapo_audio_status():
+    """Check Tapo camera connectivity and audio capabilities."""
+    from .operations import tapo_audio
+
+    return await tapo_audio.status()
+
+
+class LEDRequest(BaseModel):
+    r: int
+    g: int
+    b: int
+
+
+@app.post("/api/v1/led")
+async def set_led(req: LEDRequest):
+    """Set Lightstrip RGB values."""
+    bridge = _state.get("bridge")
+    if not bridge or not (bridge.connected or (bridge.ros and bridge.ros.is_connected)):
+        raise HTTPException(status_code=503, detail="Bridge not connected")
+    from .operations import lightstrip
+
+    return await lightstrip.execute(operation="set", param1=req.r, param2=req.g, param3=req.b)
+
+
+class LightstripPatternRequest(BaseModel):
+    operation: str = "set"  # set | off | pattern | stop_pattern | get_status
+    r: int = 0
+    g: int = 0
+    b: int = 0
+    pattern: str | None = None  # patrol | rainbow | breathe | fire
+
+
+@app.post("/api/v1/control/lightstrip")
+async def control_lightstrip(req: LightstripPatternRequest):
+    """Lightstrip control: static colour, off, or named autochange pattern."""
+    bridge = _state.get("bridge")
+    if not bridge or not (bridge.connected or (bridge.ros and bridge.ros.is_connected)):
+        raise HTTPException(status_code=503, detail="Bridge not connected")
+    from .operations import lightstrip as ls
+
+    if req.operation == "pattern" and req.pattern:
+        result = await ls.execute(operation="pattern", param1=req.pattern)
+    elif req.operation in ("off", "stop_pattern"):
+        result = await ls.execute(operation="off")
+    elif req.operation == "get_status":
+        result = await ls.execute(operation="get_status")
+    else:
+        result = await ls.execute(
+            operation="set",
+            param1=req.r,
+            param2=req.g,
+            param3=req.b,
+        )
+    return result
+
+
+class SoundRequest(BaseModel):
+    duration: float = 2.0
+
+
+@app.post("/api/v1/control/buzzer")
+async def control_buzzer(req: SoundRequest):
+    """Buzz the onboard piezo buzzer via I2C."""
+    bridge = _state.get("bridge")
+    if not bridge:
+        raise HTTPException(status_code=503, detail="Bridge not initialized")
+    ok = await getattr(bridge, "publish_beep", lambda _: False)(req.duration)
+    return {"success": ok, "duration": req.duration}
+
+
+class VoiceControlRequest(BaseModel):
+    operation: str = "say"  # say | play | volume | get_status
+    text: str | None = None
+    id: int | None = None
+    volume: int | None = None
+
+
+@app.post("/api/v1/control/voice")
+async def control_voice(req: VoiceControlRequest):
+    """Voice module: say text, play sound ID, set volume, or probe status."""
+    from .operations import voice as v
+
+    if req.operation == "say":
+        return await v.execute(operation="say", param1=req.text or "")
+    elif req.operation == "play":
+        return await v.execute(operation="play", param1=req.id or 1)
+    elif req.operation == "volume":
+        return await v.execute(operation="volume", param1=req.volume or 20)
+    elif req.operation == "get_status":
+        return await v.execute(operation="get_status")
+    return fail_response(f"Unknown voice operation: {req.operation}")
+
+
+@app.get("/api/v1/control/voice/status")
+async def get_voice_status():
+    """Probe voice module USB device."""
+    from .operations import voice as v
+
+    return await v.execute(operation="get_status")
+
+
+@app.get("/api/v1/control/display/status")
+async def get_display_status():
+    """Probe OLED display via I2C."""
+    from .operations import display as d
+
+    return await d.execute(operation="get_status")
+
+
+@app.post("/api/v1/control/display/status")
+async def post_display_status_control_alias():
+    """POST alias (Dashboard used to call POST here; GET is preferred)."""
+    from .operations import display as d
+
+    return await d.execute(operation="get_status")
+
+
+@app.post("/api/v1/display/status")
+async def post_display_status():
+    """Probe OLED display via I2C (POST alias for webapp)."""
+    from .operations import display as d
+
+    return await d.execute(operation="get_status")
+
+
+@app.post("/api/v1/display/write")
+async def display_write_v2(req: DisplayRequest):
+    """Write text to OLED (line param supported)."""
+    from .operations import display as d
+
+    return await d.execute(
+        operation="write",
+        param1=req.text,
+        param2=req.line,
+        payload={"driver": req.driver},
+    )
+
+
+class LegacyBacklightRequest(BaseModel):
+    on: bool
+    brightness: int = 100
+
+
+@app.post("/api/v1/sensors/back_light")
+async def legacy_backlight(req: LegacyBacklightRequest):
+    """Legacy alias mapping back_light (bool) to Lightstrip RGB."""
+    val = req.brightness if req.on else 0
+    return await lightstrip.execute(operation="set", param1=val, param2=val, param3=val)
+
+
+# LightstripRequest and SpeakRequest are already defined above or simplified below.
+
+
+class EmergencyRequest(BaseModel):
+    active: bool
+
+
+@app.post("/api/v1/emergency")
+async def toggle_emergency(req: EmergencyRequest):
+    """Toggle the Emergency Mode background sequence."""
+    if req.active and not _sequencer.active:
+        _sequencer.start()
+    elif not req.active and _sequencer.active:
+        await _sequencer.stop()
+    return {"active": _sequencer.active}
+
+
+@app.post("/api/v1/reconnect")
+async def reconnect_hardware():
+    """Manually trigger a ROS 2 bridge handshake."""
+    bridge = _state.get("bridge")
+    if not bridge:
+        return fail_response("Bridge not initialized")
+
+    logger.info("Manual reconnection triggered via API")
+    connected = await bridge.connect(timeout=10.0)
+
+    if connected:
+        resync = _state.get("resync_all_components")
+        if resync:
+            await resync()
+
+    invalidate_stack_caches()
+    return {"success": connected, "status": "online" if connected else "offline"}
+
+
+@app.post("/api/v1/stop_all")
+async def post_stop_all():
+    """Global emergency stop: halts all robot activity."""
+    from .operations import safety
+
+    return await safety.execute(operation="stop_all")
+
+
+@app.post("/api/v1/control/move")
+async def control_move(linear: float = 0.0, angular: float = 0.0, linear_y: float = 0.0):
+    """Direct motion control endpoint for Dashboard UI and embodied loop."""
+    bridge = _state.get("bridge")
+    if not bridge or not (bridge.connected or (getattr(bridge, "ros", None) and bridge.ros.is_connected)):
+        raise HTTPException(status_code=503, detail="Bridge not connected")
+
+    # Sync flag if roslibpy says connected but flag is stale
+    if getattr(bridge, "ros", None) and bridge.ros.is_connected and not bridge.connected:
+        bridge.connected = True
+
+    ok = await bridge.publish_velocity(linear_x=linear, angular_z=angular, linear_y=linear_y)
+    if not ok:
+        raise HTTPException(status_code=503, detail="publish_velocity failed — cmd_vel topic not ready")
+    return {
+        "status": "success",
+        "command": {"linear": linear, "angular": angular, "linear_y": linear_y},
+    }
+
+
+# --- Ollama / LLM (Settings + Chat) ---
+
+
+@app.get("/api/v1/settings/ollama/status")
+async def ollama_status():
+    """Check if Ollama is reachable (for Settings page)."""
+    data = await _ollama_get("/api/version")
+    return {
+        "connected": data is not None,
+        "base_url": OLLAMA_BASE_URL,
+    }
+
+
+@app.get("/api/v1/settings/ollama/models")
+async def ollama_models():
+    """List models discovered from Ollama (for Settings page dropdown)."""
+    data = await _ollama_get("/api/tags")
+    if data is None:
+        return {"models": [], "error": "Ollama unreachable"}
+    raw = data.get("models") or []
+    models = [
+        {
+            "name": m.get("name") or m.get("model", ""),
+            "size": m.get("size"),
+            "modified_at": m.get("modified_at"),
+        }
+        for m in raw
+    ]
+    return {"models": models}
+
+
+@app.get("/api/v1/settings/llm")
+async def get_llm_settings():
+    """Current LLM provider and selected model (for chat/settings)."""
+    return {
+        "provider": _llm_settings.get("provider", "ollama"),
+        "model": _llm_settings.get("model", ""),
+    }
+
+
+@app.put("/api/v1/settings/llm")
+async def update_llm_settings(body: LLMSettingsUpdate):
+    """Set LLM provider and model (persists in process memory)."""
+    if body.provider and body.provider not in ("ollama", "lmstudio", "auto"):
+        raise HTTPException(status_code=400, detail="provider must be ollama, lmstudio, or auto")
+    if body.provider:
+        _llm_settings["provider"] = body.provider
+    _llm_settings["model"] = body.model or ""
+    return {"provider": _llm_settings["provider"], "model": _llm_settings["model"]}
+
+
+# --- LM Studio endpoints ---
+
+
+@app.get("/api/v1/settings/lmstudio/status")
+async def lmstudio_status():
+    """Check if LM Studio is reachable."""
+    data = await _lmstudio_get("/api/v0/models")
+    return {
+        "connected": data is not None,
+        "base_url": LMSTUDIO_BASE_URL,
+    }
+
+
+@app.get("/api/v1/settings/lmstudio/models")
+async def lmstudio_models():
+    """List models from LM Studio (for Settings page dropdown)."""
+    data = await _lmstudio_get("/api/v0/models")
+    if data is None:
+        return {"models": [], "error": "LM Studio unreachable"}
+    raw = data.get("data") or []
+    models: list[dict] = []
+    for m in raw:
+        models.append({
+            "name": m.get("id") or m.get("name", ""),
+            "size": None,
+            "modified_at": None,
+        })
+    return {"models": models}
+
+
+@app.get("/api/v1/settings/gpu")
+async def get_gpu_status():
+    """Best-effort GPU detection (nvidia-smi on Windows or Linux). Returns VRAM, temp, utilization if available."""
+    result: dict = {"detected": False, "gpu_name": None, "vram_total_gb": None, "vram_used_gb": None, "temp_c": None, "utilization_pct": None}
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "nvidia-smi", "--query-gpu=name,memory.total,memory.used,temperature.gpu,utilization.gpu",
+            "--format=csv,noheader,nounits",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5.0)
+        if proc.returncode == 0 and stdout:
+            parts = stdout.decode().strip().split(", ")
+            if len(parts) >= 5:
+                result["detected"] = True
+                result["gpu_name"] = parts[0].strip()
+                try:
+                    total_mb = float(parts[1].strip())
+                    result["vram_total_gb"] = round(total_mb / 1024.0, 1)
+                except (ValueError, IndexError):
+                    pass
+                try:
+                    used_mb = float(parts[2].strip())
+                    result["vram_used_gb"] = round(used_mb / 1024.0, 1)
+                except (ValueError, IndexError):
+                    pass
+                try:
+                    result["temp_c"] = int(float(parts[3].strip()))
+                except (ValueError, IndexError):
+                    pass
+                try:
+                    result["utilization_pct"] = int(float(parts[4].strip()))
+                except (ValueError, IndexError):
+                    pass
+    except Exception:
+        pass
+    return result
+
+
+@app.post("/api/v1/chat")
+async def chat_completion(body: ChatRequest):
+    """
+    Chat completion via Ollama or LM Studio. Uses model and provider from Settings (GET/PUT /api/v1/settings/llm).
+    Injects a Yahboom-specific system preprompt so the LLM answers intelligently about the robot.
+    Body: { "messages": [ { "role": "user"|"assistant"|"system", "content": "..." } ] }
+    """
+    provider = (_llm_settings.get("provider") or "ollama").strip().lower()
+    model = (_llm_settings.get("model") or "").strip()
+    if not model:
+        raise HTTPException(
+            status_code=400,
+            detail="No model selected. Configure LLM model in Settings.",
+        )
+    messages = list(body.messages or [])
+    if not messages:
+        raise HTTPException(status_code=400, detail="messages array is required")
+    # Prepend system message so the LLM gets Yahboom context (dashboard chat has no MCP tools).
+    preprompt = {"role": "system", "content": YAHBOOM_CHAT_PREPROMPT}
+    if messages and messages[0].get("role") == "system":
+        messages[0]["content"] = YAHBOOM_CHAT_PREPROMPT + "\n\n" + (messages[0].get("content") or "")
+    else:
+        messages.insert(0, preprompt)
+
+    if provider == "lmstudio":
+        payload = {"model": model, "messages": messages, "stream": False, "temperature": 0.7}
+        data = await _lmstudio_post("/api/v0/chat/completions", payload)
+        if data is None:
+            raise HTTPException(status_code=502, detail="LM Studio unreachable or request failed")
+        choices = data.get("choices") or []
+        if not choices:
+            raise HTTPException(status_code=502, detail="LM Studio returned no choices")
+        msg = choices[0].get("message") or {}
+        return {
+            "message": {
+                "role": msg.get("role", "assistant"),
+                "content": msg.get("content", ""),
+            },
+            "provider": "lmstudio",
+        }
+    else:
+        payload = {"model": model, "messages": messages, "stream": False}
+        data = await _ollama_post("/api/chat", payload)
+        if data is None:
+            raise HTTPException(status_code=502, detail="Ollama unreachable or request failed")
+        msg = data.get("message")
+        if not msg:
+            raise HTTPException(status_code=502, detail="Ollama returned no message")
+        return {
+            "message": {
+                "role": msg.get("role", "assistant"),
+                "content": msg.get("content", ""),
+            },
+            "provider": "ollama",
+        }
+
+
+class AgentMissionRequest(BaseModel):
+    """Natural-language goal → structured mission JSON (Ollama and/or Gemini)."""
+
+    goal: str
+    provider: str = "auto"
+    publish_to_ros: bool = True
+    speak: bool = False
+
+
+async def _run_agent_mission(req: AgentMissionRequest) -> dict:
+    """
+    Shared implementation for HTTP POST /api/v1/agent/mission and MCP tool yahboom_agent_mission.
+
+    Returns the same JSON shape as the HTTP 200 body. On validation / planner failure returns
+    {"success": False, "error": "...", "_http_status": 400|502} (MCP clients inspect success).
+    """
+    from . import agent_mission
+
+    goal = (req.goal or "").strip()
+    if not goal:
+        return fail_response("goal is required", _http_status=400)
+    prov = (req.provider or "auto").strip().lower()
+    if prov not in ("auto", "ollama", "gemini"):
+        return fail_response("provider must be auto, ollama, or gemini", _http_status=400)
+
+    gemini_key = (os.environ.get("YAHBOOM_GEMINI_API_KEY") or "").strip()
+    gemini_model = (os.environ.get("YAHBOOM_GEMINI_MISSION_MODEL") or "gemini-2.0-flash").strip()
+
+    async def _ollama_chat(payload: dict) -> dict | None:
+        return await _ollama_post("/api/chat", payload)
+
+    try:
+        plan, used = await agent_mission.plan_mission(
+            goal,
+            provider=prov,
+            ollama_model=(_llm_settings.get("model") or "").strip(),
+            ollama_post_chat=_ollama_chat,
+            gemini_api_key=gemini_key or None,
+            gemini_model=gemini_model,
+        )
+    except RuntimeError as e:
+        return fail_response(str(e), _http_status=502)
+    except ValueError as e:
+        return fail_response(f"Model returned invalid JSON: {e}", _http_status=502)
+
+    bridge = _state.get("bridge")
+    mission_topic = (os.environ.get("YAHBOOM_MISSION_TOPIC") or "/boomy/mission").strip()
+    if bridge and getattr(bridge, "mission_topic_name", None):
+        mission_topic = bridge.mission_topic_name
+
+    published = False
+    publish_error: str | None = None
+    if req.publish_to_ros:
+        pub = getattr(bridge, "publish_mission_json", None)
+        if pub and callable(pub):
+            try:
+                published = await pub(plan)
+            except Exception as e:
+                publish_error = str(e)
+                logger.warning("publish_mission_json failed: %s", e)
+        elif not bridge:
+            publish_error = "bridge not initialized"
+        else:
+            publish_error = "mission publish requires ROS2Bridge (rosbridge mode)"
+
+    spoke = False
+    if req.speak and (plan.get("voice_feedback") or "").strip():
+        from .operations import voice as voice_op
+
+        vf = str(plan["voice_feedback"]).strip()[:240]
+        try:
+            r = await voice_op.execute(operation="say", param1=vf)
+            spoke = bool(r and r.get("success"))
+        except Exception as e:
+            logger.warning("agent mission speak failed: %s", e)
+
+    return {
+        "success": True,
+        "provider": used,
+        "plan": plan,
+        "published_to_ros": published,
+        "mission_topic": mission_topic,
+        "publish_error": publish_error,
+        "spoke": spoke,
+    }
+
+
+@app.post("/api/v1/agent/mission")
+async def agent_mission_plan(req: AgentMissionRequest):
+    """
+    Plan an embodied mission from free text (e.g. \"find Benny\").
+
+    - **provider** ``auto``: uses Gemini when ``YAHBOOM_GEMINI_API_KEY`` is set, else Ollama.
+    - **provider** ``ollama`` / ``gemini``: force that backend (Gemini requires API key).
+    - **publish_to_ros**: publish JSON on ``std_msgs/String`` (default ``YAHBOOM_MISSION_TOPIC`` = ``/boomy/mission``).
+    - **speak**: if true, speak ``voice_feedback`` via the voice module (SSH), truncated.
+    """
+    result = await _run_agent_mission(req)
+    if not result.get("success", True):
+        status = int(result.get("_http_status") or 502)
+        detail = str(result.get("error") or "mission planning failed")
+        raise HTTPException(status_code=status, detail=detail)
+    result.pop("_http_status", None)
+    return result
+
+
+@mcp.tool()
+async def yahboom_agent_mission(
+    goal: str,
+    provider: str = "auto",
+    publish_to_ros: bool = True,
+    speak: bool = False,
+) -> dict:
+    """
+    LLM mission planner: natural-language goal (e.g. \"find Benny\") → structured JSON plan
+    (intent, behavior, target_description, optional nav2_goal, …). Same logic as
+    POST /api/v1/agent/mission.
+
+    When publish_to_ros is true (default), publishes the plan as JSON on std_msgs/String
+    (YAHBOOM_MISSION_TOPIC, default /boomy/mission) for boomy_mission_executor on the Pi.
+
+    provider: auto | ollama | gemini (auto prefers Gemini if YAHBOOM_GEMINI_API_KEY is set).
+    speak: if true, speaks voice_feedback from the plan via SSH voice module.
+    """
+    req = AgentMissionRequest(
+        goal=goal,
+        provider=provider,
+        publish_to_ros=publish_to_ros,
+        speak=speak,
+    )
+    out = await _run_agent_mission(req)
+    out.pop("_http_status", None)
+    return out
+
+
+@mcp.tool()
+async def audio(
+    file_path: str = "",
+    operation: str = "play",
+    file_name: str = "",
+) -> dict:
+    """
+    Play/store/manage audio files through the USB voice module speaker.
+
+    Operations:
+    - play: upload a local .mp3/.wav, play immediately
+    - sound: built-in sound effect (fart, ding, buzzer, clap, boo, circus,
+      elevator, siren, applause, tada, sad_trombone, take_five, coin, zap,
+      reveille, deguello, beep)
+    - store: upload to ~/boomy_audio/ for permanent storage
+    - play_stored: play a previously stored file by name
+    - list_stored: list all stored audio files
+    - delete_stored: remove a file from the depot
+    - stop: kill all running playback
+
+    ## Return Format
+    {"success": bool, "operation": str, "status": str}
+
+    ## Examples
+    audio(operation="sound", file_name="ding")
+    audio(operation="sound", file_name="fart")
+    audio(operation="play", file_path="C:/music/song.mp3")
+    audio(operation="store", file_path="C:/music/jazz.mp3", file_name="jazz.mp3")
+    audio(operation="play_stored", file_name="jazz.mp3")
+    audio(operation="stop")
+    """
+    from .operations import audio as audio_mod
+
+    return await audio_mod.execute(
+        operation=operation,
+        file_path=file_path,
+        file_name=file_name,
+    )
+
+
+# --- Entry Points ---
+
+
+# Mount FastMCP gateway - redundant in v3.1 if using from_fastapi, but kept for clarity
+# mcp.from_fastapi(app)
+
+
+async def run_stdio():
+    """Run via STDIO transport (standard MCP mode)."""
+    logger.info("Initializing MCP STDIO transport")
+    await mcp.run_stdio_async()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Mandatory Capability Introspection Endpoint (WEBAPP_STANDARDS §1.4)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@app.get("/api/v1/bridge/proxies")
+async def get_bridge_proxies():
+    """List active MCP bridge proxy providers and their status."""
+    return {"proxies": _bridge_proxies, "count": len(_bridge_proxies)}
+@app.get("/api/capabilities")
+async def get_capabilities():
+    """Runtime source of truth for server capabilities (WEBAPP_STANDARDS §1.4)."""
+    portmanteau_ops = [
+        "health_check",
+        "forward",
+        "backward",
+        "turn_left",
+        "turn_right",
+        "strafe_left",
+        "strafe_right",
+        "stop",
+        "stop_all",
+        "read_imu",
+        "read_encoders",
+        "read_battery",
+        "read_all",
+        "read_lidar",
+        "say",
+        "play",
+        "play_beep",
+        "play_file",
+        "chat_and_say",
+        "display",
+        "clear_display",
+        "led",
+        "led_off",
+        "light_effect",
+        "patrol_car",
+        "camera_up",
+        "camera_down",
+        "camera_left",
+        "camera_right",
+        "camera_reset",
+        "camera_set_pos",
+        "camera_move",
+        "start_recording",
+        "stop_recording",
+        "list_trajectories",
+        "config_show",
+        "inspect_stack",
+        "execute_command",
+    ]
+    atomic_tools = [
+        "yahboom_demo",
+        "yahboom_agentic_workflow",
+        "yahboom_agent_mission",
+        "yahboom_help_tool",
+        "ros_topic_list",
+        "ros_node_info",
+        "ros_resync",
+        "ros_restart_bringup",
+        "lidar",
+    ]
+    prompt_names = [
+        "yahboom_quick_start",
+        "yahboom_patrol",
+        "yahboom_diagnostics",
+        "yahboom_patrol_apartment",
+        "yahboom_go_to_recharge",
+    ]
+    available_missions = ["patrol", "alarm", "briefing", "kaffeehaus"]
+    return {
+        "status": "ok",
+        "server": {"name": "yahboom-mcp", "version": "2.4.0", "fastmcp": "3.2.0"},
+        "tool_surface": {
+            "total": len(portmanteau_ops) + len(atomic_tools),
+            "portmanteau_count": 1,
+            "atomic_count": len(atomic_tools),
+            "portmanteau_tools": ["yahboom_tool"],
+            "atomic_tools": atomic_tools,
+        },
+        "features": {
+            "sampling": True,
+            "agentic_workflows": True,
+            "prompts": True,
+            "resources": False,
+            "skills": True,
+            "agent_mission": {"tool": "yahboom_agent_mission", "endpoint": "POST /api/v1/agent/mission", "providers": ["ollama", "gemini"]},
+            "available_missions": available_missions,
+            "available_operations": portmanteau_ops,
+        },
+        "inventory": {
+            "workflow_tools": ["yahboom_agentic_workflow"],
+            "prompt_names": prompt_names,
+            "resource_uris": [],
+            "skill_uris": ["yahboom://skills/quick-pilot", "yahboom://skills/patrol-sweep", "yahboom://skills/emergency-halt", "yahboom://skills/diagnostic-triage"],
+        },
+        "runtime": {
+            "transport": "dual",
+            "surface_mode": "both",
+        },
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
+def main():
+    """Main entry point with CLI argument parsing."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Yahboom MCP Server")
+    parser.add_argument(
+        "--mode",
+        choices=["stdio", "http", "dual"],
+        default="stdio",
+        help="Transport mode: stdio (MCP only), http (Dashboard+SSE), dual (Both)",
+    )
+    parser.add_argument("--host", default="0.0.0.0")  # noqa: S104
+    parser.add_argument("--port", type=int, default=10892)
+    parser.add_argument("--robot-ip", help="IP address of the Yahboom robot")
+    parser.add_argument("--debug", action="store_true")
+
+    args = parser.parse_args()
+
+    if args.robot_ip:
+        os.environ["YAHBOOM_IP"] = args.robot_ip
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+
+    if args.mode == "stdio":
+        asyncio.run(run_stdio())
+    else:
+        # In HTTP or Dual mode, we run the FastAPI app via uvicorn
+        logger.info("Unified Gateway Routes:")
+        for route in app.routes:
+            if hasattr(route, "path"):
+                logger.info(f"  {route.path} -> {route.name}")
+
+        logger.info(f"Starting Unified Gateway on {args.host}:{args.port}")
+        uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+
+
+if __name__ == "__main__":
+    main()
