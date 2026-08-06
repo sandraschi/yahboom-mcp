@@ -29,9 +29,9 @@ async def _ssh_gripper_set(ssh_bridge, channel: int, angle: int) -> bool:
     angle = max(0, min(180, angle))
     cmd = (
         'docker exec yahboom_ros2_final python3 -c "'
-        'import sys; sys.path.insert(0,\'/home/pi/project_demo/raspbot\'); '
-        'from Raspbot_Lib import Raspbot; '
-        f'c = Raspbot(); c.Ctrl_Servo({channel}, {angle}); print(\'OK\')'
+        "import sys; sys.path.insert(0,'/home/pi/project_demo/raspbot'); "
+        "from Raspbot_Lib import Raspbot; "
+        f"c = Raspbot(); c.Ctrl_Servo({channel}, {angle}); print('OK')"
         '"'
     )
     out, err, _code = await ssh_bridge.execute(cmd)
@@ -51,7 +51,6 @@ async def gripper_set(ros_bridge, angle: int, ssh_bridge=None) -> dict[str, Any]
         try:
             import roslibpy
 
-            msg = {"servo_s1": 90, "servo_s2": 90, "servo_s3": angle}
             topic = roslibpy.Topic(ros_bridge.ros, "/gripper", "std_msgs/Int32")
             topic.publish(roslibpy.Message({"data": angle}))
             ros_ok = True

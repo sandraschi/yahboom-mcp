@@ -52,10 +52,10 @@ async def _ssh_servo_fallback(ssh_bridge, pan: int, tilt: int) -> bool:
 
     py_cmd = (
         f'import sys; sys.path.insert(0,"/home/pi/project_demo/raspbot"); '
-        f'from Raspbot_Lib import Raspbot; '
-        f'c = Raspbot(); '
-        f'c.Ctrl_Servo(1, {pan}); '
-        f'c.Ctrl_Servo(2, {tilt}); '
+        f"from Raspbot_Lib import Raspbot; "
+        f"c = Raspbot(); "
+        f"c.Ctrl_Servo(1, {pan}); "
+        f"c.Ctrl_Servo(2, {tilt}); "
         f'print("OK")'
     )
     cmd = f'docker exec yahboom_ros2_final python3 -c "{py_cmd}"'

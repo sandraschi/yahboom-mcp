@@ -246,7 +246,9 @@ class MissionManager:
                         if not cleared:
                             avoid_attempts += 1
                             if avoid_attempts >= 2:
-                                self._add_log(f"⚠️ Quadrant {i}: obstacle persistent after {avoid_attempts} attempts — diverting.")
+                                self._add_log(
+                                    f"⚠️ Quadrant {i}: obstacle persistent after {avoid_attempts} attempts — diverting."
+                                )
                                 # Try opposite turn to find clear path
                                 await self.ros_bridge.publish_velocity(linear_x=0.0, angular_z=-0.8)
                                 await asyncio.sleep(1.5)
@@ -451,7 +453,8 @@ class MissionManager:
                 self._add_log("❌ LIDAR not detected. SLAM mapping requires /scan topic.")
                 self._add_log("   Mount YDLIDAR X4 (or compatible) and verify ros2 topic list shows /scan.")
                 await voice_execute(
-                    None, operation="say",
+                    None,
+                    operation="say",
                     param1="LIDAR not found. Cannot map without laser scanner.",
                 )
                 self.status = "error"
@@ -468,11 +471,11 @@ class MissionManager:
             if ssh and ssh.connected:
                 slam_cmd = (
                     'docker exec yahboom_ros2_final bash -c "'
-                    'source /opt/ros/humble/setup.bash && '
-                    'source /root/yahboomcar_ws/install/setup.bash && '
-                    'setsid ros2 run slam_toolbox async_slam_toolbox_node '
-                    '--ros-args -p odom_frame:=odom -p base_frame:=base_footprint '
-                    '-p map_frame:=map -p use_sim_time:=false '
+                    "source /opt/ros/humble/setup.bash && "
+                    "source /root/yahboomcar_ws/install/setup.bash && "
+                    "setsid ros2 run slam_toolbox async_slam_toolbox_node "
+                    "--ros-args -p odom_frame:=odom -p base_frame:=base_footprint "
+                    "-p map_frame:=map -p use_sim_time:=false "
                     '> /tmp/slam_output.log 2>&1 &"'
                 )
                 await ssh.execute(slam_cmd)
@@ -540,10 +543,10 @@ class MissionManager:
             if ssh and ssh.connected and slam_launched:
                 save_cmd = (
                     'docker exec yahboom_ros2_final bash -c "'
-                    'source /opt/ros/humble/setup.bash && '
-                    'mkdir -p /home/pi/maps && '
-                    'ros2 run nav2_map_server map_saver_cli '
-                    '-f /home/pi/maps/apartment '
+                    "source /opt/ros/humble/setup.bash && "
+                    "mkdir -p /home/pi/maps && "
+                    "ros2 run nav2_map_server map_saver_cli "
+                    "-f /home/pi/maps/apartment "
                     '--ros-args -p map_subscribe_transient_local:=true"'
                 )
                 _, err, code = await ssh.execute(save_cmd)
@@ -611,7 +614,6 @@ class MissionManager:
         except Exception as e:
             self.status = "error"
             self.last_error = str(e)
-
 
     async def _boomy_draw_mission(self):
         from ..operations import demo_showcase

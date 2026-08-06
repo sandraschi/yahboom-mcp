@@ -74,7 +74,7 @@ const LidarMapPage: React.FC = () => {
             <p className="font-medium">Map unavailable</p>
             <p className="text-sm text-amber-200/80 mt-1">{error}</p>
             <p className="text-xs text-slate-400 mt-2">
-              Configure DREAME_MAP_URL (e.g. http://localhost:PORT/api/dreame/map) and ensure the
+              Configure DREAME_MAP_URL (e.g. http://127.0.0.1:10894/api/v1/map) and ensure the
               Dreame/robotics service is running.
             </p>
           </div>

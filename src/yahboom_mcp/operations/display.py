@@ -128,7 +128,12 @@ async def execute(
     ssh = _state.get("ssh")
 
     if not ssh or not ssh.connected:
-        return fail_response("SSH bridge not connected — display unreachable", operation=operation, status="offline", correlation_id=correlation_id)
+        return fail_response(
+            "SSH bridge not connected — display unreachable",
+            operation=operation,
+            status="offline",
+            correlation_id=correlation_id,
+        )
 
     driver = (payload or {}).get("driver", "ssd1306")
     address = (payload or {}).get("address", "0x3c")

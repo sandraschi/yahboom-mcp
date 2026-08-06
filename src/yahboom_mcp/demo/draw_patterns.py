@@ -7,10 +7,7 @@ from typing import Any
 
 
 def _circle_points(cx: float, cy: float, r: float, n: int = 24) -> list[tuple[float, float]]:
-    return [
-        (cx + r * math.cos(2 * math.pi * i / n), cy + r * math.sin(2 * math.pi * i / n))
-        for i in range(n + 1)
-    ]
+    return [(cx + r * math.cos(2 * math.pi * i / n), cy + r * math.sin(2 * math.pi * i / n)) for i in range(n + 1)]
 
 
 def _polyline_to_segments(

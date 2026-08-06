@@ -10,7 +10,7 @@ _PKG = _ROOT / "ros2" / "boomy_mission_executor"
 if str(_PKG) not in sys.path:
     sys.path.insert(0, str(_PKG))
 
-from boomy_mission_executor.detection_utils import (  # noqa: E402
+from boomy_mission_executor.detection_utils import (
     extract_detection_labels,
     labels_match_target,
     tokenize_target,

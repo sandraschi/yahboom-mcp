@@ -227,12 +227,12 @@ if bridge_urls:
                     logger.warning("MCP bridge proxy failed for %s: %s", url, exc)
 
 # --- SOTA 3.2.0 Prompt Registration ---
-from .prompts import register_prompts  # noqa: E402
+from .prompts import register_prompts
 
 register_prompts(mcp)
 
 # --- SOTA 3.2.0 Skill Registration ---
-from .skills import register_skills  # noqa: E402
+from .skills import register_skills
 
 register_skills(mcp)
 

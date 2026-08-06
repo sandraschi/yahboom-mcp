@@ -150,10 +150,10 @@ def _occupancy_grid_to_png(data: bytes, width: int, height: int) -> bytes:
     """Convert ROS OccupancyGrid int8 data to a valid PNG using numpy+zlib (no PIL)."""
     arr = np.frombuffer(data, dtype=np.int8).reshape(height, width)
     img = np.full((height, width), 128, dtype=np.uint8)  # default: unknown
-    img[arr == 0] = 255   # free
+    img[arr == 0] = 255  # free
     occupied = (arr >= 1) & (arr < 100)
     img[occupied] = (255 - (arr[occupied].astype(np.uint16) * 255 // 100)).astype(np.uint8)
-    img[arr >= 50] = 0    # occupied
+    img[arr >= 50] = 0  # occupied
     raw = b"".join(b"\x00" + row.tobytes() for row in img)
     compressed = zlib.compress(raw)
 
@@ -167,15 +167,21 @@ def _occupancy_grid_to_png(data: bytes, width: int, height: int) -> bytes:
     palette_data = b""
     for i in range(256):
         if i == 0:
-            palette_data += b"\x00\x00\x00"     # occupied
+            palette_data += b"\x00\x00\x00"  # occupied
         elif i == 255:
-            palette_data += b"\xff\xff\xff"     # free
+            palette_data += b"\xff\xff\xff"  # free
         elif i == 128:
-            palette_data += b"\x80\x80\x80"     # unknown
+            palette_data += b"\x80\x80\x80"  # unknown
         else:
-            palette_data += b"\x40\x40\x40"     # other
+            palette_data += b"\x40\x40\x40"  # other
     # Use RGB grayscale via palette
-    return header + _chunk(b"IHDR", ihdr) + _chunk(b"PLTE", palette_data) + _chunk(b"IDAT", compressed) + _chunk(b"IEND", b"")
+    return (
+        header
+        + _chunk(b"IHDR", ihdr)
+        + _chunk(b"PLTE", palette_data)
+        + _chunk(b"IDAT", compressed)
+        + _chunk(b"IEND", b"")
+    )
 
 
 class ROS2Bridge:
@@ -944,11 +950,11 @@ class ROS2Bridge:
         if not ssh or not ssh.connected:
             return False
         cmd = (
-            'docker exec yahboom_ros2_final python3 -c '
+            "docker exec yahboom_ros2_final python3 -c "
             '"from Raspbot_Lib import Raspbot; '
-            'c = Raspbot(); c.Ctrl_BEEP_Switch(1); '
-            f'import time; time.sleep({duration_s:.1f}); '
-            'c.Ctrl_BEEP_Switch(0); print(\\\"OK\\\")"'
+            "c = Raspbot(); c.Ctrl_BEEP_Switch(1); "
+            f"import time; time.sleep({duration_s:.1f}); "
+            'c.Ctrl_BEEP_Switch(0); print(\\"OK\\")"'
         )
         out, _err, _code = await ssh.execute(cmd)
         ok = "OK" in out

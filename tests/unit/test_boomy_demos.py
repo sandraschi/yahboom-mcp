@@ -6,9 +6,9 @@ import asyncio
 
 import pytest
 
+from yahboom_mcp.demo.draw_executor import get_draw_executor
 from yahboom_mcp.demo.draw_patterns import list_patterns, pattern_layers
 from yahboom_mcp.demo.talkbot import _extract_name, get_talkbot_demo
-from yahboom_mcp.demo.draw_executor import get_draw_executor
 from yahboom_mcp.operations import demo_showcase
 
 

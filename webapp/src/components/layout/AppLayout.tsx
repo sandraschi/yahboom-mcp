@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, RefreshCw, ShieldAlert, Square, Wifi, WifiOff } from "lucide-react";
+import { Loader2, Moon, RefreshCw, ShieldAlert, Square, Sun, Wifi, WifiOff } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../lib/api";
@@ -11,10 +11,37 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
+// EXPERIMENTAL light mode (invert hack). Not fleet standard — see index.css.
+// Toggling `.dark` off the root flips the invert filter; persisted so the
+// choice survives reloads. Delete this + the CSS block to revert.
+const THEME_KEY = "yahboom-light-mode";
+
+function useExperimentalTheme() {
+  const [light, setLight] = useState(() => {
+    try {
+      return localStorage.getItem(THEME_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", !light);
+    try {
+      localStorage.setItem(THEME_KEY, light ? "1" : "0");
+    } catch {
+      // ignore storage errors
+    }
+  }, [light]);
+
+  return { light, toggle: () => setLight((v) => !v) };
+}
+
 const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  const { light, toggle } = useExperimentalTheme();
 
   const [connection, setConnection] = useState<"online" | "offline" | "loading">("loading");
   const setOnline = useBackendStore((s) => s.setOnline);
@@ -132,12 +159,26 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             )}
           </div>
 
+          <button
+            type="button"
+            onClick={toggle}
+            className="p-2 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-colors"
+            title={
+              light
+                ? "Switch to dark (experimental light mode)"
+                : "Switch to light (experimental, ugly)"
+            }
+            aria-label="Toggle light mode (experimental)"
+          >
+            {light ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+          </button>
+
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleEmergencyStop}
             disabled={stopping}
-            className={`flex items-center gap-3 px-8 py-3 rounded-2xl font-black uppercase tracking-[0.2em] shadow-2xl transition-all border-2 
+            className={`flex items-center gap-3 px-8 py-3 rounded-2xl font-black uppercase tracking-[0.2em] shadow-2xl transition-all border-2
                            ${
                              stopping
                                ? "bg-red-900/50 border-red-500/50 text-red-500 cursor-not-allowed"

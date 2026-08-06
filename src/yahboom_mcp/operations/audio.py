@@ -21,7 +21,7 @@ _AUDIO_DIR = "/home/pi/boomy_audio"
 
 # ── Built-in sound effects ──────────────────────────────────────────────────
 
-_SOUND_GENERATOR = r'''
+_SOUND_GENERATOR = r"""
 import struct, math, wave, sys, random
 name = sys.argv[1] if len(sys.argv) > 1 else "ding"
 rate = 44100
@@ -119,12 +119,26 @@ for s in samples:
     f.writeframes(struct.pack("<h", max(-32767, min(32767, int(s)))))
 f.close()
 print(f"GENERATED:{len(samples)}")
-'''
+"""
 
 _SOUNDS = {
-    "fart", "clap", "boo", "ding", "buzzer",
-    "reveille", "deguello", "circus", "elevator", "siren",
-    "applause", "tada", "sad_trombone", "take_five", "coin", "zap", "beep",
+    "fart",
+    "clap",
+    "boo",
+    "ding",
+    "buzzer",
+    "reveille",
+    "deguello",
+    "circus",
+    "elevator",
+    "siren",
+    "applause",
+    "tada",
+    "sad_trombone",
+    "take_five",
+    "coin",
+    "zap",
+    "beep",
 }
 
 
@@ -219,7 +233,9 @@ async def execute(
     if operation == "sound":
         if not file_name or file_name not in _SOUNDS:
             return fail_response(
-                f"Unknown sound: {file_name!r}", operation="sound", available=sorted(_SOUNDS),
+                f"Unknown sound: {file_name!r}",
+                operation="sound",
+                available=sorted(_SOUNDS),
             )
         try:
             c = _direct_ssh()
@@ -233,9 +249,7 @@ async def execute(
                 c.close()
                 return fail_response(f"Generation failed: {out} {err}", operation="sound")
 
-            play_out, _, _ = _run_ssh(
-                c, f"aplay -q -D {_AUDIO_DEV} /tmp/boomy_sound.wav 2>&1; echo OK"
-            )
+            play_out, _, _ = _run_ssh(c, f"aplay -q -D {_AUDIO_DEV} /tmp/boomy_sound.wav 2>&1; echo OK")
             c.close()
             return {
                 "success": "OK" in play_out,
@@ -340,4 +354,3 @@ async def execute(
             return fail_response(str(e), operation="delete_stored")
 
     return fail_response(f"Unknown: {operation!r}", operation=operation)
-

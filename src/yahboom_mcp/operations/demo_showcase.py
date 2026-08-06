@@ -30,8 +30,7 @@ async def execute(
                 "talkbot": get_talkbot_demo().describe(),
             },
             "usage": (
-                "yahboom_demo(operation='draw', pattern='smiley') or "
-                "yahboom_demo(operation='talkbot', max_turns=3)"
+                "yahboom_demo(operation='draw', pattern='smiley') or yahboom_demo(operation='talkbot', max_turns=3)"
             ),
         }
 
@@ -69,6 +68,17 @@ async def execute(
         t = await get_talkbot_demo().stop()
         return {"success": True, "draw": d, "talkbot": t}
 
-    return fail_response(f"Unknown demo operation: {operation}", recovery_options=[
-        "describe", "draw", "draw_status", "draw_stop", "talkbot", "talkbot_status", "talkbot_stop", "status", "stop",
-    ])
+    return fail_response(
+        f"Unknown demo operation: {operation}",
+        recovery_options=[
+            "describe",
+            "draw",
+            "draw_status",
+            "draw_stop",
+            "talkbot",
+            "talkbot_status",
+            "talkbot_stop",
+            "status",
+            "stop",
+        ],
+    )

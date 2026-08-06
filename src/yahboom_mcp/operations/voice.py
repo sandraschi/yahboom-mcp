@@ -58,14 +58,15 @@ async def _play_beep_usb(ssh) -> bool:
     """Generate and play a beep via USB audio (aplay)."""
     script = (
         'python3 -c "import wave,struct,math; '
-        'f=wave.open(\\\"/tmp/beep.wav\\\",\\\"w\\\"); '
-        'f.setnchannels(1); f.setsampwidth(2); f.setframerate(44100); '
-        '[f.writeframes(struct.pack(\\\"<h\\\",int(16000*math.sin(2*math.pi*880*i/44100)))) for i in range(22050)]; '
+        'f=wave.open(\\"/tmp/beep.wav\\",\\"w\\"); '
+        "f.setnchannels(1); f.setsampwidth(2); f.setframerate(44100); "
+        '[f.writeframes(struct.pack(\\"<h\\",int(16000*math.sin(2*math.pi*880*i/44100)))) for i in range(22050)]; '
         'f.close()" && '
-        f'aplay -D {_USB_AUDIO_DEV} /tmp/beep.wav && echo OK'
+        f"aplay -D {_USB_AUDIO_DEV} /tmp/beep.wav && echo OK"
     )
     out, _err, _code = await ssh.execute(script)
     return "OK" in (out or "")
+
 
 # USB VID:PID pairs for the CH340 and CP2102 USB-UART bridges used on Yahboom
 # voice modules.  Used only for device-discovery scanning.
@@ -299,7 +300,9 @@ async def execute(
     ssh = _state.get("ssh")
 
     if not ssh or not ssh.connected:
-        return fail_response("SSH bridge not connected", operation=operation, status="offline", correlation_id=correlation_id)
+        return fail_response(
+            "SSH bridge not connected", operation=operation, status="offline", correlation_id=correlation_id
+        )
 
     espeak_voice = os.environ.get("YAHBOOM_ESPEAK_VOICE", "en")
     espeak_speed = int(os.environ.get("YAHBOOM_ESPEAK_SPEED", "150"))
@@ -446,7 +449,11 @@ async def execute(
         curl_cmd = f"curl -sf -X POST http://localhost:11434/api/generate -d {shlex.quote(payload_json)}"
         out, err, code = await ssh.execute(curl_cmd)
         if code != 0 or not (out or "").strip():
-            result = fail_response("Ollama request failed — is Ollama running on the Pi?", hint="ollama serve  (then: ollama pull gemma3:1b)", raw_err=(err or "").strip())
+            result = fail_response(
+                "Ollama request failed — is Ollama running on the Pi?",
+                hint="ollama serve  (then: ollama pull gemma3:1b)",
+                raw_err=(err or "").strip(),
+            )
         else:
             try:
                 resp = json.loads(out)

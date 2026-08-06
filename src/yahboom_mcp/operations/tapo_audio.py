@@ -9,6 +9,7 @@ Tapo streaming protocol (reverse-engineered from pytapo media_stream):
 - HTTP POST /stream with digest auth + multipart boundaries
 - Audio is G.711 μ-law (8kHz, 8-bit) sent in 160-byte frames (20ms)
 """
+
 import asyncio
 import hashlib
 import logging
@@ -33,6 +34,7 @@ async def _get_tapo():
     if _tapo is None:
         try:
             from pytapo import Tapo
+
             _tapo = Tapo(_TP_URL, _TP_USER, _TP_PASS)
         except Exception as e:
             logger.error("Tapo auth failed: %s", e)
@@ -54,9 +56,9 @@ async def _stream_audio_to_tapo(mulaw_bytes: bytes):
         # Digest auth handshake
         realm = "IP Camera"
         nonce = _nonce()
-        ha1 = hashlib.md5(f"{_TP_USER}:{realm}:{_TP_PASS}".encode()).hexdigest()  # noqa: S324
-        ha2 = hashlib.md5(b"POST:/stream").hexdigest()  # noqa: S324
-        resp = hashlib.md5(f"{ha1}:{nonce}:{ha2}".encode()).hexdigest()  # noqa: S324
+        ha1 = hashlib.md5(f"{_TP_USER}:{realm}:{_TP_PASS}".encode()).hexdigest()
+        ha2 = hashlib.md5(b"POST:/stream").hexdigest()
+        resp = hashlib.md5(f"{ha1}:{nonce}:{ha2}".encode()).hexdigest()
 
         auth = f'Digest username="{_TP_USER}",realm="{realm}",nonce="{nonce}",uri="/stream",response="{resp}",algorithm=MD5'
         headers = (
@@ -84,7 +86,7 @@ async def _stream_audio_to_tapo(mulaw_bytes: bytes):
         # Send audio chunks in multipart format
         chunk_size = 160  # 20ms at 8kHz
         for i in range(0, len(mulaw_bytes), chunk_size):
-            chunk = mulaw_bytes[i:i+chunk_size]
+            chunk = mulaw_bytes[i : i + chunk_size]
             part = b"--" + boundary + b"\r\n"
             part += b"Content-Type: audio/basic\r\n"
             part += f"Content-Length: {len(chunk)}\r\n\r\n".encode()
@@ -119,6 +121,7 @@ async def speak(text: str, volume: int = 80) -> dict[str, Any]:
     try:
         import subprocess
         import tempfile
+
         audio_path = os.path.join(tempfile.gettempdir(), "tapo_tts.mp3")
 
         tts = Communicate(text, voice=voice)
@@ -126,10 +129,23 @@ async def speak(text: str, volume: int = 80) -> dict[str, Any]:
 
         # Convert MP3 to 8kHz μ-law using ffmpeg
         mulaw_path = audio_path + ".ulaw"
-        subprocess.run([  # noqa: S603, S607
-            "ffmpeg", "-y", "-i", audio_path, "-ar", "8000", "-ac", "1",
-            "-f", "mulaw", mulaw_path,
-        ], capture_output=True, timeout=30)
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                audio_path,
+                "-ar",
+                "8000",
+                "-ac",
+                "1",
+                "-f",
+                "mulaw",
+                mulaw_path,
+            ],
+            capture_output=True,
+            timeout=30,
+        )
 
         mulaw = b""
         if os.path.isfile(mulaw_path):
@@ -162,9 +178,21 @@ async def listen(duration_sec: int = 5, language: str = "en") -> dict[str, Any]:
     url = f"rtsp://{_TP_USER}:{_TP_PASS}@{_TP_IP}:554/stream2"
 
     proc = await asyncio.create_subprocess_exec(
-        "ffmpeg", "-y", "-t", str(duration_sec), "-i", url,
-        "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", wav,
-        stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+        "ffmpeg",
+        "-y",
+        "-t",
+        str(duration_sec),
+        "-i",
+        url,
+        "-acodec",
+        "pcm_s16le",
+        "-ar",
+        "16000",
+        "-ac",
+        "1",
+        wav,
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL,
     )
     try:
         await asyncio.wait_for(proc.wait(), timeout=duration_sec + 15)

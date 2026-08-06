@@ -31,9 +31,7 @@ import Voice from "./pages/voice/Voice";
 import VoiceUpgrade from "./pages/voice/VoiceUpgrade";
 
 function App() {
-  useEffect(() => {
-    console.log("[App] Substrate Initialized at", new Date().toISOString());
-  }, []);
+  useEffect(() => {}, []);
 
   return (
     <ErrorBoundary>
