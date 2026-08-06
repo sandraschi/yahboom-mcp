@@ -26,5 +26,6 @@ async def check_audio():
 
     ssh.close()
 
+
 if __name__ == "__main__":
     asyncio.run(check_audio())

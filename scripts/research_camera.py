@@ -27,17 +27,20 @@ async def research():
 
     # Try starting the node manually to see errors (no timeout param this time)
     print("\n--- Manual Start Attempt ---")
-    cmd = ("source /opt/ros/humble/setup.bash && "
-           "ros2 run usb_cam usb_cam_node_exe "
-           "--ros-args "
-           "-p video_device:=/dev/video0 "
-           "-p image_width:=640 -p image_height:=480")
+    cmd = (
+        "source /opt/ros/humble/setup.bash && "
+        "ros2 run usb_cam usb_cam_node_exe "
+        "--ros-args "
+        "-p video_device:=/dev/video0 "
+        "-p image_width:=640 -p image_height:=480"
+    )
 
     # We'll run it and read output normally, then we'll have to kill it or wait
     out, err, code = ssh.execute(f"docker exec yahboom_ros2 bash -c '{cmd}'")
     print(f"Exit Code: {code}")
     print(f"STDOUT:\n{out}")
     print(f"STDERR:\n{err}")
+
 
 if __name__ == "__main__":
     asyncio.run(research())

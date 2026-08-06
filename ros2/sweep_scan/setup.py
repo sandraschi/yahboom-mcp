@@ -1,4 +1,5 @@
 from setuptools import setup
+
 setup(
     name="sweep_scan",
     version="1.0.0",

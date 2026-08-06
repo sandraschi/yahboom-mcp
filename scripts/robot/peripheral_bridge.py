@@ -57,9 +57,7 @@ class PeripheralBridge(Node):
         self._stop_event = threading.Event()
         self._thermal_state = "NORMAL"  # NORMAL, WARNING, CRITICAL
         self._cpu_temp = 0.0
-        self.thermal_thread = threading.Thread(
-            target=self._thermal_watchdog, daemon=True
-        )
+        self.thermal_thread = threading.Thread(target=self._thermal_watchdog, daemon=True)
         self.thermal_thread.start()
 
     def _thermal_watchdog(self):

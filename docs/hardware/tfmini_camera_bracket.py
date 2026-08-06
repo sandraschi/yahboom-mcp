@@ -10,23 +10,27 @@ Dimensions:
 - TFmini-S:      42 x 15 x 16mm
 - Screws:        M2.5 holes, 4x at corners of camera module
 """
-import FreeCAD, Part, Mesh, math
+
+import FreeCAD
+import Mesh
+import Part
 
 DOC = FreeCAD.newDocument("TFminiBracket")
 
 # ── Parameters ──────────────────────────────────────────────────────────────
-CAM_W, CAM_D, CAM_H = 25, 25, 20   # camera module
-TFM_W, TFM_D, TFM_H = 42, 15, 16   # TFmini-S
-WALL = 2.0                          # wall thickness
-GAP = 1.0                           # gap between cam and tfmini plate
-LENS_HOLE_D = 12                    # camera lens hole diameter
-MTG_HOLE_D = 2.5                    # M2.5 screw hole
+CAM_W, CAM_D, CAM_H = 25, 25, 20  # camera module
+TFM_W, TFM_D, TFM_H = 42, 15, 16  # TFmini-S
+WALL = 2.0  # wall thickness
+GAP = 1.0  # gap between cam and tfmini plate
+LENS_HOLE_D = 12  # camera lens hole diameter
+MTG_HOLE_D = 2.5  # M2.5 screw hole
 
 # Compute overall bracket size
 BASE_W = max(CAM_W, TFM_W) + 2 * WALL
 BASE_D = CAM_D + 2 * WALL
-BASE_H = WALL                        # base plate thickness
-TFM_PLATE_H = WALL + GAP + TFM_H    # height of tfmini platform above base
+BASE_H = WALL  # base plate thickness
+TFM_PLATE_H = WALL + GAP + TFM_H  # height of tfmini platform above base
+
 
 # ── Helper ──────────────────────────────────────────────────────────────────
 def box(name, x, y, z, w, d, h):
@@ -34,6 +38,7 @@ def box(name, x, y, z, w, d, h):
     b = Part.makeBox(w, d, h)
     b.translate(FreeCAD.Vector(x, y, z))
     return b
+
 
 def cylinder(name, x, y, z, r, h):
     """Create a cylinder."""
@@ -44,6 +49,7 @@ def cylinder(name, x, y, z, r, h):
     w = c.toShape().extrude(FreeCAD.Vector(0, 0, h))
     w.translate(FreeCAD.Vector(x, y, z))
     return w
+
 
 # ── Base shape: solid block ─────────────────────────────────────────────────
 solid = box("base", 0, 0, 0, BASE_W, BASE_D, TFM_PLATE_H)

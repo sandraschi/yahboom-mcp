@@ -29,11 +29,12 @@ from std_msgs.msg import Bool, Float32, Int32, Int32MultiArray
 from yahboomcar_msgs.msg import ServoControl
 
 # Battery cell chemistry constants
-_CELL_COUNT   = 3          # 3S LiPo
-_CELL_FULL_V  = 4.20       # V per cell fully charged
-_CELL_EMPTY_V = 3.00       # V per cell empty (safe cutoff)
-_BAT_FULL_V   = _CELL_COUNT * _CELL_FULL_V   # 12.6 V
-_BAT_EMPTY_V  = _CELL_COUNT * _CELL_EMPTY_V  # 9.0 V
+_CELL_COUNT = 3  # 3S LiPo
+_CELL_FULL_V = 4.20  # V per cell fully charged
+_CELL_EMPTY_V = 3.00  # V per cell empty (safe cutoff)
+_BAT_FULL_V = _CELL_COUNT * _CELL_FULL_V  # 12.6 V
+_BAT_EMPTY_V = _CELL_COUNT * _CELL_EMPTY_V  # 9.0 V
+
 
 # Serial port resolution: prefer udev symlink, fall back to ttyUSB0
 def _resolve_sensor_port() -> str:
@@ -45,7 +46,7 @@ def _resolve_sensor_port() -> str:
     for p in candidates:
         if p and os.path.exists(p):
             return p
-    return "/dev/ttyUSB0"   # last resort, may fail
+    return "/dev/ttyUSB0"  # last resort, may fail
 
 
 class YahboomCarDriver(Node):
@@ -69,14 +70,12 @@ class YahboomCarDriver(Node):
         try:
             self.sensors = Rosmaster(com=sensor_port)
             self.sensors.create_receive_threading()
-            time.sleep(0.5)   # let thread collect first packet
+            time.sleep(0.5)  # let thread collect first packet
             # Quick sanity check — if gyro returns all zeros AND voltage is 0,
             # something is wrong with the serial connection
             gyro_check = self.sensors.get_gyroscope_data()
-            volt_check  = self.sensors.get_battery_voltage()
-            self.get_logger().info(
-                f"Rosmaster UART OK — gyro={gyro_check}, volt={volt_check}"
-            )
+            volt_check = self.sensors.get_battery_voltage()
+            self.get_logger().info(f"Rosmaster UART OK — gyro={gyro_check}, volt={volt_check}")
             self.sensors_ok = True
         except Exception as e:
             self.get_logger().error(f"Rosmaster UART init failed on {sensor_port}: {e}")
@@ -88,23 +87,23 @@ class YahboomCarDriver(Node):
             self.sensors_ok = False
 
         # ── ROS 2 Subscribers ────────────────────────────────────────────────
-        self.create_subscription(Twist,          'cmd_vel',       self.cmd_vel_callback,    1)
-        self.create_subscription(Int32MultiArray,'rgblight',      self.rgb_callback,       100)
-        self.create_subscription(Int32,          'rgblight_effect',self.effect_callback,   100)
-        self.create_subscription(Bool,           'buzzer',        self.buzzer_callback,    100)
-        self.create_subscription(ServoControl,   'servo',         self.servo_callback,      10)
+        self.create_subscription(Twist, "cmd_vel", self.cmd_vel_callback, 1)
+        self.create_subscription(Int32MultiArray, "rgblight", self.rgb_callback, 100)
+        self.create_subscription(Int32, "rgblight_effect", self.effect_callback, 100)
+        self.create_subscription(Bool, "buzzer", self.buzzer_callback, 100)
+        self.create_subscription(ServoControl, "servo", self.servo_callback, 10)
 
         # ── ROS 2 Publishers ─────────────────────────────────────────────────
-        self.pub_line     = self.create_publisher(Int32MultiArray, 'line_sensor',   10)
-        self.pub_sonar    = self.create_publisher(Float32,         'ultrasonic',    10)
-        self.pub_imu      = self.create_publisher(Imu,             'imu/data',      10)
-        self.pub_battery  = self.create_publisher(BatteryState,    'battery_state', 10)
+        self.pub_line = self.create_publisher(Int32MultiArray, "line_sensor", 10)
+        self.pub_sonar = self.create_publisher(Float32, "ultrasonic", 10)
+        self.pub_imu = self.create_publisher(Imu, "imu/data", 10)
+        self.pub_battery = self.create_publisher(BatteryState, "battery_state", 10)
 
         # ── Light effect state ───────────────────────────────────────────────
         self.current_effect = 0
-        self.effect_step    = 0
-        self.create_timer(0.2,  self.effect_loop)
-        self.create_timer(0.1,  self.pub_data)
+        self.effect_step = 0
+        self.create_timer(0.2, self.effect_loop)
+        self.create_timer(0.1, self.pub_data)
 
     # ── Motion ───────────────────────────────────────────────────────────────
 
@@ -117,8 +116,8 @@ class YahboomCarDriver(Node):
 
         # Mecanum wheel mixing
         k_spin = (117 + 132) / 8.0
-        fb   = vx * 255
-        lr   = -vy * 255
+        fb = vx * 255
+        lr = -vy * 255
         spin = -vz * k_spin
 
         self.car.Ctrl_Muto(0, int(fb + lr + spin))
@@ -131,14 +130,14 @@ class YahboomCarDriver(Node):
     def effect_callback(self, msg: Int32):
         self.get_logger().info(f"Light effect: {msg.data}")
         self.current_effect = msg.data
-        self.effect_step    = 0
+        self.effect_step = 0
         if self.current_effect == 0:
             self._set_rgb(0, 0, 0)
 
     def effect_loop(self):
         if self.current_effect == 0:
             return
-        if self.current_effect == 10:   # Patrol car
+        if self.current_effect == 10:  # Patrol car
             self.effect_step = (self.effect_step + 1) % 2
             if self.effect_step == 0:
                 self._set_rgb(255, 0, 0)
@@ -188,23 +187,25 @@ class YahboomCarDriver(Node):
         if self.car:
             # Line follower
             try:
-                track = self.car.read_data_array(0x0a, 1)
+                track = self.car.read_data_array(0x0A, 1)
                 if track and len(track) >= 1:
                     val = int(track[0])
-                    msg = Int32MultiArray(data=[
-                        (val >> 2) & 1,
-                        (val >> 3) & 1,
-                        (val >> 1) & 1,
-                         val       & 1,
-                    ])
+                    msg = Int32MultiArray(
+                        data=[
+                            (val >> 2) & 1,
+                            (val >> 3) & 1,
+                            (val >> 1) & 1,
+                            val & 1,
+                        ]
+                    )
                     self.pub_line.publish(msg)
             except Exception as e:
                 self.get_logger().debug(f"Line sensor read failed: {e}")
 
             # Ultrasonic
             try:
-                h_data = self.car.read_data_array(0x1b, 1)
-                l_data = self.car.read_data_array(0x1a, 1)
+                h_data = self.car.read_data_array(0x1B, 1)
+                l_data = self.car.read_data_array(0x1A, 1)
                 if h_data and l_data and len(h_data) >= 1 and len(l_data) >= 1:
                     distance_cm = (h_data[0] << 8 | l_data[0]) / 10.0
                     self.pub_sonar.publish(Float32(data=float(distance_cm)))
@@ -217,23 +218,21 @@ class YahboomCarDriver(Node):
             try:
                 volt = self.sensors.get_battery_voltage()
                 if volt is not None and float(volt) > 0.1:
-                    bat                = BatteryState()
-                    bat.voltage        = float(volt)
-                    bat.percentage     = max(0.0, min(1.0,
-                        (bat.voltage - _BAT_EMPTY_V) / (_BAT_FULL_V - _BAT_EMPTY_V)
-                    ))
-                    bat.power_supply_status = 2   # discharging
+                    bat = BatteryState()
+                    bat.voltage = float(volt)
+                    bat.percentage = max(0.0, min(1.0, (bat.voltage - _BAT_EMPTY_V) / (_BAT_FULL_V - _BAT_EMPTY_V)))
+                    bat.power_supply_status = 2  # discharging
                     self.pub_battery.publish(bat)
             except Exception as e:
                 self.get_logger().warning(f"Battery read failed: {e}")
 
             # IMU
             try:
-                imu_msg              = Imu()
+                imu_msg = Imu()
                 imu_msg.header.stamp = now
                 imu_msg.header.frame_id = "base_link"
 
-                acc  = self.sensors.get_accelerometer_data()
+                acc = self.sensors.get_accelerometer_data()
                 gyro = self.sensors.get_gyroscope_data()
 
                 if acc and len(acc) >= 3:
@@ -296,32 +295,32 @@ class YahboomCarDriver(Node):
         try:
             self.car = Raspbot()
             self.car.Ctrl_Ulatist_Switch(1)
-            self.get_logger().info('Initialized Raspbot I2C for motion')
+            self.get_logger().info("Initialized Raspbot I2C for motion")
         except Exception as e:
-            self.get_logger().error(f'Failed to initialize Raspbot I2C: {e}')
+            self.get_logger().error(f"Failed to initialize Raspbot I2C: {e}")
             self.car = None
 
         # Sensory Controller (Serial)
         try:
-            self.sensors = Rosmaster(com='/dev/ttyUSB0')
+            self.sensors = Rosmaster(com="/dev/ttyUSB0")
             self.sensors.create_receive_threading()
-            self.get_logger().info('Initialized Rosmaster sensors on /dev/ttyUSB0')
+            self.get_logger().info("Initialized Rosmaster sensors on /dev/ttyUSB0")
         except Exception as e:
-            self.get_logger().error(f'Failed to initialize Rosmaster sensors: {e}')
+            self.get_logger().error(f"Failed to initialize Rosmaster sensors: {e}")
             self.sensors = None
 
         # Create subscribers
-        self.create_subscription(Twist, 'cmd_vel', self.cmd_vel_callback, 1)
-        self.create_subscription(Int32MultiArray, 'rgblight', self.RGBLightcallback, 100)
-        self.create_subscription(Int32, 'rgblight_effect', self.effect_callback, 100)
-        self.create_subscription(Bool, 'buzzer', self.Buzzercallback, 100)
-        self.create_subscription(ServoControl, 'servo', self.servo_callback, 10)
+        self.create_subscription(Twist, "cmd_vel", self.cmd_vel_callback, 1)
+        self.create_subscription(Int32MultiArray, "rgblight", self.RGBLightcallback, 100)
+        self.create_subscription(Int32, "rgblight_effect", self.effect_callback, 100)
+        self.create_subscription(Bool, "buzzer", self.Buzzercallback, 100)
+        self.create_subscription(ServoControl, "servo", self.servo_callback, 10)
 
         # Create publishers
-        self.pub_line_sensor = self.create_publisher(Int32MultiArray, 'line_sensor', 10)
-        self.pub_ultrasonic = self.create_publisher(Float32, 'ultrasonic', 10)
-        self.pub_imu = self.create_publisher(Imu, 'imu/data', 10)
-        self.pub_battery = self.create_publisher(BatteryState, 'battery_state', 10)
+        self.pub_line_sensor = self.create_publisher(Int32MultiArray, "line_sensor", 10)
+        self.pub_ultrasonic = self.create_publisher(Float32, "ultrasonic", 10)
+        self.pub_imu = self.create_publisher(Imu, "imu/data", 10)
+        self.pub_battery = self.create_publisher(BatteryState, "battery_state", 10)
 
         # Effect State
         self.current_effect = 0
@@ -332,7 +331,8 @@ class YahboomCarDriver(Node):
         self.timer = self.create_timer(0.1, self.pub_data)
 
     def cmd_vel_callback(self, msg):
-        if not self.car: return
+        if not self.car:
+            return
         # Motion logic (I2C)
         vx = msg.linear.x
         vy = msg.linear.y
@@ -340,7 +340,7 @@ class YahboomCarDriver(Node):
 
         speed_lr = -vy * 255
         speed_fb = vx * 255
-        speed_spin = -vz * (117+132)/8
+        speed_spin = -vz * (117 + 132) / 8
 
         r1 = speed_fb + speed_lr + speed_spin
         r2 = speed_fb - speed_lr + speed_spin
@@ -353,27 +353,34 @@ class YahboomCarDriver(Node):
         self.car.Ctrl_Muto(3, int(r4))
 
     def effect_callback(self, msg):
-        self.get_logger().info(f'Switching light effect to: {msg.data}')
+        self.get_logger().info(f"Switching light effect to: {msg.data}")
         self.current_effect = msg.data
         self.effect_step = 0
         if self.current_effect == 0:
-            if self.sensors: self.sensors.set_colorful_lamps(0xFF, 0, 0, 0)
-            if self.car: self.car.Ctrl_WQ2812_brightness_ALL(0, 0, 0)
+            if self.sensors:
+                self.sensors.set_colorful_lamps(0xFF, 0, 0, 0)
+            if self.car:
+                self.car.Ctrl_WQ2812_brightness_ALL(0, 0, 0)
 
     def effect_loop(self):
-        if self.current_effect == 0: return
+        if self.current_effect == 0:
+            return
 
         # Effect 10: Patrol Car (Police)
         if self.current_effect == 10:
             self.effect_step = (self.effect_step + 1) % 2
             if self.effect_step == 0:
                 # Red
-                if self.sensors: self.sensors.set_colorful_lamps(0xFF, 255, 0, 0)
-                if self.car: self.car.Ctrl_WQ2812_brightness_ALL(255, 0, 0)
+                if self.sensors:
+                    self.sensors.set_colorful_lamps(0xFF, 255, 0, 0)
+                if self.car:
+                    self.car.Ctrl_WQ2812_brightness_ALL(255, 0, 0)
             else:
                 # Blue
-                if self.sensors: self.sensors.set_colorful_lamps(0xFF, 0, 0, 255)
-                if self.car: self.car.Ctrl_WQ2812_brightness_ALL(0, 0, 255)
+                if self.sensors:
+                    self.sensors.set_colorful_lamps(0xFF, 0, 0, 255)
+                if self.car:
+                    self.car.Ctrl_WQ2812_brightness_ALL(0, 0, 255)
 
         # Effect 1-6: Rosmaster built-in effects
         elif 1 <= self.current_effect <= 6:
@@ -383,23 +390,27 @@ class YahboomCarDriver(Node):
                     # Stop loop after triggering built-in effect if it persists hardware-side
                     # but Rosmaster_Lib usually needs repeated calls or sets a mode.
                     # For now we'll just keep calling or set it once.
-                except: pass
+                except:
+                    pass
 
     def RGBLightcallback(self, msg):
-        if not isinstance(msg, Int32MultiArray): return
-        self.current_effect = 0 # Manual control overrides effects
+        if not isinstance(msg, Int32MultiArray):
+            return
+        self.current_effect = 0  # Manual control overrides effects
         if len(msg.data) == 3:
             R, G, B = msg.data
             # Try Rosmaster lightstrip first
             if self.sensors:
-                  try:
-                      self.sensors.set_colorful_lamps(0xFF, R, G, B)
-                  except: pass
+                try:
+                    self.sensors.set_colorful_lamps(0xFF, R, G, B)
+                except:
+                    pass
             # Fallback to Raspbot I2C
             if self.car:
-                  try:
-                      self.car.Ctrl_WQ2812_brightness_ALL(R, G, B)
-                  except: pass
+                try:
+                    self.car.Ctrl_WQ2812_brightness_ALL(R, G, B)
+                except:
+                    pass
 
     def Buzzercallback(self, msg):
         if self.car:
@@ -414,24 +425,26 @@ class YahboomCarDriver(Node):
         # Line sensor (I2C)
         if self.car:
             try:
-                track = self.car.read_data_array(0x0a, 1)
+                track = self.car.read_data_array(0x0A, 1)
                 if track:
                     val = int(track[0])
-                    msg = Int32MultiArray(data=[(val>>2)&1, (val>>3)&1, (val>>1)&1, val&1])
+                    msg = Int32MultiArray(data=[(val >> 2) & 1, (val >> 3) & 1, (val >> 1) & 1, val & 1])
                     self.pub_line_sensor.publish(msg)
-            except: pass
+            except:
+                pass
 
             # Ultrasonic (I2C)
             try:
                 # Fix for index out of range check
-                h_data = self.car.read_data_array(0x1b, 1)
-                l_data = self.car.read_data_array(0x1a, 1)
+                h_data = self.car.read_data_array(0x1B, 1)
+                l_data = self.car.read_data_array(0x1A, 1)
                 if h_data and l_data:
                     h = h_data[0]
                     l = l_data[0]
                     dis = (h << 8 | l) / 10.0
                     self.pub_ultrasonic.publish(Float32(data=float(dis)))
-            except: pass
+            except:
+                pass
 
         # Battery & IMU (Serial/Rosmaster)
         if self.sensors:
@@ -447,7 +460,7 @@ class YahboomCarDriver(Node):
                 # IMU
                 imu_msg = Imu()
                 imu_msg.header.stamp = self.get_clock().now().to_msg()
-                imu_msg.header.frame_id = 'base_link'
+                imu_msg.header.frame_id = "base_link"
 
                 acc = self.sensors.get_accelerometer_data()
                 gyro = self.sensors.get_gyroscope_data()
@@ -463,21 +476,26 @@ class YahboomCarDriver(Node):
                     imu_msg.angular_velocity.z = float(gyro[2]) * (math.pi / 180.0)
 
                 self.pub_imu.publish(imu_msg)
-            except: pass
+            except:
+                pass
+
 
 def main(args=None):
     rclpy.init(args=args)
-    driver = YahboomCarDriver('driver_node')
-    driver.get_logger().info('Successfully started the hybrid chassis drive...')
+    driver = YahboomCarDriver("driver_node")
+    driver.get_logger().info("Successfully started the hybrid chassis drive...")
     try:
         rclpy.spin(driver)
     except KeyboardInterrupt:
-        if driver.car: driver.car.Ctrl_Ulatist_Switch(0)
-        if driver.car: driver.car.Ctrl_Car(0, 0, 0)
-        driver.get_logger().info('Shutting down...')
+        if driver.car:
+            driver.car.Ctrl_Ulatist_Switch(0)
+        if driver.car:
+            driver.car.Ctrl_Car(0, 0, 0)
+        driver.get_logger().info("Shutting down...")
     finally:
         driver.destroy_node()
         rclpy.shutdown()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

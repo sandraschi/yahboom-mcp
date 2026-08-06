@@ -3,11 +3,16 @@
 
 Sweeps pan servo 0-180°, reads TFmini range at each step,
 publishes LaserScan. Camera is always boresighted with laser."""
-import math, serial, time, rclpy
-from rclpy.node import Node
-from sensor_msgs.msg import LaserScan, Range
-from std_msgs.msg import Int32MultiArray
+
+import math
 import threading
+import time
+
+import rclpy
+import serial
+from rclpy.node import Node
+from sensor_msgs.msg import LaserScan
+from std_msgs.msg import Int32MultiArray
 
 
 class SweepScanNode(Node):

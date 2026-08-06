@@ -101,5 +101,3 @@ ros2 launch boomy_mission_executor mission_executor.launch.py
 
 
 Always keep a physical **estop** reachable; this node is for **indoor lab** speeds only.
-
-

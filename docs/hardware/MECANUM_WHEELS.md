@@ -1,6 +1,6 @@
 # Understanding Mecanum Wheels: Omnidirectional Movement
 
-The Yahboom Raspbot v2 uses **Mecanum wheels**, which are significantly more advanced than standard wheels or tank tracks. 
+The Yahboom Raspbot v2 uses **Mecanum wheels**, which are significantly more advanced than standard wheels or tank tracks.
 
 ## 1. How they work (The "45-Degree" Secret)
 
@@ -26,7 +26,7 @@ You are correct that they are controlled individually (one motor per wheel), but
 
 ## 3. The "X" and "O" Configuration
 
-Mecanum wheels must be installed in a specific pattern. If you look at the rollers from above, they should form an **"X"** shape. 
+Mecanum wheels must be installed in a specific pattern. If you look at the rollers from above, they should form an **"X"** shape.
 - If they form an "O", the robot will still move forward/back but won't be able to strafe sideways correctly.
 
 ## 4. Why it matters for your Fleet

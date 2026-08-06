@@ -22,9 +22,7 @@ def deploy():
 
     # Run script
     print("Running setup-autostart.sh on the robot...")
-    _stdin, stdout, stderr = ssh.exec_command(
-        f"chmod +x {remote_path} && sudo bash {remote_path}"
-    )
+    _stdin, stdout, stderr = ssh.exec_command(f"chmod +x {remote_path} && sudo bash {remote_path}")
 
     for line in stdout:
         print(f"STDOUT: {line.strip()}")

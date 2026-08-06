@@ -1,6 +1,6 @@
 # yahboom-mcp — TODO & Architectural Notes
 
-> Distilled from *Gemini iPad Chat #1* (April 12, 2026).  
+> Distilled from *Gemini iPad Chat #1* (April 12, 2026).
 > Full chat archived at: `mcp-central-docs/docs/agentic chats/gemini ipad chat #1.md`
 
 ---
@@ -73,7 +73,7 @@
   check-hardware:
       @ros2 topic echo /cliff_sensor --once --timeout 3 || (echo "❌ Cliff sensor not alive!" && exit 1)
       @ros2 topic echo /camera/image_raw --once --timeout 3 || (echo "❌ Camera not alive!" && exit 1)
-  
+
   push: check-hardware
       git push
   ```
@@ -92,7 +92,7 @@
 | IMU / Motors | ESP32-S3 | Micro-ROS (Serial bridge) |
 | Cliff Sensor | ESP32-S3 | Micro-ROS (Serial bridge) |
 
-> The Pi 5 is the **High-Level Brain** (SLAM, path planning, MCP host).  
+> The Pi 5 is the **High-Level Brain** (SLAM, path planning, MCP host).
 > The ESP32-S3 is the **Real-Time Actuator** (motors, servos, sensors).
 
 ---
@@ -193,7 +193,7 @@
 
 ## 🗺️ Autonomy Roadmap
 
-> Current state: Boomy tethered to Goliath (4090) via Wi-Fi — Goliath does the heavy cognitive lifting.  
+> Current state: Boomy tethered to Goliath (4090) via Wi-Fi — Goliath does the heavy cognitive lifting.
 > Goal: Full autonomy with entire loop (sense → decide → actuate) running on the Pi 5.
 
 - [ ] Fix all ROS 2 topics so Micro-ROS bridge is fully operational (prerequisite for everything below).

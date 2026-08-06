@@ -25,19 +25,19 @@ Use this skill when you need **domain expertise** on Yahboom Raspbot v2 hardware
 ## 🤖 ROS 2 Architecture
 
 - **ROS 2**: Humble on Ubuntu 24.04. Topics/services follow ROS 2 naming (e.g. cmd_vel, odom, scan, image).
-- **MCP ↔ Robot**: yahboom-mcp server talks to a **REST bridge** (or direct ROS 2 node) on the robot network. Robot IP and bridge port configurable (env or settings). 
+- **MCP ↔ Robot**: yahboom-mcp server talks to a **REST bridge** (or direct ROS 2 node) on the robot network. Robot IP and bridge port configurable (env or settings).
 - **Dual mode**: Server can run `--mode stdio` (MCP only) or `--mode dual --port 10892` (REST API + MCP). Dashboard (Vite) uses REST on 10892; frontend dev server on 10893.
 
 ## ⚙️ Kinematics and Motion
 
-- **Mecanum rollers**: rollers at 45°; combined wheel velocities yield body linear and angular velocity. 
+- **Mecanum rollers**: rollers at 45°; combined wheel velocities yield body linear and angular velocity.
 - **Odometry**: from encoders + IMU; heading from IMU.
-- **Trajectory recording**: start_recording → run motions → stop_recording(basename). 
+- **Trajectory recording**: start_recording → run motions → stop_recording(basename).
 
 ## 🌐 Integration and Fleet
 
-- **Federated fleet**: Yahboom-MCP is one node; others include Dreame-MCP (mapping/sweeping), Virtual-Robotics-MCP (simulation), central hub (orchestration). 
-- **3D viz**: Dashboard loads real STL meshes from URDF (base_link, wheels, LIDAR, camera). 
+- **Federated fleet**: Yahboom-MCP is one node; others include Dreame-MCP (mapping/sweeping), Virtual-Robotics-MCP (simulation), central hub (orchestration).
+- **3D viz**: Dashboard loads real STL meshes from URDF (base_link, wheels, LIDAR, camera).
 
 ## ⚖️ Skill Application Matrix
 

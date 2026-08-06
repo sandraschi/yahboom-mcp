@@ -19,7 +19,7 @@ This document outlines the technical roadmap for deploying the **SOTA 2026 Local
 ### openwakeword Deployment
 - **Library**: `pip install openwakeword`.
 - **System Service**: Create `/etc/systemd/system/wakeword.service`.
-- **Logic**: 
+- **Logic**:
     - Continuous audio capture via `pyaudio` or `sounddevice`.
     - On detection, send a trigger to the `yahboom-mcp` via local REST or a shared file flag.
     - Suppress sensing while the car is moving to avoid motor noise false-triggers.
@@ -27,7 +27,7 @@ This document outlines the technical roadmap for deploying the **SOTA 2026 Local
 ## 3. The Actuator Bridge
 
 ### LLM Intent Mapping
-The LLM response should be requested in a structured JSON format. 
+The LLM response should be requested in a structured JSON format.
 Example Intent:
 ```json
 {

@@ -260,9 +260,7 @@ class MissionExecutorNode(Node):
             return
 
         if behavior == "go_to_waypoint" and isinstance(nav2_goal, dict) and not self._use_nav2:
-            self.get_logger().warn(
-                "go_to_waypoint with nav2_goal but use_nav2 is false — enable parameter use_nav2"
-            )
+            self.get_logger().warn("go_to_waypoint with nav2_goal but use_nav2 is false — enable parameter use_nav2")
 
         if behavior in ("room_search", "spin_scan") or intent == "search":
             self._phase = "search"

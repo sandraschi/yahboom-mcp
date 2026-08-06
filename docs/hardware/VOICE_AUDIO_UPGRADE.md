@@ -1,9 +1,9 @@
 # Boomy Audio Upgrade: ReSpeaker Lite + Piper TTS
 
-**Platform:** Yahboom Raspbot v2 (Boomy)  
-**Date:** 2026-04-14  
-**Tags:** `[yahboom-mcp, voice, audio, respeaker, piper-tts, vosk, chatrobot, upgrade]`  
-**Status:** Planned — hardware not yet purchased  
+**Platform:** Yahboom Raspbot v2 (Boomy)
+**Date:** 2026-04-14
+**Tags:** `[yahboom-mcp, voice, audio, respeaker, piper-tts, vosk, chatrobot, upgrade]`
+**Status:** Planned — hardware not yet purchased
 **Parent doc:** [`VOICE_AUDIO.md`](VOICE_AUDIO.md)
 
 ---
@@ -34,7 +34,7 @@ One thing: **hardware wake detection**. When someone says "Hi, Yahboom", the mod
 
 ### 2.1 Seeed ReSpeaker Lite (XMOS XU316) — Microphone + Audio Output
 
-**Price:** ~€24 from Seeed DE warehouse (~$25 USD). Also on AliExpress ~$20.  
+**Price:** ~€24 from Seeed DE warehouse (~$25 USD). Also on AliExpress ~$20.
 **Buy:** https://www.seeedstudio.com/ReSpeaker-Lite-p-5928.html (select DE warehouse for EU)
 
 | Property | Value |
@@ -70,8 +70,8 @@ Without AEC specifically, any chatrobot loop is broken: the Pi starts recording,
 
 ### 2.2 Piper TTS — Neural Text-to-Speech
 
-**Price:** Free, open source (Apache 2.0)  
-**Project:** https://github.com/rhasspy/piper  
+**Price:** Free, open source (Apache 2.0)
+**Project:** https://github.com/rhasspy/piper
 **Developed by:** rhasspy / Michael Hansen (Home Assistant audio lead)
 
 Piper replaces espeak-ng. It is built on FastSpeech2 + HiFiGAN, quantised for CPU inference. On Pi 5, it generates speech in real-time or faster for most voice models.
@@ -101,7 +101,7 @@ For a bilingual Vienna deployment: install both `en_US-lessac-medium` and `de_DE
 
 The ReSpeaker Lite's WM8960 can drive a small 8Ω speaker up to ~1W — adequate for quiet indoor use. For a robot that may be competing with conversation noise, a louder option is better.
 
-**Recommended: STEMMA 3W speaker** (~€5) or any USB-powered mini speaker.  
+**Recommended: STEMMA 3W speaker** (~€5) or any USB-powered mini speaker.
 **Connection:** 3.5mm jack on ReSpeaker Lite → passive speaker, or use a USB-powered Bluetooth/wired speaker.
 
 Total audio upgrade cost: **€24–32** depending on whether a new speaker is needed.

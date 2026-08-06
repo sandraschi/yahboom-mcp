@@ -32,9 +32,7 @@ async def main():
         logger.info("✅ Found 'raspbot' profile in NetworkManager.")
 
         # Audit the specific profile
-        out_prof, _err_prof, _code_prof = ssh.sudo_execute(
-            "nmcli connection show raspbot"
-        )
+        out_prof, _err_prof, _code_prof = ssh.sudo_execute("nmcli connection show raspbot")
         print("\n--- NetworkManager 'raspbot' Profile ---")
         # Filter for sensitive/relevant fields for the model to see
         relevant_keywords = [
@@ -51,9 +49,7 @@ async def main():
                 print(line)
         print("------------------------------------------\n")
     else:
-        logger.warn(
-            "⚠️ No 'raspbot' profile found in nmcli. Checking for generic hotspot..."
-        )
+        logger.warn("⚠️ No 'raspbot' profile found in nmcli. Checking for generic hotspot...")
         # Check all wifi devices
         out_dev, _err_dev, _code_dev = ssh.execute("nmcli device show wlan0")
         print(out_dev)

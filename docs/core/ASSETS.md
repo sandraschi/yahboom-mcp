@@ -15,7 +15,7 @@ Yahboom provides the `yahboomcar_description` package which contains the **URDF*
 If you need high-fidelity models for Blender or CAD:
 
 - **Thingiverse**: [Yahboom G1 Smart Car](https://www.thingiverse.com/thing:4658145) (Includes STL files for many components).
-- **Format Conversion**: 
+- **Format Conversion**:
     - The STLs can be imported directly into **Blender**.
     - For CAD (STEP/IGES), you may need to use **Fusion 360** to convert the mesh files if Yahboom hasn't provided the raw STEP files in their "Annex" repositories.
 

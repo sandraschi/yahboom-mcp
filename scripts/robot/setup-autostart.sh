@@ -28,10 +28,10 @@ echo "Starting ROSBridge and Yahboom Driver inside container..."
 docker exec yahboom_ros2 bash -c '
     source /opt/ros/humble/setup.bash
     source /root/yahboomcar_ws/install/setup.bash
-    
+
     # Start ROSBridge in background
     ros2 launch rosbridge_server rosbridge_websocket_launch.xml &
-    
+
     # Start Yahboom Driver
     ros2 launch yahboomcar_bringup yahboomcar_bringup.launch.py
 '

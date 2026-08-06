@@ -69,7 +69,7 @@ Goal: "Search the apartment with sinusoidal pattern, looking for a brown dog.
 
 The Ollama planner decomposes this into:
 1. **Intent**: `search`
-2. **Behavior**: `sinusoidal_scan`  
+2. **Behavior**: `sinusoidal_scan`
 3. **Target**: `brown dog`
 4. **Detection topic**: `/boomy/detections_json` (E2B vision results)
 5. **On match**: Stop motors, publish status with position

@@ -19,9 +19,7 @@ def audit_camera_system():
     print(f"SYSTEM_PACKAGES:\n{p_out}")
 
     print("[*] Auditing Running ROS 2 Nodes...")
-    n_out, _, _ = ssh.execute(
-        "bash -c 'source /opt/ros/humble/setup.bash && ros2 node list'"
-    )
+    n_out, _, _ = ssh.execute("bash -c 'source /opt/ros/humble/setup.bash && ros2 node list'")
     print(f"ACTIVE_NODES:\n{n_out}")
 
     print("[*] Checking for Yahboom-related systemd services...")

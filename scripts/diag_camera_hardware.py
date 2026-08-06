@@ -36,13 +36,9 @@ def diag_camera():
         "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && timeout 5 ros2 topic echo /image_raw/compressed --count 1'"
     )
     if out.strip():
-        print(
-            f"[SUCCESS] Received data from /image_raw/compressed (size: {len(out)} chars)"
-        )
+        print(f"[SUCCESS] Received data from /image_raw/compressed (size: {len(out)} chars)")
     else:
-        print(
-            "[FAIL] No data received from /image_raw/compressed. Node might be stalled."
-        )
+        print("[FAIL] No data received from /image_raw/compressed. Node might be stalled.")
 
     # 4. Check for any /camera/ topics
     print("[*] Checking for /camera/* topics...")

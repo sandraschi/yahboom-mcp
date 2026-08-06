@@ -22,10 +22,13 @@ async def install_mpg123():
     print("Updating packages and installing mpg123...")
     out, err, code = await ssh.execute("sudo apt-get update && sudo apt-get install -y mpg123")
     print(f"Result Code: {code}")
-    if out: print(f"Output: {out}")
-    if err: print(f"Error: {err}")
+    if out:
+        print(f"Output: {out}")
+    if err:
+        print(f"Error: {err}")
 
     ssh.close()
+
 
 if __name__ == "__main__":
     asyncio.run(install_mpg123())

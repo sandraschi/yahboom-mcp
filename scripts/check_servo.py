@@ -17,13 +17,18 @@ async def check_servo():
 
     # 1. Check topic info
     print("\n--- Topic Info ---")
-    out, _, _ = ssh.execute("docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && ros2 topic info /servo'")
+    out, _, _ = ssh.execute(
+        "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && ros2 topic info /servo'"
+    )
     print(out)
 
     # 2. Check interface definition
     print("\n--- Interface Definition ---")
-    out, _, _ = ssh.execute("docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && ros2 interface show yahboomcar_msgs/msg/ServoControl'")
+    out, _, _ = ssh.execute(
+        "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && ros2 interface show yahboomcar_msgs/msg/ServoControl'"
+    )
     print(out)
+
 
 if __name__ == "__main__":
     asyncio.run(check_servo())

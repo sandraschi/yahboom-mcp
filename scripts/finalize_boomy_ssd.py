@@ -43,12 +43,8 @@ try:
 
         # Add to fstab for persistency
         print("HARDENING MOUNT PERSISTENCE (/etc/fstab)...")
-        bridge.sudo_execute(
-            'grep -v "/mnt/ssd" /etc/fstab | sudo tee /etc/fstab > /dev/null'
-        )
-        bridge.sudo_execute(
-            'echo "/dev/sda /mnt/ssd ext4 defaults,noatime 0 2" | sudo tee -a /etc/fstab'
-        )
+        bridge.sudo_execute('grep -v "/mnt/ssd" /etc/fstab | sudo tee /etc/fstab > /dev/null')
+        bridge.sudo_execute('echo "/dev/sda /mnt/ssd ext4 defaults,noatime 0 2" | sudo tee -a /etc/fstab')
 
         out, _, _ = bridge.execute("df -h /mnt/ssd")
         print(f"New Substrate State:\n{out}")

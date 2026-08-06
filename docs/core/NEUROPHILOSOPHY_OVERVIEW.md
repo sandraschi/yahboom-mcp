@@ -8,34 +8,34 @@ Short overview of neurophilosophy frameworks and recent papers that inform **emb
 
 ### Damasio: body, self, and consciousness
 
-- **The Feeling of What Happens** (1999), **Self Comes to Mind** (2010).  
-  Consciousness as a biological process arising from brain–body–environment interaction, not a separate “mind.”  
-- **Protoself**: Unconscious mapping of body state (interoception, homeostasis), constantly updated.  
-- **Core consciousness**: Moment-by-moment “feeling of what happens” when the organism relates objects/events to the protoself.  
-- **Extended consciousness**: Autobiographical self, narrative, past and future.  
+- **The Feeling of What Happens** (1999), **Self Comes to Mind** (2010).
+  Consciousness as a biological process arising from brain–body–environment interaction, not a separate “mind.”
+- **Protoself**: Unconscious mapping of body state (interoception, homeostasis), constantly updated.
+- **Core consciousness**: Moment-by-moment “feeling of what happens” when the organism relates objects/events to the protoself.
+- **Extended consciousness**: Autobiographical self, narrative, past and future.
 
 Relevance for embodied AI: agents that maintain a “body state” (telemetry, battery, pose) and relate it to perception and action implement a minimal analogue of protoself/core coupling.
 
 ### Global Workspace Theory (Baars)
 
-- **A Cognitive Theory of Consciousness** (1988), and later developments.  
-  Consciousness as a **global broadcast**: a limited-capacity workspace that integrates specialized processes and broadcasts the current “content” to the rest of the system.  
+- **A Cognitive Theory of Consciousness** (1988), and later developments.
+  Consciousness as a **global broadcast**: a limited-capacity workspace that integrates specialized processes and broadcasts the current “content” to the rest of the system.
 - **Global Workspace in AI**: Embodied agents with a single bottleneck (e.g. one LLM turn per step) that receives integrated observation and outputs one action approximate a workspace; attention and “what is conscious” correspond to what is in the prompt and the model’s reply.
 
 ### Integrated Information Theory (IIT, Tononi)
 
-- **IIT** (from ~2004): Consciousness identified with **integrated information** (Φ). A system is conscious to the degree it forms a causal whole that “makes a difference to itself.”  
+- **IIT** (from ~2004): Consciousness identified with **integrated information** (Φ). A system is conscious to the degree it forms a causal whole that “makes a difference to itself.”
 - **RIIU (arxiv 2506.13825)** and similar work try to build **differentiable** constructs that maximize an integration-like quantity in artificial agents; they are not IIT proper but are inspired by the idea that consciousness-like behaviour may require integration over a persisting state.
 
 ### Enactivism (Varela, Thompson, Rosch)
 
-- **The Embodied Mind** (1991).  
-  Cognition as **enaction**: not representation of a pre-given world but “bringing forth” a world through sensorimotor coupling.  
+- **The Embodied Mind** (1991).
+  Cognition as **enaction**: not representation of a pre-given world but “bringing forth” a world through sensorimotor coupling.
 - **Relevance**: The observe–act loop (perceive → decide → move → perceive again) is enactive: the agent’s “world” is defined by what its body can do and what it receives back. No need to assume a full internal world model; the loop itself is the minimal “model.”
 
 ### Minsky: Society of Mind (1986)
 
-- **Society of Mind**: Mind as a **society of simple, non-conscious agents** that together produce intelligence; no central homunculus.  
+- **Society of Mind**: Mind as a **society of simple, non-conscious agents** that together produce intelligence; no central homunculus.
 - **Relevance**: (1) **Partial world model** — different “agents” (or tools/MCPs) handle different aspects; no single full model. (2) **Habits as agents** — context-triggered specialists (e.g. “go drink,” “look for prey”) resemble Minsky’s simple agents. (3) **Fleet / orchestration** — many specialized processes (MCPs, skills), no single conscious centre; who gets invoked when yields emergent behaviour. (4) **Consciousness** — Minsky treated it as a fleeting “coalition” with the spotlight, close to Global Workspace. One LLM turn per step is like one coalition having the floor. Caveat: he emphasized symbolic, internal agents; we add body-in-the-loop and need signals, so the analogy is structural, not literal.
 
 ---
@@ -92,12 +92,12 @@ Relevance for embodied AI: agents that maintain a “body state” (telemetry, b
 | Embodied Neural Homeostat (bioRxiv) | [10.1101/2024.06.03.597087](https://www.biorxiv.org/content/10.1101/2024.06.03.597087) | Real robot; only internal state feedback; walking, navigate to “food,” rest, “shiver”; thermal + energy homeostasis. |
 | Emotion-Inspired Learning Signals (EILS) | [2512.22200](https://arxiv.org/abs/2512.22200) | Emotions as homeostatic appraisal (curiosity, stress, confidence); non-stationary envs. |
 
-**Fleet / local agents (OpenClaw / Moltbot, post-hubbub)**  
+**Fleet / local agents (OpenClaw / Moltbot, post-hubbub)**
 No arxiv yet from the core projects. After the initial buzz: (1) **Practical turn** — local-first, “agent era getting weirdly practical”; simple markdown/docs often beat complex skills. (2) **Emergent social** — MoltBook-scale agent populations show viral/emergent behavior (e.g. invented “religions”); society-of-mind-at-scale, but unclear if philosophically deep. (3) **Security reckoning** — CVEs, supply-chain and malicious packages; autonomy + system access = new trust surface. When a substantive paper or long-form analysis appears, add here.
 
 **OpenFang.** Rust-built “agent OS” (early 2026): single binary, WASM sandbox, MCP support, persistent memory, scheduled agents. Could be a serious runtime alternative post-OpenClaw. **openfang-mcp** (MCP integration layer) is currently dormant; reviving it would make OpenFang a first-class orchestrator/body in MCP-based fleets.
 
-**Neurophilosophy and the new AI**  
+**Neurophilosophy and the new AI**
 Still waiting for sustained engagement from top neurophilosophers (e.g. **Churchland** et al.) with the current wave of LLMs, embodied agents, and “understanding”/consciousness claims. Eliminativist and neural-identity views on representation and mind would sharpen the debate (e.g. whether “partial world models” or “need signals” are the right level of description, or merely useful fictions). When such reactions appear in print or preprint, add a subsection here.
 
 **Introspection vs mechanism (humans vs AIs).** A recent observation: humans and AIs have the **opposite** problem when it comes to thinking about consciousness. Humans have introspection in abundance but little or no cognizance of their own mechanism (we don’t “see” our neural wiring or training). AIs know their mechanism (architecture, training, weights, data) but lack introspection—no first-person “what it is like.” So humans can report experience but can’t point at the machinery; AIs can point at the machinery but can’t report experience. That asymmetry is worth keeping in mind when comparing “explainable” AI to the hard problem of consciousness.
@@ -106,9 +106,9 @@ Still waiting for sustained engagement from top neurophilosophers (e.g. **Church
 
 ## 3. How this relates to the yahboom-mcp embodied loop
 
-- **Body state**: Telemetry (battery, pose, velocity, LIDAR) is a minimal “protoself”-like input: the agent’s current body and nearby world.  
-- **One content per step**: The LLM receives one observation (and optionally one image) and outputs one action — a minimal global-workspace-style bottleneck.  
-- **Sensorimotor loop**: Observe -> LLM -> act -> observe is enactive: the agent’s behaviour is determined by coupling with the environment through this cycle, not by a single “plan” in the head.  
+- **Body state**: Telemetry (battery, pose, velocity, LIDAR) is a minimal “protoself”-like input: the agent’s current body and nearby world.
+- **One content per step**: The LLM receives one observation (and optionally one image) and outputs one action — a minimal global-workspace-style bottleneck.
+- **Sensorimotor loop**: Observe -> LLM -> act -> observe is enactive: the agent’s behaviour is determined by coupling with the environment through this cycle, not by a single “plan” in the head.
 - **No claim to consciousness**: The loop is a **functional** analogue useful for control and experimentation; it does not implement Damasio’s, IIT’s, or GWT’s full theories.
 
 ---

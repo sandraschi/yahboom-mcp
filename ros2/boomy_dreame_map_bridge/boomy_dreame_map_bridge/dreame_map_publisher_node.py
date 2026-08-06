@@ -5,6 +5,7 @@ Requires dreame-mcp to return a rendered ``image`` (base64 PNG). The Dreame map 
 *not* aligned with the Raspbot: set ``map_origin`` / use Nav2/TF to fuse when Boomy
 gets its own LiDAR (e.g. MS200) for localization.
 """
+
 from __future__ import annotations
 
 import base64
@@ -15,16 +16,17 @@ import urllib.request
 from typing import Any
 
 import rclpy
+import tf2_ros
 from geometry_msgs.msg import Point, Pose, Quaternion, TransformStamped
 from nav_msgs.msg import MapMetaData, OccupancyGrid
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Header
-import tf2_ros
 
 try:
-    from PIL import Image
     import io
+
+    from PIL import Image
 
     _HAS_PIL = True
 except Exception:
@@ -86,9 +88,7 @@ class DreameMapPublisherNode(Node):
     def __init__(self) -> None:
         super().__init__("dreame_map_publisher")
         if not _HAS_PIL:
-            self.get_logger().error(
-                "Pillow (python3-pil) not importable. Install: sudo apt install python3-pil"
-            )
+            self.get_logger().error("Pillow (python3-pil) not importable. Install: sudo apt install python3-pil")
         p = self.declare_parameter
         self._dreame_url = p("dreame_map_url", _DEFAULT_URL)
         self._http_timeout = p("http_timeout_sec", 25.0)
@@ -143,9 +143,7 @@ class DreameMapPublisherNode(Node):
         if not _HAS_PIL:
             return
         try:
-            data = _fetch_map_json(
-                str(self._dreame_url.value), float(self._http_timeout.value)
-            )
+            data = _fetch_map_json(str(self._dreame_url.value), float(self._http_timeout.value))
         except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
             self.get_logger().warning("Dreame map fetch failed: %s" % e)
             return
@@ -174,9 +172,7 @@ class DreameMapPublisherNode(Node):
         try:
             gte = int(self._free_min.value)
             lte = int(self._occ_max.value)
-            occ_data, w, h = _png_to_occupancy(
-                png, gte, lte, bool(self._flip_y.value)
-            )
+            occ_data, w, h = _png_to_occupancy(png, gte, lte, bool(self._flip_y.value))
         except Exception as e:
             self.get_logger().error("PNG to occupancy failed: %s" % e)
             return

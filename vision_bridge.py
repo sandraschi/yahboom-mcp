@@ -3,7 +3,11 @@
 Vision detection bridge: camera → SSD MobileNet v2 → /boomy/detections_json
 Runs on the Pi. Publishes COCO-class detections as JSON on ROS topic.
 """
-import json, os, sys, time
+
+import json
+import os
+import time
+
 import cv2
 import numpy as np
 import rclpy
@@ -18,18 +22,87 @@ FRAME_INTERVAL = 2.0
 import urllib.request
 
 COCO_CLASSES = [
-    "background", "person", "bicycle", "car", "motorcycle", "airplane", "bus",
-    "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign",
-    "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
-    "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag",
-    "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite",
-    "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
-    "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana",
-    "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza",
-    "donut", "cake", "chair", "couch", "potted plant", "bed", "dining table",
-    "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone",
-    "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock",
-    "vase", "scissors", "teddy bear", "hair drier", "toothbrush",
+    "background",
+    "person",
+    "bicycle",
+    "car",
+    "motorcycle",
+    "airplane",
+    "bus",
+    "train",
+    "truck",
+    "boat",
+    "traffic light",
+    "fire hydrant",
+    "stop sign",
+    "parking meter",
+    "bench",
+    "bird",
+    "cat",
+    "dog",
+    "horse",
+    "sheep",
+    "cow",
+    "elephant",
+    "bear",
+    "zebra",
+    "giraffe",
+    "backpack",
+    "umbrella",
+    "handbag",
+    "tie",
+    "suitcase",
+    "frisbee",
+    "skis",
+    "snowboard",
+    "sports ball",
+    "kite",
+    "baseball bat",
+    "baseball glove",
+    "skateboard",
+    "surfboard",
+    "tennis racket",
+    "bottle",
+    "wine glass",
+    "cup",
+    "fork",
+    "knife",
+    "spoon",
+    "bowl",
+    "banana",
+    "apple",
+    "sandwich",
+    "orange",
+    "broccoli",
+    "carrot",
+    "hot dog",
+    "pizza",
+    "donut",
+    "cake",
+    "chair",
+    "couch",
+    "potted plant",
+    "bed",
+    "dining table",
+    "toilet",
+    "tv",
+    "laptop",
+    "mouse",
+    "remote",
+    "keyboard",
+    "cell phone",
+    "microwave",
+    "oven",
+    "toaster",
+    "sink",
+    "refrigerator",
+    "book",
+    "clock",
+    "vase",
+    "scissors",
+    "teddy bear",
+    "hair drier",
+    "toothbrush",
 ]
 
 
@@ -72,8 +145,8 @@ class DetectionBridge(Node):
                 a = self.bytes_buf.find(b"\xff\xd8")
                 b = self.bytes_buf.find(b"\xff\xd9")
                 if a != -1 and b != -1 and b > a:
-                    jpg = self.bytes_buf[a:b+2]
-                    self.bytes_buf = self.bytes_buf[b+2:]
+                    jpg = self.bytes_buf[a : b + 2]
+                    self.bytes_buf = self.bytes_buf[b + 2 :]
                     return cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_COLOR)
         except Exception:
             self.stream = None
@@ -101,11 +174,13 @@ class DetectionBridge(Node):
             cls_id = int(detections[0, 0, i, 1])
             label = COCO_CLASSES[cls_id] if cls_id < len(COCO_CLASSES) else "unknown"
             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-            results.append({
-                "label": label,
-                "confidence": round(conf, 3),
-                "box": [round(float(b), 1) for b in box],
-            })
+            results.append(
+                {
+                    "label": label,
+                    "confidence": round(conf, 3),
+                    "box": [round(float(b), 1) for b in box],
+                }
+            )
         if results:
             msg = String(data=json.dumps({"detections": results, "ts": now}))
             self.pub.publish(msg)

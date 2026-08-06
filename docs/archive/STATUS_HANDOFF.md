@@ -1,6 +1,6 @@
 # Yahboom Raspbot v2: Telemetry Restoration Handoff (v1.0.0)
-**Timestamp**: 2026-04-01  
-**Status**: DEGRADED (Kinematics Active / Telemetry Null)  
+**Timestamp**: 2026-04-01
+**Status**: DEGRADED (Kinematics Active / Telemetry Null)
 **Platform**: Windows 11 Pro ↔ Raspberry Pi 5 (ROS 2 Humble / Docker)
 
 ---
@@ -25,7 +25,7 @@
 ## III. Remaining Tasks (What Has to be Done ASAP)
 1. **Sensory Protocol Patch**: Finalize the bitwise packet parsing in `Mcnamu_driver.py` using the `Rosmaster_Lib` logic as the source of truth.
 2. **Vision Restoration**: Manually initialize the `usb_cam` node inside the container (or equivalent Humble camera node) and verify the `/image_raw/compressed` topic.
-3. **Hardware Shield Re-mapping**: 
+3. **Hardware Shield Re-mapping**:
     - **Lightstrip**: Restore the legacy register calls (worked yesterday because a different driver was likely active).
     - **Speech**: Map `/dev/snd` into the `yahboom_ros2` container and start the voice node.
 4. **Physical Cable Check**: Re-seat the I2C and PTZ servo cables at the MCU junction to rule out connection failure.

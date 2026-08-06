@@ -37,11 +37,13 @@ async def run_integration_test():
 
     ssh.close()
 
+
 if __name__ == "__main__":
     # Ensure environment vars
     os.environ["YAHBOOM_VOICE_DEVICE"] = "/dev/ttyUSB0"
     # Force UTF-8 for windows terminal
     import io
     import sys
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
     asyncio.run(run_integration_test())

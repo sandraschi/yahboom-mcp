@@ -21,9 +21,7 @@ def audit_container_v2():
 
     print("[*] Searching for ANY launch files in container...")
     # Deep search in /
-    l_out, _, _ = ssh.execute(
-        "docker exec yahboom_ros2 find / -name '*.launch.py' 2>/dev/null | grep -i camera"
-    )
+    l_out, _, _ = ssh.execute("docker exec yahboom_ros2 find / -name '*.launch.py' 2>/dev/null | grep -i camera")
     if l_out:
         print(f"[*] Found launch files in container:\n{l_out}")
     else:

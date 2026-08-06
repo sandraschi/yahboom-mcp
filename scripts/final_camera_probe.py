@@ -35,7 +35,9 @@ def final_camera_probe():
 
     # 4. Check for publishers on image topics
     print("[*] Checking for publishers on /image_raw/compressed...")
-    cmd = "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && ros2 topic info /image_raw/compressed'"
+    cmd = (
+        "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && ros2 topic info /image_raw/compressed'"
+    )
     out, _, _ = ssh.execute(cmd)
     print("-" * 50)
     print(f"TOPIC_INFO:\n{out}")

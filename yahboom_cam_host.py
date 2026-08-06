@@ -17,6 +17,7 @@ CAP_WIDTH = 640
 CAP_HEIGHT = 480
 CAP_FPS = 15
 
+
 class Camera:
     def __init__(self):
         self.cap = None
@@ -54,23 +55,28 @@ class Camera:
         loop = asyncio.get_event_loop()
         ret, frame = await loop.run_in_executor(None, self.cap.read)
         if ret:
-            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            _, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
             return buffer.tobytes()
         return None
 
+
 camera = Camera()
+
 
 @app.on_event("startup")
 async def startup_event():
     camera.start()
 
+
 @app.on_event("shutdown")
 def shutdown_event():
     camera.stop()
 
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "camera_active": camera.active}
+
 
 @app.get("/mjpeg")
 async def video_feed():
@@ -78,11 +84,11 @@ async def video_feed():
         while camera.active:
             frame = await camera.get_frame()
             if frame:
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-            await asyncio.sleep(1/CAP_FPS)
+                yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
+            await asyncio.sleep(1 / CAP_FPS)
 
     return StreamingResponse(generator(), media_type="multipart/x-mixed-replace; boundary=frame")
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=10895)

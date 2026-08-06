@@ -90,7 +90,15 @@ async def yahboom_tool(
             from .operations import voice
 
             return await voice.execute(ctx, op_lower, param1, param2, payload)
-        elif op_lower in ["audio_play", "audio_store", "audio_play_stored", "audio_list_stored", "audio_delete_stored", "audio_stop", "audio_sound"]:
+        elif op_lower in [
+            "audio_play",
+            "audio_store",
+            "audio_play_stored",
+            "audio_list_stored",
+            "audio_delete_stored",
+            "audio_stop",
+            "audio_sound",
+        ]:
             from .operations import audio
 
             sub_op = op_lower.replace("audio_", "")
@@ -116,7 +124,15 @@ async def yahboom_tool(
             # LED expects 3 params (r, g, b) inside execute.
             p3 = param3 if param3 is not None else (payload.get("b") if payload else 0)
             return await lightstrip.execute(ctx, sub_op, param1, param2, p3)
-        elif op_lower in ["camera_up", "camera_down", "camera_left", "camera_right", "camera_reset", "camera_set_pos", "camera_move"]:
+        elif op_lower in [
+            "camera_up",
+            "camera_down",
+            "camera_left",
+            "camera_right",
+            "camera_reset",
+            "camera_set_pos",
+            "camera_move",
+        ]:
             from .operations import camera_ptz
 
             bridge = _state.get("bridge")

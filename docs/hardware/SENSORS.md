@@ -1,7 +1,7 @@
 # Yahboom G1 — Sensor Integration Reference
 
-**Timestamp**: 2026-03-04  
-**Platform**: Yahboom G1 (ROSMASTER series, Mecanum wheel, Raspberry Pi 5)  
+**Timestamp**: 2026-03-04
+**Platform**: Yahboom G1 (ROSMASTER series, Mecanum wheel, Raspberry Pi 5)
 **Server**: `yahboom-mcp` — ROS 2 Humble + ROSBridge WebSocket (port 9090)
 
 **Physical hardware inventory (Raspbot v2):** **[RASPBOT_V2_HARDWARE_STACK.md](RASPBOT_V2_HARDWARE_STACK.md)**.
@@ -136,7 +136,7 @@ sudo apt install ros-humble-ydlidar-ros2-driver
 ros2 launch ydlidar_ros2_driver ydlidar_launch.py
 ```
 
-**ROS topic**: `/scan`  
+**ROS topic**: `/scan`
 **ROS message type**: `sensor_msgs/LaserScan`
 
 **Key fields:**

@@ -24,9 +24,7 @@ try:
 
     # We use a lower-level Paramiko call to get the raw binary stream
     ssh = bridge.client
-    stdin, stdout, stderr = ssh.exec_command(
-        "sudo dd if=/dev/mmcblk0 bs=1M status=none"
-    )
+    stdin, stdout, stderr = ssh.exec_command("sudo dd if=/dev/mmcblk0 bs=1M status=none")
 
     with open(TARGET_PATH, "wb") as f:
         bytes_copied = 0

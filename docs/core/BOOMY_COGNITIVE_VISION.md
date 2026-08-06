@@ -3,7 +3,7 @@
 The Pi 5 (16GB) elevates Boomy from a "robot in a box" to an "Ego-Centric Autonomous Agent." This roadmap outlines the cognitive and functional modules planned for Boomy's 2026 expansion.
 
 ## 🧠 Cognitive Layer (Local AI)
-- **Local LLM (Ollama)**: Reasoning about environment data. 
+- **Local LLM (Ollama)**: Reasoning about environment data.
     - *Models*: `gemma3:1b`, `qwen2.5:0.5b`.
     - *Utility*: Explainable robotics ("I paused because the Lidar detected a 20cm obstacle at 45 degrees").
 - **Voice Intelligence**:

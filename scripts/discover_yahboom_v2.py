@@ -13,9 +13,7 @@ def discover_yahboom():
         return
 
     print("[*] Searching for 'Rosmaster' in python packages...")
-    out, err, code = ssh.execute(
-        "python3 -c 'import Rosmaster; print(Rosmaster.__file__)'"
-    )
+    out, err, code = ssh.execute("python3 -c 'import Rosmaster; print(Rosmaster.__file__)'")
     print(f"ROSMASTER_PATH: {out}")
     if err:
         print(f"ERROR: {err}")

@@ -26,9 +26,7 @@ def trace_ros2_ws():
             if pkg_out:
                 print(f"      -> FOUND: {pkg_out.strip()}")
                 # List launch files
-                l_out, _, _ = ssh.execute(
-                    f"find {base}/src -name '*launch*.py' | grep -i camera"
-                )
+                l_out, _, _ = ssh.execute(f"find {base}/src -name '*launch*.py' | grep -i camera")
                 print(f"      -> LAUNCH FILES: {l_out}")
     else:
         print("[FAIL] No ROS 2 workspaces found.")

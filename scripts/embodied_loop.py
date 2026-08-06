@@ -152,9 +152,7 @@ async def ollama_chat(
         return "STOP"
 
 
-async def send_move(
-    client: httpx.AsyncClient, linear: float, angular: float, linear_y: float = 0.0
-) -> bool:
+async def send_move(client: httpx.AsyncClient, linear: float, angular: float, linear_y: float = 0.0) -> bool:
     """Send velocity command to yahboom-mcp."""
     try:
         r = await client.post(
@@ -219,9 +217,7 @@ async def run_loop(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Embodied AI loop: observe -> LLM -> act"
-    )
+    parser = argparse.ArgumentParser(description="Embodied AI loop: observe -> LLM -> act")
     parser.add_argument(
         "--model",
         default=os.environ.get("OLLAMA_MODEL", "llava"),
@@ -233,9 +229,7 @@ def main():
         help="Optional high-level instruction (e.g. 'go forward')",
     )
     parser.add_argument("--max-steps", type=int, default=60, help="Max control steps")
-    parser.add_argument(
-        "--interval", type=float, default=1.0, help="Seconds between steps"
-    )
+    parser.add_argument("--interval", type=float, default=1.0, help="Seconds between steps")
     parser.add_argument(
         "--use-vision",
         action="store_true",
@@ -243,14 +237,8 @@ def main():
     )
     args = parser.parse_args()
 
-    logger.info(
-        "Base URL: %s | Ollama: %s | model: %s", BASE_URL, OLLAMA_URL, args.model
-    )
-    asyncio.run(
-        run_loop(
-            args.model, args.instruction, args.max_steps, args.interval, args.use_vision
-        )
-    )
+    logger.info("Base URL: %s | Ollama: %s | model: %s", BASE_URL, OLLAMA_URL, args.model)
+    asyncio.run(run_loop(args.model, args.instruction, args.max_steps, args.interval, args.use_vision))
 
 
 if __name__ == "__main__":

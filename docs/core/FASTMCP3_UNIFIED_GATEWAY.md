@@ -1,9 +1,9 @@
 # FastMCP 3.x Unified Gateway: Complete Migration Guide
 
-**Version**: 1.0  
-**Date**: March 4, 2026  
-**Target**: MCP Server Fleet Migration  
-**Impact**: Critical Architecture Upgrade  
+**Version**: 1.0
+**Date**: March 4, 2026
+**Target**: MCP Server Fleet Migration
+**Impact**: Critical Architecture Upgrade
 
 ---
 
@@ -28,7 +28,7 @@ FastMCP 3.x introduces the **Unified Gateway pattern** - a revolutionary archite
 mcp_server = FastMCP("My Server")
 mcp_server.run()  # Port A
 
-# 2. Web Server (FastAPI)  
+# 2. Web Server (FastAPI)
 web_app = FastAPI()
 uvicorn.run(web_app)  # Port B
 ```
@@ -52,7 +52,7 @@ uvicorn.run(app)  # Single port serves both!
 # OLD
 # "fastmcp>=2.0.0"
 
-# NEW  
+# NEW
 "fastmcp>=3.0.0"
 "fastapi>=0.104.0"
 "uvicorn[standard]>=0.23.0"
@@ -127,7 +127,7 @@ def main():
     )
     parser.add_argument("--port", type=int, default=8080)
     args = parser.parse_args()
-    
+
     if args.mode == "stdio":
         asyncio.run(run_stdio())
     else:
@@ -285,7 +285,7 @@ if __name__ == "__main__":
 from fastmcp import FastMCP
 mcp = FastMCP("Complex Server")
 
-# web_server.py  
+# web_server.py
 from fastapi import FastAPI
 web = FastAPI()
 
@@ -323,7 +323,7 @@ app = FastAPI()
 mcp = FastMCP.from_fastapi(app)  # ✅ Works
 
 # INCORRECT - MCP first
-from fastmcp import FastMCP  
+from fastmcp import FastMCP
 from fastapi import FastAPI
 
 mcp = FastMCP("name")  # ❌ Won't work with unified gateway
@@ -387,11 +387,11 @@ from my_server import app, mcp
 
 def test_unified_gateway():
     client = TestClient(app)
-    
+
     # Test HTTP endpoint
     response = client.get("/api/v1/status")
     assert response.status_code == 200
-    
+
     # Test MCP tool (via HTTP proxy)
     response = client.post("/mcp/call/my_tool")
     assert response.json()["result"] == "Hello"
@@ -403,7 +403,7 @@ async def test_dual_mode():
     # Test MCP protocol
     mcp_result = await mcp.call_tool("my_tool", {})
     assert mcp_result.content[0].text == "Hello"
-    
+
     # Test HTTP API
     async with httpx.AsyncClient() as client:
         response = await client.get("http://localhost:8080/api/v1/status")
@@ -447,7 +447,7 @@ async def test_dual_mode():
 The FastMCP 3.x Unified Gateway represents a **paradigm shift** in MCP server architecture. By consolidating MCP protocol and HTTP API services into a single FastAPI application, we achieve:
 
 - **Simplified Operations**: 50% reduction in deployment complexity
-- **Better Performance**: 40% reduction in resource usage  
+- **Better Performance**: 40% reduction in resource usage
 - **Unified Development**: Single codebase for all interfaces
 - **Future-Proof Design**: Ready for next-generation AI agent integration
 

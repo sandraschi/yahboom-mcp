@@ -42,9 +42,7 @@ async def final_reality_pulse():
     print("[*] Writing to OLED (Native)...")
     oled_text = "REALITY CHECK\nSYSTEMS: OK"
     encoded_text = base64.b64encode(oled_text.encode()).decode()
-    ssh.execute(
-        f"python3 /home/pi/software/oled_yahboom/yahboom_oled.py --base64 {encoded_text}"
-    )
+    ssh.execute(f"python3 /home/pi/software/oled_yahboom/yahboom_oled.py --base64 {encoded_text}")
 
     # 3. TEST SPEECH (Serial)
     print("[*] Synthesizing Speech (Serial)...")
@@ -73,9 +71,7 @@ async def final_reality_pulse():
         print("[FAIL] Camera topics did not appear within 20 seconds.")
 
     print("\n[!] FINAL REALITY PULSE COMPLETE.")
-    print(
-        "[!] User: Please confirm you see the Lightstrip flash, text on OLED, and hear the speech."
-    )
+    print("[!] User: Please confirm you see the Lightstrip flash, text on OLED, and hear the speech.")
 
 
 if __name__ == "__main__":

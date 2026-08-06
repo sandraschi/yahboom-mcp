@@ -53,9 +53,7 @@ async def verification_pulse():
     heartbeat = "REALITY_CHECK"
     res = await yahboom_tool(operation="display", param1=heartbeat, param2=0)
     if res.get("success"):
-        print(
-            f"  - OLED '{heartbeat}' -> {res.get('status')} (I2C Acknowledge confirmed)"
-        )
+        print(f"  - OLED '{heartbeat}' -> {res.get('status')} (I2C Acknowledge confirmed)")
     else:
         print(f"  - OLED FAILED: {res.get('log')}")
 

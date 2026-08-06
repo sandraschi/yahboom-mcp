@@ -21,11 +21,7 @@ def list_all_launch():
     # Filter for interesting ones
     lines = out.splitlines()
     for line in lines:
-        if (
-            "yahboom" in line.lower()
-            or "camera" in line.lower()
-            or "usb_cam" in line.lower()
-        ):
+        if "yahboom" in line.lower() or "camera" in line.lower() or "usb_cam" in line.lower():
             print(line)
     print("-" * 40)
 

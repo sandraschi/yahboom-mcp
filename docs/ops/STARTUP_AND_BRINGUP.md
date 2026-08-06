@@ -16,7 +16,7 @@
 
 **Goliath (your PC)** runs **yahboom-mcp**. It opens:
 
-1. **TCP/WebSocket to `YAHBOOM_IP:YAHBOOM_BRIDGE_PORT` (default 9090)** → hits **rosbridge_suite** on the Pi → same ROS 2 graph as onboard nodes.  
+1. **TCP/WebSocket to `YAHBOOM_IP:YAHBOOM_BRIDGE_PORT` (default 9090)** → hits **rosbridge_suite** on the Pi → same ROS 2 graph as onboard nodes.
 2. **SSH** to the same IP → OLED, voice, `docker exec`, diagnostics, and **remote bringup** commands.
 
 If the robot is **off**, or Goliath is **not** on the Raspbot Wi‑Fi AP **and** no **Ethernet** path exists, **both** SSH and rosbridge fail: the dashboard shows **no robot path**; no script on Goliath can power the Pi or join Wi‑Fi for you.
@@ -25,11 +25,11 @@ If the robot is **off**, or Goliath is **not** on the Raspbot Wi‑Fi AP **and**
 
 ## 2. End-to-end boot order (what has to happen)
 
-1. **Power** — Raspbot on; Pi boots; Docker engine starts (if enabled).  
-2. **Network** — Goliath can reach the Pi (AP, home LAN, or direct Ethernet).  
-3. **Docker container** (typical Yahboom image) — e.g. `yahboom_ros2` / `yahboom_ros2_final` running with ROS workspace mounted.  
-4. **ROS 2 bringup** — `ros2 launch yahboomcar_bringup yahboomcar_bringup.launch.py` (drivers, topics).  
-5. **rosbridge** — `ros2 launch rosbridge_server rosbridge_websocket_launch.xml` so **Goliath’s `ROS2Bridge`** (`roslibpy`) can attach.  
+1. **Power** — Raspbot on; Pi boots; Docker engine starts (if enabled).
+2. **Network** — Goliath can reach the Pi (AP, home LAN, or direct Ethernet).
+3. **Docker container** (typical Yahboom image) — e.g. `yahboom_ros2` / `yahboom_ros2_final` running with ROS workspace mounted.
+4. **ROS 2 bringup** — `ros2 launch yahboomcar_bringup yahboomcar_bringup.launch.py` (drivers, topics).
+5. **rosbridge** — `ros2 launch rosbridge_server rosbridge_websocket_launch.xml` so **Goliath’s `ROS2Bridge`** (`roslibpy`) can attach.
 6. **yahboom-mcp on Goliath** — `webapp/start.ps1` or `uv run python -m yahboom_mcp.server --mode dual --port 10892`; webapp on **10893** proxies `/api` to **10892**.
 
 Until steps 1–2 succeed, steps 3–6 are irrelevant from the operator’s point of view.
@@ -44,8 +44,8 @@ The repo does **not** auto-provision the SD image. On a configured robot, common
 
 Script: `scripts/robot/setup-autostart.sh` (run **once** on the Pi with `sudo`). It:
 
-- Sets `docker update --restart always <container>` so Docker restarts the ROS container.  
-- Installs `/usr/local/bin/yahboom-launch.sh`, which waits for Docker, waits until the container is running, then `docker exec` runs **rosbridge** in the background and **yahboomcar_bringup** in the foreground.  
+- Sets `docker update --restart always <container>` so Docker restarts the ROS container.
+- Installs `/usr/local/bin/yahboom-launch.sh`, which waits for Docker, waits until the container is running, then `docker exec` runs **rosbridge** in the background and **yahboomcar_bringup** in the foreground.
 - Installs **`yahboom-robot.service`** (`systemctl enable`).
 
 See the script for exact container name (`yahboom_ros2` in that file).
@@ -103,8 +103,8 @@ This sets `YAHBOOM_*`, runs `uv sync`, starts **yahboom-mcp** on **127.0.0.1:108
 ## 7. Related docs
 
 - [`RASPBOT_V2_HARDWARE_STACK.md`](../hardware/RASPBOT_V2_HARDWARE_STACK.md) — Chassis, motors, sensors, expansion board, Pi ports, battery, switch.
-- [`ROSBRIDGE.md`](../hardware/ROSBRIDGE.md) — `ROS2Bridge`, topics, env vars.  
-- [`ROSBRIDGE_AT_BOOT.md`](ROSBRIDGE_AT_BOOT.md) — one-time rosbridge systemd on the Pi.  
-- [`installation.md`](installation.md) — dev prerequisites and launch modes.  
-- [`STACK_HEALTH_PROBE.md`](STACK_HEALTH_PROBE.md) — **`health.stack`**, lifecycle, restart loop UI, Docker log preview env vars.  
+- [`ROSBRIDGE.md`](../hardware/ROSBRIDGE.md) — `ROS2Bridge`, topics, env vars.
+- [`ROSBRIDGE_AT_BOOT.md`](ROSBRIDGE_AT_BOOT.md) — one-time rosbridge systemd on the Pi.
+- [`installation.md`](installation.md) — dev prerequisites and launch modes.
+- [`STACK_HEALTH_PROBE.md`](STACK_HEALTH_PROBE.md) — **`health.stack`**, lifecycle, restart loop UI, Docker log preview env vars.
 - [`../hardware/ROSMASTER_ESP32.md`](../hardware/ROSMASTER_ESP32.md) — ESP32 / serial co-processor (related USB/serial story).

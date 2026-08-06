@@ -14,9 +14,7 @@ def find_camera_launch():
 
     # 1. Search for all launch files in the container
     print("[*] Searching /opt/ros/humble/share for camera launch files...")
-    cmd = (
-        "docker exec yahboom_ros2 find /opt/ros/humble/share -name '*camera*.launch.py'"
-    )
+    cmd = "docker exec yahboom_ros2 find /opt/ros/humble/share -name '*camera*.launch.py'"
     out, _, _ = ssh.execute(cmd)
     print("-" * 40)
     print("CAM-RELATED LAUNCH FILES:")

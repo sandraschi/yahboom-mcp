@@ -46,9 +46,7 @@ async def main():
     ssh.sudo_execute("nmcli connection up Raspbot")
 
     logger.info("✅ Boomy AP is now in 'Windows-Compatible' mode.")
-    logger.info(
-        "👉 IMPORTANT: Please FORGET the 'raspbot' network on your Windows PC and reconnect."
-    )
+    logger.info("👉 IMPORTANT: Please FORGET the 'raspbot' network on your Windows PC and reconnect.")
 
     ssh.close()
 

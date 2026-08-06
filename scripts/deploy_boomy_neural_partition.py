@@ -31,12 +31,8 @@ try:
 
         # Hardening mount persistence
         print("HARDENING /etc/fstab PERSISTENCE...")
-        bridge.sudo_execute(
-            'grep -v "/mnt/ssd" /etc/fstab | sudo tee /etc/fstab > /dev/null'
-        )
-        bridge.sudo_execute(
-            'echo "/dev/sda /mnt/ssd ext4 defaults,noatime 0 2" | sudo tee -a /etc/fstab'
-        )
+        bridge.sudo_execute('grep -v "/mnt/ssd" /etc/fstab | sudo tee /etc/fstab > /dev/null')
+        bridge.sudo_execute('echo "/dev/sda /mnt/ssd ext4 defaults,noatime 0 2" | sudo tee -a /etc/fstab')
 
         out, _, _ = bridge.execute("df -h /mnt/ssd")
         print(f"Final Substrate State:\n{out}")
@@ -47,14 +43,10 @@ try:
         # We run it in the background on the Pi to avoid SSH timeout for the first large sync
         bridge.execute(f"nohup {rsync_cmd} > /home/pi/backup.log 2>&1 &")
 
-        print(
-            "BACKUP MISSION STARTED (Background). Check /home/pi/backup.log for progress."
-        )
+        print("BACKUP MISSION STARTED (Background). Check /home/pi/backup.log for progress.")
         print("\nBOOMY NEURAL PARTITION DEPLOYMENT: 100% SUCCESS.")
     else:
-        print(
-            "[ERROR] SSD #2 (/dev/sda) missing. Hot-plug failed or power-draw too high."
-        )
+        print("[ERROR] SSD #2 (/dev/sda) missing. Hot-plug failed or power-draw too high.")
 
     bridge.close()
 

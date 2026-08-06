@@ -26,5 +26,6 @@ async def check_camera_logs():
     print("\nSTDERR:")
     print(err)
 
+
 if __name__ == "__main__":
     asyncio.run(check_camera_logs())

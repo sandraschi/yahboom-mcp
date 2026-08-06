@@ -43,7 +43,7 @@ Low-latency speech interactions that feel "human."
 ## 🛠️ Professional Utility & Dev Substrate
 
 ### 1. Remote IDE (Code-Server)
-- **Utility**: A full VSCode instance running on Boomy. 
+- **Utility**: A full VSCode instance running on Boomy.
 - **Workflow**: Browse to `http://boomy:8080` from your laptop. Edit python bridge code and mission logic directly in a professional IDE while Boomy is at your feet.
 - **Install**: `curl -fsSL https://code-server.dev/install.sh | sh`
 

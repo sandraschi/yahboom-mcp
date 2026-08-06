@@ -14,9 +14,7 @@ def discover_camera_v3():
 
     # 1. Search for everything in the root workspace
     print("[*] Searching /root/yahboomcar_ws/ for camera launch files...")
-    cmd = (
-        "docker exec yahboom_ros2 find /root/yahboomcar_ws/ -name '*camera*.launch.py'"
-    )
+    cmd = "docker exec yahboom_ros2 find /root/yahboomcar_ws/ -name '*camera*.launch.py'"
     out, _, _ = ssh.execute(cmd)
     print("-" * 40)
     print("CAM-RELATED LAUNCH FILES:")
@@ -25,9 +23,7 @@ def discover_camera_v3():
 
     # 2. Check for yahboomcar_visual package
     print("[*] Checking for yahboomcar_visual package...")
-    cmd = (
-        "docker exec yahboom_ros2 ls /root/yahboomcar_ws/src/yahboomcar_visual/launch/"
-    )
+    cmd = "docker exec yahboom_ros2 ls /root/yahboomcar_ws/src/yahboomcar_visual/launch/"
     out, _, _ = ssh.execute(cmd)
     print("VISUAL LAUNCH FILES:")
     print(out)

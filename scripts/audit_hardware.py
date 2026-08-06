@@ -64,9 +64,7 @@ async def run_audit():
 
     # 5. Actuator Audit: Voice
     print("🔊 Actuators: Commanding Voice Module...")
-    await voice.execute(
-        operation="say", param1="System check 100% complete. Boomy is ready."
-    )
+    await voice.execute(operation="say", param1="System check 100% complete. Boomy is ready.")
     print("✅ Actuators: Voice Verified.")
 
     # 6. Display Audit

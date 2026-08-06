@@ -20,9 +20,7 @@ def deploy():
 
     print("\n--- STEP 1: EMERGENCY STORAGE AUDIT ---")
     print("Identifying largest directories on root...")
-    out, err, code = bridge.sudo_execute(
-        "du -xh / --max-depth=2 | sort -rh | head -n 40"
-    )
+    out, err, code = bridge.sudo_execute("du -xh / --max-depth=2 | sort -rh | head -n 40")
     print(f"Top 40 Space Hogs:\n{out}")
 
     print("\n--- STEP 2: LOG & CACHE PURGE ---")

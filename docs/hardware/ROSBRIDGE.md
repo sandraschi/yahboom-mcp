@@ -1,9 +1,9 @@
 # ROS 2 Bridge — Complete Reference
 
-**Platform:** Yahboom Raspbot v2 (Boomy)  
-**Date:** 2026-04-14  
-**Tags:** `[yahboom-mcp, rosbridge, ros2, roslibpy, architecture]`  
-**Source:** `src/yahboom_mcp/core/ros2_bridge.py`  
+**Platform:** Yahboom Raspbot v2 (Boomy)
+**Date:** 2026-04-14
+**Tags:** `[yahboom-mcp, rosbridge, ros2, roslibpy, architecture]`
+**Source:** `src/yahboom_mcp/core/ros2_bridge.py`
 **Related:** [`ROSBRIDGE_AT_BOOT.md`](../ops/ROSBRIDGE_AT_BOOT.md) · [`SENSORS.md`](SENSORS.md)
 
 ---
@@ -274,16 +274,16 @@ All read at startup from the process environment or `.env` file.
 
 ## 9. Known Behaviour Notes
 
-**Why servos went to 0° on previous code:**  
+**Why servos went to 0° on previous code:**
 `_publish_servo(servo_id, angle)` used `{"id": servo_id, "angle": angle}` — both wrong field names. ROSBridge silently accepted the message (it doesn't validate field names for custom message types), published it with `servo_s1=0, servo_s2=0` defaults. Driver ran `Ctrl_Servo(1, 0)` and `Ctrl_Servo(2, 0)`. Fixed by `_publish_both(pan, tilt)` with `{"servo_s1": pan, "servo_s2": tilt}`.
 
-**Why the advertise() fix mattered:**  
+**Why the advertise() fix mattered:**
 roslibpy Topics created without `.advertise()` are subscribe-only from ROSBridge's perspective. Calling `.publish()` on an unadvertised topic sends the message over the WebSocket but ROSBridge silently drops it — the publisher is not registered. `cmd_vel`, `rgblight`, and `servo` all needed this. After the fix, all three respond immediately.
 
-**Connection state during API calls:**  
+**Connection state during API calls:**
 All operations check `bridge.connected` before attempting publishes. If disconnected, operations return `{"success": false, "error": "Bridge not connected"}` rather than hanging. The `/api/v1/health` endpoint reports the connection state separately from the `connected` field so the dashboard can distinguish "robot online, ROS offline" from "robot unreachable".
 
-**roslibpy thread model:**  
+**roslibpy thread model:**
 roslibpy runs its event loop in a background thread via `ros.run()`. All callbacks fire in that thread. The FastAPI async handlers use `asyncio.get_event_loop().run_in_executor()` for blocking roslibpy calls to avoid blocking the ASGI server.
 
 ---

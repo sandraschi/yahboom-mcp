@@ -1,6 +1,6 @@
 # Experimental Prototype: Butlerbot v0.1
 
-The **Butlerbot v0.1** is a composite bipedal manipulator formed by mounting a **Yahboom DOFBOT** (6-DOF) into the **Noetix Bumi's** passive chassis claw. 
+The **Butlerbot v0.1** is a composite bipedal manipulator formed by mounting a **Yahboom DOFBOT** (6-DOF) into the **Noetix Bumi's** passive chassis claw.
 
 ## ⚖️ Equilibrium Analysis
 
@@ -14,7 +14,7 @@ The **Butlerbot v0.1** is a composite bipedal manipulator formed by mounting a *
 ## 🛠️ Implementation Logic
 
 1.  **Passive Docking**: The DOFBOT base slides into the Bumi's tablet/holder slot (Passive Claw).
-2.  **Dynamic Counter-Balance**: 
+2.  **Dynamic Counter-Balance**:
     *   When the DOFBOT arm extends forward, Bumi must lean backward slightly to keep the COM (Center of Mass) within its footprint.
     *   **Equilibrium Guard**: A real-time IMU feedback loop that triggers a "Deep Crouch" if pitch exceeds safety thresholds (e.g., >12°).
 3.  **Communication**: The DOFBOT is powered by Bumi's internal power bus and controlled via the same ROS 2 Humble network, appearing as a namespaced `mani_arm` node in the robot graph.

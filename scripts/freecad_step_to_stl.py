@@ -1,5 +1,10 @@
 """Convert STEP using FreeCAD Gui-aware import."""
-import FreeCAD, FreeCADGui, Import, Mesh, os
+
+import os
+
+import FreeCAD
+import FreeCADGui
+import Mesh
 
 # Must enable Gui for proper STEP assembly import
 try:

@@ -19,9 +19,7 @@ def audit_camera_system_v2():
     print(f"ROOT_PACKAGES:\n{p_out}")
 
     print("[*] Auditing Running ROS 2 Nodes...")
-    n_out, _, _ = ssh.execute(
-        "sudo bash -c 'source /root/yahboomcar_ws/install/setup.bash && ros2 node list'"
-    )
+    n_out, _, _ = ssh.execute("sudo bash -c 'source /root/yahboomcar_ws/install/setup.bash && ros2 node list'")
     print(f"ACTIVE_NODES:\n{n_out}")
 
     print("[*] Inspecting yahboom-robot.service unit file...")

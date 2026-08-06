@@ -8,6 +8,7 @@ from yahboom_mcp.core.ssh_bridge import SSHBridge
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("diag")
 
+
 async def main():
     host = os.environ.get("YAHBOOM_IP", "192.168.0.250")
     fallback = os.environ.get("YAHBOOM_FALLBACK_IP", "192.168.1.11")
@@ -34,6 +35,7 @@ async def main():
     logger.info(f"Active Topics:\n{out}")
 
     await bridge.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

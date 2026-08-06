@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """Mission executor with ultrasonic obstacle avoidance and room search patterns."""
-import json, math, time, rclpy
-from rclpy.node import Node
+
+import json
+import math
+import time
+
+import rclpy
 from geometry_msgs.msg import Twist
+from rclpy.node import Node
 from std_msgs.msg import Bool, Float32, String
 
 OBSTACLE_THRESHOLD_CM = 25.0
@@ -52,7 +57,9 @@ class MissionExecutor(Node):
                     self.found_label = d["label"]
                     self.get_logger().info("TARGET FOUND: %s (conf=%.2f)", d["label"], d.get("confidence", 0))
                     self._cancel()
-                    self.status("target_found", "Found %s (confidence %.0f%%)" % (d["label"], d.get("confidence", 0) * 100))
+                    self.status(
+                        "target_found", "Found %s (confidence %.0f%%)" % (d["label"], d.get("confidence", 0) * 100)
+                    )
                     return
 
     def _on_mission(self, msg):
@@ -122,12 +129,14 @@ class MissionExecutor(Node):
         self.turn_until = 0.0
 
     def status(self, status, message=""):
-        payload = json.dumps({
-            "status": status,
-            "message": message,
-            "sonar_cm": round(self.last_sonar_cm, 1),
-            "was_blocked": self.nav_was_blocked,
-        })
+        payload = json.dumps(
+            {
+                "status": status,
+                "message": message,
+                "sonar_cm": round(self.last_sonar_cm, 1),
+                "was_blocked": self.nav_was_blocked,
+            }
+        )
         self.status_pub.publish(String(data=payload))
         self.get_logger().info("STATUS: %s", payload)
         if status in ("target_found", "completed"):

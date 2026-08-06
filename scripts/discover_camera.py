@@ -18,15 +18,9 @@ def discover_camera():
 
     print("[*] Checking for ROS 2 camera topics...")
     # Source ROS 2 and list topics
-    t_out, _, _ = ssh.execute(
-        "bash -c 'source /opt/ros/humble/setup.bash && ros2 topic list'"
-    )
+    t_out, _, _ = ssh.execute("bash -c 'source /opt/ros/humble/setup.bash && ros2 topic list'")
     if t_out:
-        topics = [
-            t
-            for t in t_out.strip().split("\n")
-            if "image" in t.lower() or "camera" in t.lower()
-        ]
+        topics = [t for t in t_out.strip().split("\n") if "image" in t.lower() or "camera" in t.lower()]
         print(f"[*] Found {len(topics)} potential camera topics:")
         for t in topics:
             print(f"  - {t}")

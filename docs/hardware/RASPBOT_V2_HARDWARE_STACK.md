@@ -1,7 +1,7 @@
 # Yahboom Raspbot v2 — Complete hardware stack
 
-**Platform:** Raspbot v2 (Boomy) · ROS 2 Humble · Raspberry Pi 5  
-**Tags:** `[yahboom-mcp, raspbot-v2, hardware, mecanum, rosmaster, rosbridge, i2c, battery]`  
+**Platform:** Raspbot v2 (Boomy) · ROS 2 Humble · Raspberry Pi 5
+**Tags:** `[yahboom-mcp, raspbot-v2, hardware, mecanum, rosmaster, rosbridge, i2c, battery]`
 **Related:** [`HARDWARE_AND_ROS2.md`](HARDWARE_AND_ROS2.md) · [`SENSORS.md`](SENSORS.md) · [`ROSMASTER_ESP32.md`](ROSMASTER_ESP32.md) · [`SENSORY_HUB.md`](SENSORY_HUB.md) · [`VOICE_AUDIO.md`](VOICE_AUDIO.md) · [`../ops/STARTUP_AND_BRINGUP.md`](../ops/STARTUP_AND_BRINGUP.md)
 
 This document is the **single hardware inventory** for the Raspbot v2 stack: chassis through sensors, the **lower expansion board** (often confused with “rosbridge”), the **Raspberry Pi** tier, power, and ports. **§1** defines **MCU**, **rosbridge**, **Micro-ROS**, and the **Pi OS / Docker / ROS 2** stack in plain language. **§16** reserves space for a future **assembly** guide (the Yahboom printed leaflet is often thin). Revision-dependent details (exact MCU: ESP32-S3 vs older STM32) are called out where the fleet has seen both.
@@ -124,8 +124,8 @@ Mechanically, the **Pi sits above** the expansion/driver PCB. A **USB cable** (o
 
 ## 9. “Rosbridge board” — what it actually is (and what it is not)
 
-> **Naming collision (important)**  
-> In **ROS** documentation, **rosbridge** means **`rosbridge_suite`** — **software** (Python nodes) on the **Raspberry Pi** (often **inside Docker**) exposing **WebSocket port ~9090** so a **PC** can use **JSON**, not DDS, to talk to the ROS 2 graph.  
+> **Naming collision (important)**
+> In **ROS** documentation, **rosbridge** means **`rosbridge_suite`** — **software** (Python nodes) on the **Raspberry Pi** (often **inside Docker**) exposing **WebSocket port ~9090** so a **PC** can use **JSON**, not DDS, to talk to the ROS 2 graph.
 > In **conversation**, people sometimes call the **green / blue Yahboom expansion PCB under the Pi** the “rosbridge board.” That PCB is the **Rosmaster / motor-driver tier** with an **MCU** (§1.1); it does **not** execute `rosbridge_server` by itself.
 
 ### 9.1 Lower expansion / Rosmaster tier (physical)
@@ -178,10 +178,10 @@ Mechanically, the **Pi sits above** the expansion/driver PCB. A **USB cable** (o
 
 **What can be connected (typical):**
 
-- **USB:** Camera, LIDAR, CSK4002 voice board, USB audio, USB Ethernet adapter.  
-- **CSI:** Pi Camera Module variants.  
-- **GPIO / I2C (via header):** OLED (e.g. **0x3C**), environmental add-ons, **KEY** button via GPIO18 (see [`SENSORY_HUB.md`](SENSORY_HUB.md)).  
-- **Ethernet:** Docked / lab tether.  
+- **USB:** Camera, LIDAR, CSK4002 voice board, USB audio, USB Ethernet adapter.
+- **CSI:** Pi Camera Module variants.
+- **GPIO / I2C (via header):** OLED (e.g. **0x3C**), environmental add-ons, **KEY** button via GPIO18 (see [`SENSORY_HUB.md`](SENSORY_HUB.md)).
+- **Ethernet:** Docked / lab tether.
 
 Docker / ROS 2 stacks may need **`--device /dev/video0`**, **`/dev/ttyUSB*`**, **`/dev/i2c-1`** passed into containers — see bringup scripts in `scripts/robot/`.
 
@@ -248,10 +248,10 @@ The **printed quick-start** shipped in the Yahboom box is often **too terse** fo
 
 **Planned content (TODO — contributions welcome):**
 
-1. **Mechanical** — frame halves, motor bracket torque order, **mecanum wheel orientation** (roller diagonals must match Yahboom diagram or the car “crabs” wrong), wheel encoder plugs.  
-2. **Electrical** — battery tray polarity, **JST/XT60** double-check, stacking **40-pin** Pi onto expansion (no bent pins), **USB-A–to–USB-C** link from expansion to Pi if applicable, **camera ribbon** insertion depth.  
-3. **Peripherals** — ultrasonic height, **four-channel IR** distance to floor, **PTZ** mechanical limits (don’t bind servos at end of travel).  
-4. **First boot** — main **switch** position, **charger rule** (off before barrel plug), SD image / Wi‑Fi AP vs home LAN.  
+1. **Mechanical** — frame halves, motor bracket torque order, **mecanum wheel orientation** (roller diagonals must match Yahboom diagram or the car “crabs” wrong), wheel encoder plugs.
+2. **Electrical** — battery tray polarity, **JST/XT60** double-check, stacking **40-pin** Pi onto expansion (no bent pins), **USB-A–to–USB-C** link from expansion to Pi if applicable, **camera ribbon** insertion depth.
+3. **Peripherals** — ultrasonic height, **four-channel IR** distance to floor, **PTZ** mechanical limits (don’t bind servos at end of travel).
+4. **First boot** — main **switch** position, **charger rule** (off before barrel plug), SD image / Wi‑Fi AP vs home LAN.
 5. **ROS smoke test** — `ros2 topic list`, **`rosbridge` port 9090**, Docker **`--device`** checklist for `/dev/video0`, `/dev/ttyUSB*`, `/dev/i2c-1`.
 
 Until those steps exist here, use the Yahboom booklet for **part identification** only, and cross-check motor directions and wheel patterns against official video or forum threads if the paper instructions are ambiguous.
@@ -260,7 +260,7 @@ Until those steps exist here, use the Yahboom booklet for **part identification*
 
 ## 16. See also
 
-- **[Startup & bringup](../ops/STARTUP_AND_BRINGUP.md)** — Power-on order, Docker, **rosbridge_suite** vs network.  
-- **[ROSBRIDGE.md](ROSBRIDGE.md)** — `ROS2Bridge` protocol details.  
-- **[SENSORS.md](SENSORS.md)** — Deep dive on IMU, odom, battery, LIDAR math.  
+- **[Startup & bringup](../ops/STARTUP_AND_BRINGUP.md)** — Power-on order, Docker, **rosbridge_suite** vs network.
+- **[ROSBRIDGE.md](ROSBRIDGE.md)** — `ROS2Bridge` protocol details.
+- **[SENSORS.md](SENSORS.md)** — Deep dive on IMU, odom, battery, LIDAR math.
 - **[Yahboom battery safety](https://www.yahboom.net/public/upload/upload-html/1734684647/Robot%20Charging%20and%20Battery%20Considerations.html)** — official charging procedure.

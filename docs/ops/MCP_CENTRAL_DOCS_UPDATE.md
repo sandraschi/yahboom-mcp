@@ -1,9 +1,9 @@
 # MCP Central Docs Update: FastMCP 3.x Unified Gateway
 
-**Update Type**: Architecture Enhancement  
-**Target**: MCP Central Documentation Repository  
-**Priority**: Critical - Fleet-Wide Impact  
-**Date**: March 4, 2026  
+**Update Type**: Architecture Enhancement
+**Target**: MCP Central Documentation Repository
+**Priority**: Critical - Fleet-Wide Impact
+**Date**: March 4, 2026
 
 ---
 
@@ -48,10 +48,10 @@ mcp = FastMCP.from_fastapi(app, name="My Server")
 # BEFORE
 "FastMCP servers typically run as stdio processes..."
 
-# AFTER  
+# AFTER
 "FastMCP 3.x servers can run in multiple modes:
 - Legacy stdio transport for AI agents
-- HTTP API for web applications  
+- HTTP API for web applications
 - Dual mode for unified deployments"
 ```
 
@@ -268,7 +268,7 @@ def update_telemetry(data):
 - **Learning Curve**: Moderate - familiar FastAPI concepts
 - **Benefits**: Simplified deployment, better performance
 
-### For Webapp Developers  
+### For Webapp Developers
 - **Immediate Need**: Updated API integration patterns
 - **Learning Curve**: Low - standard HTTP APIs
 - **Benefits**: Single endpoint, consistent interfaces

@@ -33,9 +33,7 @@ async def main():
 
     # 2. Deploy updated Peripheral Bridge
     logger.info("⚡ Deploying high-precision Peripheral Bridge (Touch enabled)...")
-    local_bridge_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "robot", "peripheral_bridge.py")
-    )
+    local_bridge_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "robot", "peripheral_bridge.py"))
     with open(local_bridge_path) as f:
         bridge_content = f.read()
 

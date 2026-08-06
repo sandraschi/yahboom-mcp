@@ -14,9 +14,7 @@ def audit_container():
 
     print("[*] Searching for camera launch files INSIDE yahboom_ros2 container...")
     # Find camera launch files inside the workspace in the container
-    cmd = (
-        "docker exec yahboom_ros2 find /root/yahboomcar_ws/ -name '*camera*launch*.py'"
-    )
+    cmd = "docker exec yahboom_ros2 find /root/yahboomcar_ws/ -name '*camera*launch*.py'"
     out, _err, _code = ssh.execute(cmd)
 
     if out:

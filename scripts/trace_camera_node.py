@@ -14,9 +14,7 @@ def trace_camera_node():
 
     print("[*] Searching for 'usb_cam' or 'camera' packages...")
     # List ROS 2 packages and grep for camera
-    p_out, _, _ = ssh.execute(
-        "bash -c 'source /opt/ros/humble/setup.bash && ros2 pkg list | grep -i camera'"
-    )
+    p_out, _, _ = ssh.execute("bash -c 'source /opt/ros/humble/setup.bash && ros2 pkg list | grep -i camera'")
     print(f"PACKAGES:\n{p_out}")
 
     print("[*] Searching for camera launch files in /home/pi/...")

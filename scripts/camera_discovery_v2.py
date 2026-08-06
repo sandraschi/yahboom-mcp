@@ -23,9 +23,7 @@ def discover_camera_v2():
 
     # 2. Check for yahboomcar_visual package
     print("[*] Checking for yahboomcar_visual package...")
-    cmd = (
-        "docker exec yahboom_ros2 ls /root/yahboomcar_ws/src/yahboomcar_visual/launch/"
-    )
+    cmd = "docker exec yahboom_ros2 ls /root/yahboomcar_ws/src/yahboomcar_visual/launch/"
     out, _, _ = ssh.execute(cmd)
     print("VISUAL LAUNCH FILES:")
     print(out)

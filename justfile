@@ -1,7 +1,7 @@
-set windows-shell := ["pwsh.exe", "-NoLogo", "-Command"]
+set windows-shell := ["powershell.exe", "-NoProfile", "-Command"]
 import 'scripts/just/fleet.just'
 
-# ── Project Configuration ─────────────────────────────────────────────────────
+# --- Project Configuration ---
 
 export NAME := "Yahboom MCP"
 export DESC := "Industrial ROS 2 control plane"
@@ -11,17 +11,20 @@ export MODE := "dual"
 export HOST := "0.0.0.0"
 export YAHBOOM_PASSWORD := "yahboom"
 
-# ── Dashboard ─────────────────────────────────────────────────────────────────
+# --- Dashboard ---
 
 # Open the interactive recipe dashboard in the browser
 default:
     @just --list
 
-# ── Lifecycle ─────────────────────────────────────────────────────────────────
+# --- Lifecycle ---
 
-# Synchronize all dependencies and dev extras
+# Synchronize all dependencies and dev extras + pre-commit + webapp
 bootstrap:
-    uv sync --all-extras
+    uv sync --extra dev
+    uv run pre-commit install
+    Set-Location webapp; npm ci; if ($LASTEXITCODE -ne 0) { npm install }
+    Write-Host "Pre-commit hooks installed." -ForegroundColor Green
 
 # Workspace sanitization (clean caches and build artifacts)
 clean:
@@ -35,7 +38,7 @@ clean:
 setup: clean bootstrap
     Write-Host "Project successfully re-initialized." -ForegroundColor Green
 
-# ── Operation ─────────────────────────────────────────────────────────────────
+# --- Operation ---
 
 # Start the Yahboom MCP server (Unified Gateway)
 serve mode=MODE port=PORT:
@@ -49,7 +52,7 @@ stdio:
 web:
     Set-Location webapp; ./start.ps1
 
-# ── Development ───────────────────────────────────────────────────────────────
+# --- Development ---
 
 # Start server with auto-reload (backend only)
 dev:
@@ -63,7 +66,7 @@ repl:
 shell:
     uv shell
 
-# ── Quality ───────────────────────────────────────────────────────────────────
+# --- Quality ---
 
 # Execute comprehensive linting (Ruff + TypeScript + Biome)
 lint:
@@ -82,14 +85,14 @@ fix:
 # Fast quality check (lint + unit tests)
 check: lint test-unit
 
-# ── Testing ───────────────────────────────────────────────────────────────────
+# --- Testing ---
 
 # Run the complete test suite
 test:
     uv run pytest
 
 e2e:
-    pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File "D:\Dev\repos\mcp-central-docs\scripts\playwright-audit.ps1" -RepoPath "{{justfile_directory()}}"
+    powershell.exe -NoProfile -NoProfile -ExecutionPolicy Bypass -File "D:\Dev\repos\mcp-central-docs\scripts\playwright-audit.ps1" -RepoPath "{{justfile_directory()}}"
 
 # Run fast unit tests (no hardware simulation)
 test-unit:
@@ -104,7 +107,7 @@ test-cov:
     uv run pytest --cov=yahboom_mcp --cov-report=html
     Write-Host "Coverage report generated in htmlcov/index.html" -ForegroundColor Cyan
 
-# ── Mission Logic ─────────────────────────────────────────────────────────────
+# --- Mission Logic ---
 
 # Execute autonomous patrol square mission
 patrol seconds="60":
@@ -114,7 +117,7 @@ patrol seconds="60":
 embodied:
     uv run scripts/embodied_loop.py
 
-# ── Diagnosis ─────────────────────────────────────────────────────────────────
+# --- Diagnosis ---
 
 # Check robot health and telemetry
 health:
@@ -132,7 +135,7 @@ hw-audit:
 cam-audit:
     uv run scripts/audit_camera_system_v2.py
 
-# ── Discovery ─────────────────────────────────────────────────────────────────
+# --- Discovery ---
 
 # Execute camera discovery probe (v7)
 discover-cam:
@@ -142,7 +145,7 @@ discover-cam:
 discover-drivers:
     uv run scripts/discover_yahboom_drivers.py
 
-# ── Deployment ─────────────────────────────────────────────────────────────────
+# --- Deployment ---
 
 # Deploy cognitive pack to Boomy (Raspbot v2)
 deploy-cognitive:
@@ -152,7 +155,7 @@ deploy-cognitive:
 deploy-upgrades:
     uv run scripts/deploy_robot_upgrades.py
 
-# ── Hardening ─────────────────────────────────────────────────────────────────
+# --- Hardening ---
 
 # Execute Bandit security audit
 check-sec:
@@ -162,11 +165,11 @@ check-sec:
 audit-deps:
     uv run safety check
 
-# ── Tauri NSIS ─────────────────────────────────────────────────────────────────
+# --- Tauri NSIS ---
 
 # Build the PyInstaller backend .exe and copy to Tauri resources
 build-sidecar:
-    Set-Location '{{justfile_directory()}}'; pwsh -NoProfile -File native\build-sidecar.ps1
+    Set-Location '{{justfile_directory()}}'; powershell.exe -NoProfile -File native\build-sidecar.ps1
 
 # Build the Tauri NSIS desktop installer (full pipeline: frontend -> sidecar -> Rust -> NSIS)
 build-native: build-sidecar
@@ -177,6 +180,4 @@ build-native: build-sidecar
     Set-Location '{{justfile_directory()}}\native'
     npx @tauri-apps/cli build --bundles nsis
 
-# Run the CUA smoke test against the installed NSIS app
-cua-nsis-test:
-    C:\Windows\py.exe scripts/cua-smoke.py
+# Bootstrap: install dev deps + pre-commit hook

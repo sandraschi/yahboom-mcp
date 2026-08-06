@@ -27,9 +27,7 @@ else:
 
 # If from_fastapi(app) was used, maybe 'app' is stored somewhere else
 # Search for 'app' in internal attributes
-print(
-    f"Internal attributes containing 'app': {[a for a in dir(mcp) if 'app' in a.lower()]}"
-)
+print(f"Internal attributes containing 'app': {[a for a in dir(mcp) if 'app' in a.lower()]}")
 
 print(f"Custom routes in 'app': {[r.path for r in app.routes]}")
 

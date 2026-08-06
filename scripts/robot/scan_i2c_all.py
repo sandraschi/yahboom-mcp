@@ -17,11 +17,7 @@ def scan_i2c():
                 # Check for any address (looking for hex patterns like 2b)
                 addresses = re.findall(r"[0-9a-f]{2}", result.stdout)
                 # Filter out the headers (00, 10, etc.)
-                found = [
-                    addr
-                    for addr in addresses
-                    if addr not in ["00", "10", "20", "30", "40", "50", "60", "70"]
-                ]
+                found = [addr for addr in addresses if addr not in ["00", "10", "20", "30", "40", "50", "60", "70"]]
                 if found:
                     print(f"  Found devices on Bus {bus_idx}: {found}")
                 else:

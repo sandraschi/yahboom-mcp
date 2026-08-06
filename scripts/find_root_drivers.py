@@ -14,9 +14,7 @@ def find_root_drivers():
 
     # 1. Search the root workspace in the container
     print("[*] Searching /root/yahboomcar_ws/ for camera launch files...")
-    cmd = (
-        "docker exec yahboom_ros2 find /root/yahboomcar_ws/ -name '*camera*.launch.py'"
-    )
+    cmd = "docker exec yahboom_ros2 find /root/yahboomcar_ws/ -name '*camera*.launch.py'"
     out, _, _ = ssh.execute(cmd)
     print("-" * 40)
     print("MATCHING LAUNCH FILES:")

@@ -1,9 +1,9 @@
 # Boomy Voice & Audio Facility — Complete Reference
 
-**Platform:** Yahboom Raspbot v2 (Boomy)  
-**Date:** 2026-04-14  
-**Tags:** `[yahboom-mcp, voice, audio, CSK4002, espeak-ng, vosk, chatrobot, soundboard]`  
-**Status:** Active — `operations/voice.py` v2 (binary protocol), `operations/audio.py` (soundboard + depot), webapp `/audio` page  
+**Platform:** Yahboom Raspbot v2 (Boomy)
+**Date:** 2026-04-14
+**Tags:** `[yahboom-mcp, voice, audio, CSK4002, espeak-ng, vosk, chatrobot, soundboard]`
+**Status:** Active — `operations/voice.py` v2 (binary protocol), `operations/audio.py` (soundboard + depot), webapp `/audio` page
 **Upgrade path:** [`VOICE_AUDIO_UPGRADE.md`](VOICE_AUDIO_UPGRADE.md) — ReSpeaker Lite + Piper TTS
 
 > [!NOTE]

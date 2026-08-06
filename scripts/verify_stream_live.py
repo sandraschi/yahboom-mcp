@@ -16,9 +16,7 @@ def verify_stream_live():
                     if chunk:
                         chunk_count += 1
                         if chunk_count > 5:
-                            print(
-                                f"[SUCCESS] Stream is active (received {chunk_count * 1024} bytes)."
-                            )
+                            print(f"[SUCCESS] Stream is active (received {chunk_count * 1024} bytes).")
                             break
             else:
                 print(f"[FAIL] Stream returned {r.status_code}")

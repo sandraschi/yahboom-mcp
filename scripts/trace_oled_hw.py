@@ -28,12 +28,8 @@ def trace_oled_hw():
         print(c_out)
         print("-" * 40)
     else:
-        print(
-            "[FAIL] No SSD1306 source code found. Checking for 'i2c_bus' configuration..."
-        )
-        out, _, _ = ssh.execute(
-            "grep -r 'i2c_bus' /home/pi/ --include='*.py' 2>/dev/null | head -n 5"
-        )
+        print("[FAIL] No SSD1306 source code found. Checking for 'i2c_bus' configuration...")
+        out, _, _ = ssh.execute("grep -r 'i2c_bus' /home/pi/ --include='*.py' 2>/dev/null | head -n 5")
         print(f"I2C_CONFIG_GREP: {out}")
 
 
