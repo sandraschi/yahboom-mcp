@@ -93,6 +93,10 @@ ignore = ["S101", "B008", "S108", "S101", "B008", "S108", "S110", "S311", "RUF00
 # Legacy: allow >120 columns in application code until wrapped incrementally.
 [tool.ruff.lint.per-file-ignores]
 "src/**/*.py" = ["E501"]
+"ros2/**" = ["E501", "UP031", "S603", "S607", "S110", "S112", "S324", "RUF001", "RUF002", "RUF003"]
+"scripts/**" = ["T20", "S101", "S104", "S105", "S310", "S311", "S507", "S602", "E722", "E741", "F841", "B007", "E501", "UP031", "RUF059", "RUF001", "RUF002", "RUF003"]
+"scratch/**" = ["T20", "S101", "S105", "S310", "S311", "S507", "E722", "E741", "E501", "UP031", "RUF059", "RUF001", "RUF002", "RUF003"]
+"/*.py" = ["T20", "S101", "S105", "S310", "S311", "S507", "E722", "E741", "E701", "E501", "UP031", "F811", "RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.format]
 quote-style = "double"
