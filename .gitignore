@@ -41,6 +41,7 @@ Desktop.ini
 tmp/
 temp/
 .cache/
+data/trajectories/
 
 # Test / coverage
 .pytest_cache/
