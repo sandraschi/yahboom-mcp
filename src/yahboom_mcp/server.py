@@ -265,6 +265,7 @@ async def get_diagnostics():
         "errors": [],
     }
 
+
 @app.get("/api/v1/health")
 async def get_health():
     """Industrial-grade health diagnostics for the robot connection."""
@@ -964,12 +965,12 @@ async def snapshot():
     if ssh and ssh.connected:
         try:
             cmd = (
-                "docker exec yahboom_ros2_final python3 -c \""
+                'docker exec yahboom_ros2_final python3 -c "'
                 "import cv2; c=cv2.VideoCapture(0); "
                 "c.set(cv2.CAP_PROP_FRAME_WIDTH,640); c.set(cv2.CAP_PROP_FRAME_HEIGHT,480); "
                 "ret,f=c.read(); "
                 "print(cv2.imencode('.jpg',f,[cv2.IMWRITE_JPEG_QUALITY,75])[1].tobytes().hex()) if ret else print('NOFRAME'); "
-                "c.release()\""
+                'c.release()"'
             )
             stdout, _, rc = await ssh.execute(cmd)
             if rc == 0 and stdout and stdout != "NOFRAME":
@@ -987,8 +988,8 @@ async def snapshot():
 
 _GPIO_PINS = {
     "headlight": 17,  # GPIO 17 for LED headlight
-    "led1": 23,       # GPIO 23 for additional LED
-    "led2": 24,       # GPIO 24 for additional LED
+    "led1": 23,  # GPIO 23 for additional LED
+    "led2": 24,  # GPIO 24 for additional LED
 }
 
 _gpio_state: dict[str, bool] = {pin: False for pin in _GPIO_PINS}
@@ -1239,6 +1240,42 @@ async def get_slam_map():
         return Response(content=b"No map data", status_code=404, media_type="text/plain")
 
     return Response(content=png, media_type="image/png")
+
+
+@app.get("/api/v1/lidar/dreame-map")
+async def api_lidar_dreame_map():
+    """
+    Proxy the Dreame D20 Pro floorplan map from dreame-mcp (DREAME_MAP_URL).
+
+    The standalone dreame-mcp server (default http://127.0.0.1:10894/api/v1/map)
+    serves the live LIDAR map JSON (base64 PNG ``image`` + ``map_data``). The
+    webapp Lidar Map page and the ROS2 boomy_dreame_map_bridge consume this
+    endpoint. See docs/fleet/DREAME_STANDALONE_RECOMMENDATION.md.
+    """
+    from fastapi.responses import JSONResponse
+
+    url = os.environ.get("DREAME_MAP_URL", "http://127.0.0.1:10894/api/v1/map").strip()
+    if not url:
+        return JSONResponse(status_code=404, content={"success": False, "error": "DREAME_MAP_URL not set"})
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.get(url)
+            if r.status_code != 200:
+                return JSONResponse(
+                    status_code=r.status_code,
+                    content={"success": False, "error": f"Dreame map endpoint returned HTTP {r.status_code}"},
+                )
+            data = (
+                r.json()
+                if r.headers.get("content-type", "").startswith("application/json")
+                else {"success": False, "error": "Dreame endpoint did not return JSON", "raw": r.text[:500]}
+            )
+            data.setdefault("source", "dreame")
+            return data
+    except Exception as e:
+        return JSONResponse(status_code=502, content={"success": False, "error": str(e)})
 
 
 @app.get("/api/v1/slam/data")
@@ -1747,21 +1784,31 @@ async def lmstudio_models():
     raw = data.get("data") or []
     models: list[dict] = []
     for m in raw:
-        models.append({
-            "name": m.get("id") or m.get("name", ""),
-            "size": None,
-            "modified_at": None,
-        })
+        models.append(
+            {
+                "name": m.get("id") or m.get("name", ""),
+                "size": None,
+                "modified_at": None,
+            }
+        )
     return {"models": models}
 
 
 @app.get("/api/v1/settings/gpu")
 async def get_gpu_status():
     """Best-effort GPU detection (nvidia-smi on Windows or Linux). Returns VRAM, temp, utilization if available."""
-    result: dict = {"detected": False, "gpu_name": None, "vram_total_gb": None, "vram_used_gb": None, "temp_c": None, "utilization_pct": None}
+    result: dict = {
+        "detected": False,
+        "gpu_name": None,
+        "vram_total_gb": None,
+        "vram_used_gb": None,
+        "temp_c": None,
+        "utilization_pct": None,
+    }
     try:
         proc = await asyncio.create_subprocess_exec(
-            "nvidia-smi", "--query-gpu=name,memory.total,memory.used,temperature.gpu,utilization.gpu",
+            "nvidia-smi",
+            "--query-gpu=name,memory.total,memory.used,temperature.gpu,utilization.gpu",
             "--format=csv,noheader,nounits",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -2088,6 +2135,8 @@ async def run_stdio():
 async def get_bridge_proxies():
     """List active MCP bridge proxy providers and their status."""
     return {"proxies": _bridge_proxies, "count": len(_bridge_proxies)}
+
+
 @app.get("/api/capabilities")
 async def get_capabilities():
     """Runtime source of truth for server capabilities (WEBAPP_STANDARDS §1.4)."""
@@ -2166,7 +2215,11 @@ async def get_capabilities():
             "prompts": True,
             "resources": False,
             "skills": True,
-            "agent_mission": {"tool": "yahboom_agent_mission", "endpoint": "POST /api/v1/agent/mission", "providers": ["ollama", "gemini"]},
+            "agent_mission": {
+                "tool": "yahboom_agent_mission",
+                "endpoint": "POST /api/v1/agent/mission",
+                "providers": ["ollama", "gemini"],
+            },
             "available_missions": available_missions,
             "available_operations": portmanteau_ops,
         },
@@ -2174,7 +2227,12 @@ async def get_capabilities():
             "workflow_tools": ["yahboom_agentic_workflow"],
             "prompt_names": prompt_names,
             "resource_uris": [],
-            "skill_uris": ["yahboom://skills/quick-pilot", "yahboom://skills/patrol-sweep", "yahboom://skills/emergency-halt", "yahboom://skills/diagnostic-triage"],
+            "skill_uris": [
+                "yahboom://skills/quick-pilot",
+                "yahboom://skills/patrol-sweep",
+                "yahboom://skills/emergency-halt",
+                "yahboom://skills/diagnostic-triage",
+            ],
         },
         "runtime": {
             "transport": "dual",

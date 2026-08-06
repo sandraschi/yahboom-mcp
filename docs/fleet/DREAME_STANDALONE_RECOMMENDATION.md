@@ -1,10 +1,26 @@
 # Dreame D20 Pro: standalone MCP server and webapp
 
-The Dreame D20 Pro robot hoover is currently integrated inside **robotics-mcp** (federated fleet). This note summarizes the recommendation for giving it its own repo and stack.
+The Dreame D20 Pro robot hoover now runs as a **standalone MCP server and webapp**
+(`D:\Dev\repos\dreame-mcp`, backend **10894** / frontend **10895**) with live
+status, control, and LIDAR map via the Dreame-native cloud (see
+`dreame-mcp/docs/ROBO_HOOVER_SAGA.md` for the full history).
 
-## Recommendation: yes, give it its own MCP server and webapp
+> **Migration status: COMPLETE (2026-08-06).** robotics-mcp no longer hosts the
+> Dreame logic; yahboom-mcp consumes the standalone server directly.
 
-**Suggested repo:** `D:\Dev\repos\dreame-mcp` (or `d:/dev/repos/dreame-mcp`).
+## How yahboom-mcp uses the Dreame map
+
+| Layer | Mechanism |
+|---|---|
+| **MCP tool** | `lidar(operation="read_dreame_map", source="dreame"|"auto")` → GETs `DREAME_MAP_URL` |
+| **REST proxy** | `GET /api/v1/lidar/dreame-map` (used by the webapp Lidar Map page) |
+| **Webapp** | Lidar Map page → `getDreameMap()` → `/api/v1/lidar/dreame-map` → floorplan PNG |
+| **ROS2 / Nav2** | `ros2/boomy_dreame_map_bridge` → GETs `http://127.0.0.1:10894/api/v1/map` → publishes `nav_msgs/OccupancyGrid` on `/dreame_floorplan` |
+
+`DREAME_MAP_URL` defaults to `http://127.0.0.1:10894/api/v1/map` (the standalone
+server) — no config needed when both servers run on the same host.
+
+## Original rationale (kept for history)
 
 ### Why split
 

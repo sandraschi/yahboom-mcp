@@ -40,12 +40,19 @@ async def test_read_lidar_auto_fallback_disconnected(disconnected_bridge):
 
 
 @pytest.mark.asyncio
-async def test_read_dreame_map_not_configured():
+async def test_read_dreame_map_default_url_fallback():
+    """DREAME_MAP_URL unset -> default standalone dreame-mcp URL is used.
+
+    In a test environment the standalone server is not running, so the call
+    must fail with a network error — not silently succeed.
+    """
     old_url = os.environ.pop("DREAME_MAP_URL", None)
     try:
         result = await lidar.execute(operation="read_dreame_map")
         assert not result["success"]
-        assert "DREAME_MAP_URL not set" in result["error"]
+        assert result["error"] and any(
+            k in result["error"].lower() for k in ("connection", "attempt", "10894", "failed")
+        )
     finally:
         if old_url:
             os.environ["DREAME_MAP_URL"] = old_url

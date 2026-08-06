@@ -1,4 +1,23 @@
 
+## [Unreleased] — 2026-08-06
+
+### Added — Dreame floorplan integration (Boomy)
+
+- **`GET /api/v1/lidar/dreame-map`** REST proxy: forwards `DREAME_MAP_URL`
+  (default `http://127.0.0.1:10894/api/v1/map`, the standalone dreame-mcp
+  server) — fixes the webapp Lidar Map page, which already called this route
+  but got 404.
+- **`lidar(operation="read_dreame_map")`** MCP tool now defaults to the
+  standalone server when `DREAME_MAP_URL` is unset (previously hard-failed
+  "not set").
+- **`.env.example`** documents `DREAME_MAP_URL`.
+- **Verified live**: proxy returns the rendered floorplan PNG (16,768 raw
+  bytes → 19,828-byte image) through dreame-mcp's cloud map path.
+- ROS2 `boomy_dreame_map_bridge` already targets the standalone server and is
+  unchanged.
+
+---
+
 ## [Unreleased] — 2026-06-14
 
 ### Added
@@ -204,13 +223,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.3.0-beta.1] - 2026-04-12
 ### 🎙️ Conversational Edge Intelligence (SOTA v16.0)
 - **Speech Activation**: Resolved the "Silence" issue by hardening the USB Voice Module serial protocol and ensuring default volume initialization.
-- **Voice Intelligence Hub**: 
+- **Voice Intelligence Hub**:
     - Overhauled the Mission Control "Intelligence" card with a premium **Voice & Media** suite.
     - Integrated **Web Speech API (STT)** into the browser, enabling hands-free robot interactions.
-- **Edge Conversational Pipe**: 
+- **Edge Conversational Pipe**:
     - Implemented a low-latency "Chat & Say" workflow piping transcribed speech to a local **Ollama (Gemma3:1b)** node on the Pi 5.
     - Real-time LLM thought processing displayed in the webapp HUD.
-- **High-Fidelity Media**: 
+- **High-Fidelity Media**:
     - Unlocked native MP3 playback via the Voice Module's secondary **USB Audio interface (Card 2)**.
     - Deployed `mpg123` to the robot for industrial audio streaming (verified with Etta James).
 - **Diagnostics**: Added a "Sound Check" (Beep) tool for rapid hardware verification.
@@ -220,7 +239,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Neural Synchronization**: Hardened environment to `ROS_DOMAIN_ID=30`, unifying agentic tools and the dashboard.
 - **Sensory Mastery**: Full restoration of Ultrasonic Sonar (`/ultrasonic`) and Forward Chassis Camera (`/usb_cam`).
 - **Architectural Shift**: Decoupled the ROS 2 Bridge from isolated sidecars to a **Direct Internal Bridge** for low-latency telemetry.
-- **Industrial Dashboard**: 
+- **Industrial Dashboard**:
   - Activated live **Analytics** suite with Power Flux charts and Inertial Pathing (IMU).
   - Synchronized **Mission Control** with established hardware protocols.
 - **Version Elevation**: Shifted from Alpha to **Beta** status based on 99% operational stability.
@@ -359,4 +378,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Portmanteau Tool**: Scaffolding for unified `yahboom` tool.
 - **Documentation**: SOTA Architecture doc in `mcp-central-docs`.
 - **Fleet Registry**: Registered project at port 10892.
-
