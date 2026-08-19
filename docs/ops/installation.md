@@ -32,5 +32,11 @@ Or use **`webapp/start.ps1`**, which runs **`uv sync`**, starts the server on **
 - **`YAHBOOM_IP`** — Pi address (default in scripts often `192.168.1.11`).
 - **`YAHBOOM_BRIDGE_PORT`** — rosbridge WebSocket port (default **9090**).
 - **`YAHBOOM_FALLBACK_IP`** — Optional second address (e.g. Ethernet) when the robot exposes two paths.
+- **`YAHBOOM_GEMINI_API_KEY`** — Optional Gemini key for agent-mission planning (`provider=gemini`); falls back to Ollama.
+- **`YAHBOOM_MISSION_TOPIC`** — ROS topic for mission JSON (default `/boomy/mission`).
+- **`YAHBOOM_ROS2_CONTAINER`** — Driver-stack Docker container on the Pi (default `yahboom_ros2_final`).
+- **`DREAME_MAP_URL`** — Dreame D20 Pro floorplan endpoint (default `http://127.0.0.1:10894/api/v1/map`).
+
+Full table: [docs/CONFIGURATION.md](../CONFIGURATION.md).
 
 Further reading: [ROSBRIDGE.md](../hardware/ROSBRIDGE.md), [ROSBRIDGE_AT_BOOT.md](ROSBRIDGE_AT_BOOT.md).

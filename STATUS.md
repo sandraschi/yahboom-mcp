@@ -1,8 +1,8 @@
 # Project Status: Yahboom Raspbot v2 (Boomy)
 
-**Current SOTA:** v2.5.0-beta.1
+**Current SOTA:** v2.5.0b1
 **Operational Status:** Production — Autonomous Missions Capable
-**Last Updated:** 2026-05-27
+**Last Updated:** 2026-08-19
 
 ## Connectivity & Infrastructure
 
@@ -44,6 +44,8 @@ yahboom_ros2_final (host networking, privileged)
 - **Camera**: SSH-based OpenCV snapshot fallback at `/api/v1/snapshot` (returns JPEG 200 OK). VideoBridge subscribes to `/image_raw/compressed` but rosbridge large-message delivery is unreliable.
 - **GPIO Headlight**: GPIO 17 via `/api/v1/gpio`. Toggle in Dashboard.
 - **Ollama chat**: Working (Gemma3:1b on Pi at 192.168.1.11:11434).
+- **Dreame floorplan**: Live Lidar Map page via standalone `dreame-mcp` proxy (`GET /api/v1/lidar/dreame-map`).
+- **Tapo two-way audio**: `POST /api/v1/tapo/audio/{listen,speak}` (RTSP mic capture + `-law playback).
 
 ##  Autonomous Missions
 
@@ -68,18 +70,28 @@ Natural-language goals → Ollama → structured JSON → ROS execution:
 
 | Page | Path | Purpose |
 |------|------|---------|
-| Dashboard | `/dashboard` | Camera, WASD drive, PTZ (with demo), GPIO headlight, lightstrip, voice |
+| Dashboard | `/dashboard` | Camera, WASD drive, PTZ (with demo), GPIO headlight, lightstrip, voice, telemetry + exponential-backoff health |
 | Status | `/status` | Connection health, telemetry grid, stack health table |
 | Missions | `/missions` | Natural-language goals, sample missions, report-back |
 | Missions Control | `/mission-control` | Telemetry-focused view |
 | Diagnostic Hub | `/diagnostics` | ROS topics/nodes, SSH shell, stack table |
 | Server logs | `/logs` | Live SSE log stream with filter, export, sort |
 | Help | `/help` | 8 tabs: hardware, quickstart, MCP tools, REST API, connection, ROS 2, missions, troubleshooting |
-| Chat | `/chat` | AI Companion via Ollama |
-| Settings | `/settings` | LLM model selection, provider config |
+| Chat | `/chat` | AI Companion via Ollama/LM Studio (skill-ready) |
+| Settings | `/settings` | LLM provider/model selection, localStorage persistence (`llm_provider`/`llm_model`) |
+| Local Intelligence | `/llm` | GPU detection + Ollama/LM Studio provider status |
 | Peripherals | `/peripherals` | Lightstrip patterns, OLED status, voice controls |
 | Audio Soundboard | `/audio` | Built-in sound effects, file upload/play, stored depot, fleet audio cross-connect |
 | Visualization | `/viz` | 3D Three.js model with real-time telemetry |
+| Movement | `/movement` | Motion control + trajectory |
+| Sensors | `/sensors` | Sensor telemetry |
+| Lidar Map | `/lidar` | Yahboom scan + Dreame D20 Pro floorplan overlay |
+| Map | `/map` | SLAM / lidar map views |
+| SLAM | `/slam` | Occupancy grid + pose |
+| Onboarding | `/onboarding` | First-time robot bring-up wizard |
+| Apps | `/apps` | Fleet app hub |
+| Analytics | `/analytics` | Telemetry analytics |
+| Tools | `/tools` | Tool reference |
 
 ##  Services Running in Docker (yahboom_ros2_final)
 
@@ -101,7 +113,18 @@ Natural-language goals → Ollama → structured JSON → ROS execution:
 - **Core Hardware**: Yahboom Raspbot v2 (Boomy). Weight: 1.0 kg. Cost: ~$300 (w/ Pi 5 16GB).
 - **Scaling Path**: **ROSMASTER X3 PLUS** (Jetson Orin NX + LiDAR + 6-DOF Arm) documented in `docs/fleet/`.
 - **Target 2026**: **Noetix Bumi Android** — Shipping now from ~10,000 CNY (~€1,300). 98cm / 17kg / 21 DoF. Models from Lite to EDU-Max with NVIDIA Jetson Orin. SDK + open source tools available. Architecture ported to `bumi-mcp`.
-- **Dreame map bridge**: `ros2/boomy_dreame_map_bridge/` package exists but not deployed.
+- **Dreame map bridge**: `ros2/boomy_dreame_map_bridge/` + **live** standalone `dreame-mcp` integration via `DREAME_MAP_URL` (`GET /api/v1/lidar/dreame-map` proxy).
+
+## Tooling / Standards (assfix 2026-08-19)
+
+- **Five-gate green**: ruff, ruff format, **pyright 0 errors**, pytest (100 passed), webapp tsc + biome.
+- **New tools**: `yahboom_shutdown` (self-termination), `GET /api/skills`.
+- **Security**: CORS fleet standard (explicit origins + LAN/Tailscale/Tauri regex; no `["*"]`).
+- **Session context**: `.claude-plugin/` + `.cursorrules` + Windsurf/Copilot/OpenCode/Antigravity injection.
+- **Docs**: `docs/{CONFIGURATION,DEVELOPMENT,TOOLS,TROUBLESHOOTING,ONBOARDING}.md`.
+- **LLM webapp**: Zustand store + `llm_provider`/`llm_model` localStorage persistence.
+- **Tauri**: `free_port` release-poll; `resources/.env.example` bundled (build was failing).
+- **Packaging**: mcpb bundle refreshed from live `src/` (prompts 3-4-100, glama excluded).
 
 ## Reliability Headers
 
