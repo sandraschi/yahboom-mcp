@@ -73,6 +73,10 @@ class MissionManager:
             self.active_mission = asyncio.create_task(self._boomy_draw_mission())
         elif mission_id in ("boomy_talkbot", "talkbot"):
             self.active_mission = asyncio.create_task(self._boomy_talkbot_mission())
+        elif mission_id in ("found_dog", "boomy_found_dog", "dog"):
+            self.active_mission = asyncio.create_task(self._boomy_found_dog_mission())
+        elif mission_id in ("cafe_host", "boomy_cafe_host", "cafe"):
+            self.active_mission = asyncio.create_task(self._boomy_cafe_host_mission())
         else:
             self.status = "error"
             self.last_error = f"Unknown mission ID: {mission_id}"
@@ -665,6 +669,56 @@ class MissionManager:
             self._add_log("Talkbot demo finished")
         except asyncio.CancelledError:
             await demo_showcase.execute("talkbot_stop")
+            raise
+        except Exception as e:
+            self.status = "error"
+            self.last_error = str(e)
+
+    async def _boomy_found_dog_mission(self):
+        from ..operations import demo_showcase
+
+        try:
+            self._add_log("Starting dog meeting demo")
+            self.progress = 10
+            await demo_showcase.execute("found_dog")
+            while True:
+                st = await demo_showcase.execute("found_dog_status")
+                self.progress = min(95, self.progress + 5)
+                if st.get("status") in ("completed", "error", "stopped", "cancelled"):
+                    break
+                if st.get("running") is False:
+                    break
+                await asyncio.sleep(0.5)
+            self.progress = 100
+            self.status = "completed"
+            self._add_log("Dog meeting demo finished")
+        except asyncio.CancelledError:
+            await demo_showcase.execute("found_dog_stop")
+            raise
+        except Exception as e:
+            self.status = "error"
+            self.last_error = str(e)
+
+    async def _boomy_cafe_host_mission(self):
+        from ..operations import demo_showcase
+
+        try:
+            self._add_log("Starting cafe host demo")
+            self.progress = 10
+            await demo_showcase.execute("cafe_host")
+            while True:
+                st = await demo_showcase.execute("cafe_host_status")
+                self.progress = min(95, self.progress + 5)
+                if st.get("status") in ("completed", "error", "stopped", "cancelled"):
+                    break
+                if st.get("running") is False:
+                    break
+                await asyncio.sleep(0.5)
+            self.progress = 100
+            self.status = "completed"
+            self._add_log("Cafe host demo finished")
+        except asyncio.CancelledError:
+            await demo_showcase.execute("cafe_host_stop")
             raise
         except Exception as e:
             self.status = "error"

@@ -106,6 +106,12 @@ elif name == "zap":
         samples.append(int(0.6 * 32767 * math.sin(2 * math.pi * f * i / rate)))
 elif name == "beep":
     samples = tone(880, 0.5, 0.6)
+elif name == "bark":
+    # Dog bark: three sharp noise bursts with a low growl tail.
+    for _ in range(3):
+        samples.extend(noise(0.06, 0.9))
+        samples.extend([0] * int(rate * 0.05))
+    samples.extend(tone(150, 0.18, 0.4))
 else:
     print(f"UNKNOWN:{name}")
     sys.exit(0)
@@ -139,6 +145,7 @@ _SOUNDS = {
     "coin",
     "zap",
     "beep",
+    "bark",
 }
 
 

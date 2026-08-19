@@ -459,10 +459,12 @@ async def yahboom_demo(
     scripted_user_lines: list[str] | None = None,
 ) -> dict:
     """
-    Boomy show-floor demos: floor chalk art and social talkbot.
+    Boomy show-floor demos: floor chalk art, social talkbot, and the
+    interaction demos (dog meeting + cafe host).
 
     Operations: describe, draw, draw_status, draw_stop, talkbot, talkbot_status,
-    talkbot_stop, status, stop.
+    talkbot_stop, found_dog, found_dog_status, found_dog_stop, cafe_host,
+    cafe_host_status, cafe_host_stop, status, stop.
 
     draw — mecanum path drawing (patterns: smiley, heart, boomy_b). Two-color layers
     pause for chalk swap unless skip_color_swap_pause=True.
@@ -470,9 +472,18 @@ async def yahboom_demo(
     talkbot — optional approach, PTZ wiggle, "Hi, I am Boomy. Who are you?", then
     listen/reply turns. Uses speech-mcp TTS when reachable, else espeak on Pi.
 
+    found_dog — "I found a dog! Will he be my friend?" Bark, tail-wag (strafe sway
+    + warm light pulse), cautious approach, camera tilts down, and offers a cookie
+    by opening the gripper claw when a gripper servo is reachable.
+
+    cafe_host — "Guten Tag!" Weave between table legs (mecanum slalom), greet a
+    customer, share Vienna coffeehouse facts, recommend a coffee, bow, exit.
+
     Examples:
     yahboom_demo(operation='draw', pattern='smiley')
     yahboom_demo(operation='talkbot', max_turns=3)
+    yahboom_demo(operation='found_dog')
+    yahboom_demo(operation='cafe_host')
     """
     from .operations import demo_showcase
 
@@ -2292,7 +2303,7 @@ async def get_capabilities():
         "yahboom_patrol_apartment",
         "yahboom_go_to_recharge",
     ]
-    available_missions = ["patrol", "alarm", "briefing", "kaffeehaus"]
+    available_missions = ["patrol", "alarm", "briefing", "kaffeehaus", "found_dog", "cafe_host"]
     return {
         "status": "ok",
         "server": {"name": "yahboom-mcp", "version": VERSION, "fastmcp": "3.4.4"},
