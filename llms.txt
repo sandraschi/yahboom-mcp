@@ -1,32 +1,32 @@
-# yahboom-mcp — Yahboom Raspbot v2 ROS 2 Robot Control
+# yahboom-mcp - Yahboom Raspbot v2 ROS 2 Robot Control
 
 MCP server for controlling Yahboom Raspbot v2 (mecanum wheels, ROS 2 Humble, LIDAR, camera, voice, OLED display). Dual transport: stdio + HTTP SSE on port 10892. Dashboard on 10893.
 
 ## Tools
 
-- `yahboom_tool` — Portmanteau: motion, sensors, IMU, battery, lightstrip, camera PTZ, voice, display, diagnostics, trajectory, safety (30+ ops)
-- `yahboom_demo` — Show-floor demos: mecanum path drawing (smiley/heart) and talkbot with speech-mcp TTS
-- `yahboom_agentic_workflow` — Multi-step robot mission via LLM sampling (SEP-1577)
-- `yahboom_help_tool` — Multi-level help: motion/sensors/connection/api/mcp_tools/startup/troubleshooting
-- `ros_topic_list` — List active ROS 2 topics and message types
-- `ros_node_info` — Get ROS 2 node details (publishers, subscribers, services)
-- `ros_resync` — Force re-discovery of ROS 2 topics and sensor subscriptions
-- `ros_restart_bringup` — Remote restart of Yahboom bringup via SSH
-- `lidar` — LIDAR data from Yahboom /scan or Dreame D20 Pro map
+- `yahboom_tool` - Portmanteau: motion, sensors, IMU, battery, lightstrip, camera PTZ, voice, display, diagnostics, trajectory, gripper, safety (30+ ops)
+- `yahboom_demo` - Show-floor demos: mecanum path drawing (smiley/heart/boomy_b) and talkbot with speech-mcp TTS
+- `yahboom_agentic_workflow` - Multi-step robot mission via LLM sampling (SEP-1577)
+- `yahboom_agent_mission` - NL goal to structured mission JSON (Ollama / Gemini), optional ROS publish + speech
+- `yahboom_help_tool` - Multi-level help: motion/sensors/connection/api/mcp_tools/startup/troubleshooting
+- `ros_topic_list` - List active ROS 2 topics and message types
+- `ros_node_info` - Get ROS 2 node details (publishers, subscribers, services)
+- `ros_resync` - Force re-discovery of ROS 2 topics and sensor subscriptions
+- `ros_restart_bringup` - Remote restart of Yahboom bringup via SSH
+- `lidar` - LIDAR data from Yahboom /scan or Dreame D20 Pro map
+- `audio` - Play/store/manage audio via USB voice module speaker
+- `query_logs` - Query the in-process log ring buffer
+- `yahboom_shutdown` - Gracefully shut down the server
 
 ## Prompts
 
-- `yahboom_setup` — Robot and server setup guide
-- `yahboom_troubleshooting` — Common robot issues and fixes
-
-## Skills
-
-- `yahboom-raspbot-v2` — Claude skill: robot architecture, motion, sensors, missions
+- `yahboom_quick_start`, `yahboom_patrol`, `yahboom_diagnostics`, `yahboom_patrol_apartment`, `yahboom_go_to_recharge`
+- Skill prompts: `yahboom_quick_pilot`, `yahboom_patrol_sweep`, `yahboom_emergency_halt`, `yahboom_diagnostic_triage`
 
 ## Config
 
 - Port: 10892 (backend), 10893 (frontend)
-- Env: `YAHBOOM_IP`, `YAHBOOM_BRIDGE_PORT` (9090), `YAHBOOM_CONNECTION` (rosbridge/esp32/mock)
+- Env: `YAHBOOM_IP`, `YAHBOOM_BRIDGE_PORT` (9090), `YAHBOOM_CONNECTION` (rosbridge/esp32/mock), `YAHBOOM_GEMINI_API_KEY`, `DREAME_MAP_URL`
 - Robot: Yahboom Raspbot v2, Raspberry Pi 5, ROS 2 Humble, 4 mecanum wheels, LIDAR, camera, IMU
 
 See [llms-full.txt](llms-full.txt) for full tool reference and architecture.

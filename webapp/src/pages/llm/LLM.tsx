@@ -12,22 +12,7 @@ import {
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-
-interface GpuStatus {
-  detected: boolean;
-  gpu_name?: string | null;
-  vram_total_gb?: number | null;
-  vram_used_gb?: number | null;
-  temp_c?: number | null;
-  utilization_pct?: number | null;
-}
-
-interface LlmInfo {
-  provider: string;
-  model: string;
-  ollama_connected: boolean;
-  lmstudio_connected: boolean;
-}
+import { type GpuStatus, useLlmStore } from "../../lib/llm-store";
 
 async function fetchJson<T>(url: string): Promise<T | null> {
   try {
@@ -40,8 +25,9 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 }
 
 const LLM: React.FC = () => {
-  const [gpu, setGpu] = useState<GpuStatus | null>(null);
-  const [llm, setLlm] = useState<LlmInfo | null>(null);
+  const gpu = useLlmStore((s) => s.gpu);
+  const ollamaConnected = useLlmStore((s) => s.ollamaConnected);
+  const lmstudioConnected = useLlmStore((s) => s.lmstudioConnected);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -52,13 +38,11 @@ const LLM: React.FC = () => {
       fetchJson<{ connected: boolean }>("/api/v1/settings/ollama/status"),
       fetchJson<{ connected: boolean }>("/api/v1/settings/lmstudio/status"),
     ]);
-    setGpu(gpuData);
-    setLlm({
-      provider: llmSettings?.provider || "ollama",
-      model: llmSettings?.model || "(none)",
-      ollama_connected: ollamaStatus?.connected ?? false,
-      lmstudio_connected: lmstudioStatus?.connected ?? false,
-    });
+    useLlmStore.getState().setGpu(gpuData);
+    if (llmSettings) useLlmStore.getState().setProvider(llmSettings.provider || "ollama");
+    if (llmSettings?.model) useLlmStore.getState().setModel(llmSettings.model);
+    useLlmStore.getState().setOllamaConnected(ollamaStatus?.connected ?? null);
+    useLlmStore.getState().setLmstudioConnected(lmstudioStatus?.connected ?? null);
     setLoading(false);
   }, []);
 
@@ -66,7 +50,7 @@ const LLM: React.FC = () => {
     load();
   }, [load]);
 
-  const anyProvider = llm && (llm.ollama_connected || llm.lmstudio_connected);
+  const anyProvider = ollamaConnected === true || lmstudioConnected === true;
 
   return (
     <div className="space-y-8 py-4 px-4 sm:px-6">
@@ -116,7 +100,7 @@ const LLM: React.FC = () => {
                     {
                       icon: CheckCircle2,
                       label: "Provider",
-                      value: llm ? (anyProvider ? "Connected" : "Offline") : "--",
+                      value: anyProvider ? "Connected" : "Offline",
                       color: anyProvider ? "text-green-400" : "text-red-400",
                     },
                     {
@@ -194,58 +178,56 @@ const LLM: React.FC = () => {
       </motion.div>
 
       {/* Provider status summary */}
-      {llm && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-[#0f0f12]/80 border border-white/5 rounded-2xl p-5 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {llm.ollama_connected ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                ) : (
-                  <Unplug className="w-5 h-5 text-slate-500" />
-                )}
-                <div>
-                  <span className="text-sm font-bold text-white">Ollama</span>
-                  <p className="text-[10px] text-slate-500">localhost:11434</p>
-                </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-[#0f0f12]/80 border border-white/5 rounded-2xl p-5 backdrop-blur-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {ollamaConnected === true ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              ) : (
+                <Unplug className="w-5 h-5 text-slate-500" />
+              )}
+              <div>
+                <span className="text-sm font-bold text-white">Ollama</span>
+                <p className="text-[10px] text-slate-500">localhost:11434</p>
               </div>
-              <span
-                className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
-                  llm.ollama_connected
-                    ? "bg-emerald-500/20 text-emerald-400"
-                    : "bg-slate-700/50 text-slate-500"
-                }`}
-              >
-                {llm.ollama_connected ? "Online" : "Offline"}
-              </span>
             </div>
-          </div>
-          <div className="bg-[#0f0f12]/80 border border-white/5 rounded-2xl p-5 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {llm.lmstudio_connected ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                ) : (
-                  <Unplug className="w-5 h-5 text-slate-500" />
-                )}
-                <div>
-                  <span className="text-sm font-bold text-white">LM Studio</span>
-                  <p className="text-[10px] text-slate-500">localhost:1234</p>
-                </div>
-              </div>
-              <span
-                className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
-                  llm.lmstudio_connected
-                    ? "bg-emerald-500/20 text-emerald-400"
-                    : "bg-slate-700/50 text-slate-500"
-                }`}
-              >
-                {llm.lmstudio_connected ? "Online" : "Offline"}
-              </span>
-            </div>
+            <span
+              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+                ollamaConnected === true
+                  ? "bg-emerald-500/20 text-emerald-400"
+                  : "bg-slate-700/50 text-slate-500"
+              }`}
+            >
+              {ollamaConnected === true ? "Online" : "Offline"}
+            </span>
           </div>
         </div>
-      )}
+        <div className="bg-[#0f0f12]/80 border border-white/5 rounded-2xl p-5 backdrop-blur-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {lmstudioConnected === true ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              ) : (
+                <Unplug className="w-5 h-5 text-slate-500" />
+              )}
+              <div>
+                <span className="text-sm font-bold text-white">LM Studio</span>
+                <p className="text-[10px] text-slate-500">localhost:1234</p>
+              </div>
+            </div>
+            <span
+              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+                lmstudioConnected === true
+                  ? "bg-emerald-500/20 text-emerald-400"
+                  : "bg-slate-700/50 text-slate-500"
+              }`}
+            >
+              {lmstudioConnected === true ? "Online" : "Offline"}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

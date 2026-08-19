@@ -1,80 +1,116 @@
-# yahboom-mcp — Full Reference
+# yahboom-mcp - Full Reference
 
 ## Architecture
 
-FastMCP 3.2 Unified Gateway on FastAPI. Dual transport: stdio (MCP clients) and HTTP SSE (port 10892). Web dashboard on port 10893 (Vite React). Connects to robot via ROSBridge websocket (rosbridge_suite, port 9090), ESP32 direct (port 2323), or SSH for hardware recovery.
+FastMCP 3.4 Unified Gateway on FastAPI (port 10892). Dual transport: stdio (MCP clients) and HTTP (REST + MCP SSE at /sse). Web dashboard on port 10893 (Vite React). Connects to robot via ROSBridge websocket (rosbridge_suite, port 9090), ESP32 direct (port 2323), or SSH for hardware recovery. Optional Tauri 2 NSIS desktop shell (native/).
 
 ### Components
 
-- **ROS2Bridge** — rosbridge websocket client for topic pub/sub
-- **SSHBridge** — SSH executor for remote Pi commands (bringup restart, GPIO, diagnostics)
-- **VideoBridge** — MJPEG frame capture from robot camera (/stream endpoint)
-- **ESP32Bridge** — Direct serial-to-TCP connection for low-latency motor control
-- **TrajectoryManager** — Record and replay motion sequences
-- **StackProbe** — Docker container health check for ROS driver stack
+- **ROS2Bridge** - rosbridge websocket client for topic pub/sub
+- **SSHBridge** - SSH executor for remote Pi commands (bringup restart, GPIO, diagnostics)
+- **VideoBridge** - MJPEG frame capture from robot camera (/stream endpoint)
+- **ESP32Bridge** - Direct serial-to-TCP connection for low-latency motor control
+- **TrajectoryManager** - Record and replay motion sequences
+- **StackProbe** - Docker container health check for ROS driver stack
 
-## Tools — Full Reference
+## Tools - Full Reference
 
 ### yahboom_tool (portmanteau)
 
 Single entry point for all robot hardware operations. Operation parameter routes to:
 - **motion**: forward, backward, turn_left/right, strafe_left/right, stop
-- **sensors**: read_imu, read_battery, read_encoders, read_lidar
-- **lightstrip**: led, off, light_effect, patrol_car
-- **camera_ptz**: camera_up/down/left/right, camera_reset
-- **voice**: say, play, play_beep
-- **audio**: audio_play, audio_store, audio_play_stored, audio_list_stored, audio_stop
+- **sensors**: read_imu, read_battery, read_encoders, read_lidar, read_all
+- **lightstrip**: led, led_off, light_effect, patrol_car
+- **camera_ptz**: camera_up/down/left/right, camera_reset, camera_set_pos, camera_move
+- **voice**: say, play, play_beep, play_file, chat_and_say
+- **audio**: audio_play, audio_store, audio_play_stored, audio_list_stored, audio_delete_stored, audio_stop, audio_sound
 - **display**: display, clear_display
-- **diagnostics**: health_check, stack_inspect
-- **trajectory**: trajectory_record, trajectory_replay, trajectory_stop
-- **safety**: emergency_mode, stop_all
+- **diagnostics**: health_check, config_show, inspect_stack, execute_command
+- **trajectory**: start_recording, stop_recording, list_trajectories
+- **safety**: stop_all
+- **gripper**: gripper_set, gripper_open, gripper_close, gripper_status
+- **missions**: explore, explore_and_map
 
 ### yahboom_demo
 
-- `draw` — Mecanum path drawing (patterns: smiley, heart, boomy_b) with two-color chalk layers
-- `talkbot` — Social talkbot: approach, PTZ wiggle, speech-mcp TTS conversation, listen/reply turns
+- `draw` - Mecanum path drawing (patterns: smiley, heart, boomy_b) with two-color chalk layers
+- `talkbot` - Social talkbot: approach, PTZ wiggle, speech-mcp TTS conversation, listen/reply turns
 
 ### yahboom_agentic_workflow
 
 Takes a natural-language goal (e.g. "patrol in a square and report battery"), uses MCP sampling to plan and execute sub-operations.
 
+### yahboom_agent_mission
+
+NL goal -> structured mission JSON (Ollama and/or Gemini via YAHBOOM_GEMINI_API_KEY), optional publish to /boomy/mission and TTS voice feedback.
+
+### yahboom_help_tool
+
+Multi-level help drill-down (category -> topic): motion, sensors, connection, api, mcp_tools, startup, troubleshooting.
+
 ### lidar (portmanteau)
 
-- `read` — Obstacle sectors + nearest_m from Yahboom /scan
-- `read_raw` — Raw laser scan data
-- `read_dreame_map` — House floorplan map from Dreame D20 Pro (DREAME_MAP_URL)
+- `read` - Obstacle sectors + nearest_m from Yahboom /scan
+- `read_raw` - Raw laser scan data
+- `read_dreame_map` - House floorplan map from Dreame D20 Pro (DREAME_MAP_URL)
+
+### audio
+
+Play/store/manage audio files through the USB voice module speaker: play MP3/WAV, built-in sound effects, store/play_stored/list_stored/delete_stored/stop.
+
+### query_logs
+
+Query the in-process log ring buffer (filter by source/level/free-text).
+
+### yahboom_shutdown
+
+Gracefully shut down the server process.
 
 ### ROS management
 
-- `ros_topic_list` — /cmd_vel, /battery, /imu, /odom, /scan
-- `ros_node_info` — Node publishers/subscribers/services
-- `ros_resync` — Re-discover topics, restore missing telemetry
-- `ros_restart_bringup` — SSH docker exec bringup launch
+- `ros_topic_list` - /cmd_vel, /battery, /imu, /odom, /scan
+- `ros_node_info` - Node publishers/subscribers/services
+- `ros_resync` - Re-discover topics, restore missing telemetry
+- `ros_restart_bringup` - SSH docker exec bringup launch
 
 ## Prompts
 
-- **yahboom_setup**: Robot power-on, WiFi connect (hotspot 192.168.1.11), env vars, start server
-- **yahboom_troubleshooting**: Blank dashboard, bot offline, ROSBridge down, CORS, npm errors
+- yahboom_quick_start, yahboom_patrol, yahboom_diagnostics, yahboom_patrol_apartment, yahboom_go_to_recharge
+- Skill prompts: yahboom_quick_pilot, yahboom_patrol_sweep, yahboom_emergency_halt, yahboom_diagnostic_triage
 
-## REST API
+## REST API (port 10892)
 
-- `GET /api/v1/health` — Robot connection status + driver stack
-- `GET /api/v1/telemetry` — Battery, IMU, velocity
-- `GET /stream` — MJPEG video feed
-- `GET /api/v1/snapshot` — Single JPEG frame for VLM
-- `POST /api/v1/control/move` — Twist command to /cmd_vel
-- `POST /api/v1/control/tool` — Bridge for dashboard tool calls
-- `GET /api/v1/slam/map` — SLAM occupancy grid PNG
-- `POST /api/v1/gpio` — GPIO control on Pi
-- `POST /api/v1/display` — OLED/LCD write
-- `POST /api/v1/missions/run/{id}` — Run automated mission
+- `GET /api/v1/health` - Robot connection status + driver stack
+- `GET /api/v1/diagnostics` - Tool list + system info (CUA-NSIS)
+- `GET /api/v1/telemetry` (+ `/api/v1/sensors`) - Battery, IMU, velocity
+- `GET /stream` - MJPEG video feed
+- `GET /api/v1/snapshot` - Single JPEG frame for VLM
+- `POST /api/v1/control/move` - Twist command to /cmd_vel
+- `POST /api/v1/control/tool` - Bridge for dashboard tool calls
+- `GET /api/v1/slam/map`, `/api/v1/slam/data` - SLAM occupancy grid
+- `GET /api/v1/lidar/dreame-map` - Dreame floorplan proxy
+- `POST /api/v1/gpio` - GPIO control on Pi
+- `POST /api/v1/display` - OLED/LCD write
+- `POST /api/v1/missions/run/{id}` - Run automated mission
+- `POST /api/v1/chat` - Chat completion (Ollama / LM Studio)
+- `POST /api/v1/agent/mission` - Agent mission planning
+- `GET /api/capabilities` - Capability introspection
+- `GET /api/skills` - Registered skills
+- `GET /api/v1/settings/llm` + `/settings/ollama/*` + `/settings/lmstudio/*` + `/settings/gpu` - LLM discovery
+- `POST /api/shutdown` - Graceful self-termination
+- `GET /docs` - Swagger UI
+
+## Configuration
+
+Key env vars: YAHBOOM_IP, YAHBOOM_BRIDGE_PORT (9090), YAHBOOM_CONNECTION, YAHBOOM_SSH_USER/PASSWORD, YAHBOOM_USE_MOCK_BRIDGE, YAHBOOM_VOICE_DEVICE, YAHBOOM_ROS2_CONTAINER, YAHBOOM_MISSION_TOPIC, YAHBOOM_GEMINI_API_KEY, OLLAMA_BASE_URL, LMSTUDIO_BASE_URL, DREAME_MAP_URL, MCP_BRIDGE_URLS. See docs/CONFIGURATION.md and .env.example.
 
 ## Error Handling
 
-All tools return `{"success": bool, "operation": str, "result": {...}}` or `{"success": false, "error": str}` on failure. Bridge connection failures return clear messages. Mock mode available via YAHBOOM_USE_MOCK_BRIDGE=1 for testing.
+Tools return `{"success": bool, "message": str, ...}` or `{"success": false, "error": str}` on failure. Bridge connection failures return clear messages. Mock mode available via YAHBOOM_USE_MOCK_BRIDGE=1 for testing.
 
 ## Cross-repo Integration
 
-- **robotics-mcp** — Fleet-level orchestration across multiple robot types
-- **speech-mcp** — TTS for talkbot demo via speech-mcp server
-- **aiwatcher-mcp** — Ingest fleet events from robot missions
+- **speech-mcp** - TTS for talkbot demo via speech-mcp server
+- **dreame-mcp** - Standalone D20 Pro floorplan map (DREAME_MAP_URL)
+- **robotics-mcp** - Fleet-level orchestration across multiple robot types
+- **aiwatcher-mcp** - Ingest fleet events from robot missions

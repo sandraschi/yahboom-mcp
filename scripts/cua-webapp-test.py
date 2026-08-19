@@ -287,7 +287,7 @@ def nav_click_through(output_dir, win):
         pass
 
     nav_failures = []
-    for label, expected in nav_routes:
+    for label, _expected in nav_routes:
         try:
             link = win.descendants(title=label)
             if link:

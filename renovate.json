@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "schedule:weekly"],
+  "prConcurrentLimit": 3,
+  "stabilityDays": 3,
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "automerge": true
+    },
+    {
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "automerge": true
+    },
+    {
+      "matchPackageNames": ["fastmcp"],
+      "automerge": false,
+      "reviewers": ["sandraschi"]
+    }
+  ]
+}

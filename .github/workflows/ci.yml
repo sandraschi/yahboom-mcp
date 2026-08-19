@@ -41,6 +41,9 @@ jobs:
       - name: Ruff format check
         run: uv run ruff format --check src tests
 
+      - name: Pyright (types)
+        run: uv run pyright src/
+
       - name: Pytest
         run: uv run python -m pytest tests/ -q --tb=short --no-cov
 
@@ -49,4 +52,7 @@ jobs:
         working-directory: webapp
       - name: Biome check
         run: npm run biome:ci
+        working-directory: webapp
+      - name: Typecheck + build (webapp)
+        run: npm run build
         working-directory: webapp

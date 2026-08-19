@@ -157,7 +157,7 @@ def _direct_ssh():
     host = "192.168.1.11"
     pwd = os.environ.get("YAHBOOM_PASSWORD", "yahboom")
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(host, username="pi", password=pwd, timeout=10)
     return client
 

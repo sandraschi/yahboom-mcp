@@ -1,0 +1,9 @@
+{
+  "auto_load": ["session-start"],
+  "skills": {
+    "session-start": {
+      "name": "session-start",
+      "description": "Yahboom MCP session context - robot health and tool awareness"
+    }
+  }
+}

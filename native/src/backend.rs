@@ -111,6 +111,27 @@ fn free_port(port: u16) {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status();
+
+        // Poll until the port is actually released (multi-pass kill): a hung
+        // zombie survives the first taskkill, and spawning on a half-dead port
+        // races the old process. Give it up to ~30 s, then proceed anyway.
+        for _attempt in 0..30 {
+            let probe = format!(
+                "if (Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue) {{ '1' }} else {{ '0' }}"
+            );
+            let released = Command::new("powershell.exe")
+                .args(["-NoProfile", "-Command", &probe])
+                .output()
+                .map(|o| {
+                    let out = String::from_utf8_lossy(&o.stdout);
+                    !out.trim().contains('1')
+                })
+                .unwrap_or(false);
+            if released {
+                break;
+            }
+            thread::sleep(Duration::from_millis(1000));
+        }
         thread::sleep(Duration::from_millis(300));
     }
 }

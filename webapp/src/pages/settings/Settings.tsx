@@ -7,7 +7,6 @@ import {
   Loader2,
   Monitor,
   RefreshCw,
-  Save,
   Settings as SettingsIcon,
   Shield,
   Unplug,
@@ -15,6 +14,7 @@ import {
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { type LLMSettings, type OllamaModel, type OllamaStatus, api } from "../../lib/api";
+import { useLlmStore } from "../../lib/llm-store";
 
 const PROVIDERS = [
   { value: "ollama", label: "Ollama", port: 11434 },
@@ -51,6 +51,10 @@ const Settings: React.FC = () => {
         setModels(olModels.models || []);
       }
       setLlmSettings(llm);
+      // Persist to the shared store + localStorage so the LLM page and Chat
+      // restore the same provider/model on next visit.
+      useLlmStore.getState().setProvider(llm?.provider || "ollama");
+      useLlmStore.getState().setModel(llm?.model || "");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load settings");
       setOllamaStatus(null);
@@ -73,6 +77,9 @@ const Settings: React.FC = () => {
     try {
       const updated = await api.putLlmSettings("", provider);
       setLlmSettings(updated);
+      useLlmStore.getState().setProvider(provider);
+      useLlmStore.getState().setOllamaConnected(ollamaStatus?.connected ?? null);
+      useLlmStore.getState().setLmstudioConnected(lmstudioStatus?.connected ?? null);
       // reload model list for new provider
       if (provider === "lmstudio") {
         const lmModels = await api.getLmStudioModels().catch(() => ({ models: [] }));
@@ -95,6 +102,7 @@ const Settings: React.FC = () => {
     try {
       const updated = await api.putLlmSettings(model, llmSettings.provider);
       setLlmSettings(updated);
+      useLlmStore.getState().setModel(model);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save model");
     } finally {
@@ -155,7 +163,10 @@ const Settings: React.FC = () => {
         </div>
 
         {/* Provider discovery grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+        <div
+          data-testid="llm-provider-select"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6"
+        >
           {PROVIDERS.map((prov) => {
             const status = prov.value === "ollama" ? ollamaStatus : lmstudioStatus;
             const active = llmSettings?.provider === prov.value;
@@ -163,6 +174,7 @@ const Settings: React.FC = () => {
               <button
                 key={prov.value}
                 type="button"
+                data-testid={`llm-provider-option-${prov.value}`}
                 onClick={() => handleProviderChange(prov.value)}
                 disabled={saving}
                 className={`flex items-center gap-3 p-4 rounded-2xl border transition-all text-left ${
@@ -228,6 +240,7 @@ const Settings: React.FC = () => {
             <div>
               <label className="block text-slate-400 text-sm mb-2">Model</label>
               <select
+                data-testid="llm-model-select"
                 value={llmSettings?.model ?? ""}
                 onChange={(e) => handleModelChange(e.target.value)}
                 disabled={saving || !providerConnected}
@@ -250,7 +263,7 @@ const Settings: React.FC = () => {
         )}
       </motion.div>
 
-      {/* Placeholder sections */}
+      {/* Planned sections - not yet implemented (declared, no fake controls) */}
       <div className="space-y-6">
         {[
           {
@@ -274,7 +287,7 @@ const Settings: React.FC = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: (idx + 1) * 0.1 }}
-            className="bg-[#0f0f12]/80 border border-white/5 rounded-3xl p-6 lg:p-8 backdrop-blur-xl shadow-xl flex items-center justify-between group hover:border-indigo-500/20 transition-all cursor-pointer"
+            className="bg-[#0f0f12]/80 border border-white/5 rounded-3xl p-6 lg:p-8 backdrop-blur-xl shadow-xl flex items-center justify-between"
           >
             <div className="flex items-center gap-6">
               <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/10">
@@ -285,9 +298,9 @@ const Settings: React.FC = () => {
                 <p className="text-slate-500 text-sm font-medium">{section.desc}</p>
               </div>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-500 group-hover:text-indigo-400 transition-colors">
-              <Save size={18} />
-            </div>
+            <span className="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              Planned
+            </span>
           </motion.div>
         ))}
       </div>

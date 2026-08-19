@@ -39,10 +39,15 @@ scripts/
 *.bat
 justfile
 justfile.bak
+justfile.*.bak
 restart.bat
 start.bat
 start.ps1
 stop.bat
+
+# Backup dross (batch-mutation safety remnants)
+*.bak
+*.bak.*
 
 # Documentation
 README.md

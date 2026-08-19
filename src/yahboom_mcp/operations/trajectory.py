@@ -48,7 +48,7 @@ class TrajectoryManager:
         filepath = os.path.join(self.data_dir, filename)
 
         with open(filepath, "w") as f:
-            json.dump([p.dict() for p in self.active_recording], f, indent=2)
+            json.dump([p.model_dump() for p in self.active_recording], f, indent=2)
 
         logger.info(f"Trajectory saved to {filepath}")
         return filepath

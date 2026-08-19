@@ -3,16 +3,16 @@
 <p align="center">
   <a href="https://github.com/casey/just"><img src="https://img.shields.io/badge/just-ready_to_go-7c5cfc?style=flat-square&logo=just&logoColor=white" alt="Just"></a>
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
-  <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.13+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
+  <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
   <a href="https://biomejs.dev"><img src="https://img.shields.io/badge/Linted_with-Biome-60a5fa?style=flat-square&logo=biome&logoColor=white" alt="Biome"></a>
-  <a href="https://github.com/PrefectHQ/fastmcp"><img src="https://img.shields.io/badge/FastMCP-3.2-7c5cfc?style=flat-square" alt="FastMCP"></a>
+  <a href="https://github.com/PrefectHQ/fastmcp"><img src="https://img.shields.io/badge/FastMCP-3.4-7c5cfc?style=flat-square" alt="FastMCP"></a>
 </p>
 
 
 > 📖 **[Installation Guide](INSTALL.md)** — quick start, manual setup, and troubleshooting
 
 [![CI](https://github.com/sandraschi/yahboom-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/sandraschi/yahboom-mcp/actions/workflows/ci.yml)
-[![FastMCP 3.2](https://img.shields.io/badge/FastMCP-3.2.0-6366f1?style=flat-square&logo=python&logoColor=white)](https://github.com/jlowin/fastmcp)
+[![FastMCP 3.4](https://img.shields.io/badge/FastMCP-3.4.x-6366f1?style=flat-square&logo=python&logoColor=white)](https://github.com/jlowin/fastmcp)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![ROS 2 Humble](https://img.shields.io/badge/ROS_2-Humble-22314E?style=flat-square&logo=ros&logoColor=white)](https://docs.ros.org/en/humble/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -92,6 +92,11 @@ This project clearly distinguishes between human-operable controls and machine-o
 | **[ROS 2 Bridge](docs/hardware/ROSBRIDGE.md)** | Connectivity | Bridge architecture, topic map, state cache, env vars, known bugs. |
 | **[Voice & Audio](docs/hardware/VOICE_AUDIO.md)** | Sound System | CSK4002 module protocol, espeak-ng TTS, chatrobot architecture, audio soundboard with 17 built-in effects. |
 | **[Multi-Robot Integration](docs/fleet/)** | Ecosystem | Federated fleet standards and cross-robot communication protocols. |
+| **[Configuration](docs/CONFIGURATION.md)** | Reference | Env vars, ports, transport modes, LLM providers. |
+| **[Development](docs/DEVELOPMENT.md)** | Reference | Dev setup, layout, test commands, five-gate. |
+| **[Tools](docs/TOOLS.md)** | Reference | MCP tools, `yahboom_tool` operations, REST endpoints. |
+| **[Troubleshooting](docs/TROUBLESHOOTING.md)** | Reference | Common issues and fixes. |
+| **[Onboarding](docs/ONBOARDING.md)** | First-time setup | Hardware bring-up for Boomy (robot power, IP, sanity checks). |
 
 ---
 
@@ -112,6 +117,6 @@ This project adheres to **SOTA 2026** industrial standards for high-fidelity age
 
 - **Python (Core)**: [Ruff](https://astral.sh/ruff) for linting and formatting. Zero-tolerance for `print` statements in core handlers (`T201`).
 - **Webapp (UI)**: [Biome](https://biomejs.dev/) for sub-millisecond linting.
-- **MCP**: [FastMCP 3.2](https://github.com/jlowin/fastmcp) with Unified Gateway, portmanteau tools, skills, and agentic sampling.
+- **MCP**: [FastMCP 3.4](https://github.com/jlowin/fastmcp) with Unified Gateway, portmanteau tools, skills, and agentic sampling.
 - **LLM Providers**: Auto-discovery of [Ollama](https://ollama.com/) (`:11434`) and [LM Studio](https://lmstudio.ai/) (`:1234`). GPU metrics via nvidia-smi.
 - **Automation**: [Justfile](./justfile) recipes for all fleet operations (`just lint`, `just fix`, `just dev`).

@@ -37,6 +37,9 @@ from .state import _state
 
 start_time = time.time()
 
+# Single source of truth for the server version (pyproject.toml [project] version).
+VERSION = "2.5.0b1"
+
 # SOTA 2026 Logging Configuration
 logging.basicConfig(
     level=logging.INFO,
@@ -193,10 +196,32 @@ async def lifespan(fastapi_app: FastAPI):
 # Create FastAPI app first for the Unified Gateway
 app = FastAPI(lifespan=lifespan)
 
-# Add CORS to the FastAPI app
+# Fleet CORS standard (mcp-central-docs/standards/CORS_STANDARD.md):
+# explicit origins + unconditional regex (LAN + Tailscale + Tauri). Never ["*"].
+_CORS_ORIGINS = [
+    # Local dev
+    "http://localhost:10893",
+    "http://127.0.0.1:10893",
+    "http://localhost:10892",
+    "http://127.0.0.1:10892",
+    # Tauri WebView (always include, harmless when not in Tauri)
+    "tauri://localhost",
+    "http://tauri.localhost",
+    "https://tauri.localhost",
+]
+
+_CORS_REGEX = (
+    r"https?://(?:[a-zA-Z0-9-]+\.ts\.net|.*?\.tail-[a-f0-9]+\.ts\.net|"
+    r"tauri\.localhost|localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|"
+    r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|100\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::\d+)?$|"
+    r"^tauri://localhost$"
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_CORS_ORIGINS,
+    allow_origin_regex=_CORS_REGEX,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -246,7 +271,7 @@ async def get_diagnostics():
     return {
         "status": "ok",
         "server": "yahboom-mcp",
-        "version": "2.4.0",
+        "version": VERSION,
         "uptime_seconds": time.time() - start_time,
         "tool_count": 38,
         "tools": [
@@ -317,7 +342,7 @@ async def get_health():
             "hint": hint,
         },
         "stack": stack,
-        "system": {"uptime": time.time() - start_time, "version": "2.0.0-alpha.1"},
+        "system": {"uptime": time.time() - start_time, "version": VERSION},
     }
 
 
@@ -2116,6 +2141,52 @@ async def query_logs(
 # --- Entry Points ---
 
 
+# Keep references to scheduled shutdown tasks so the event loop does not GC them.
+_shutdown_tasks: set = set()
+
+
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False})
+async def yahboom_shutdown(reason: str = "operator requested shutdown") -> dict:
+    """
+    Gracefully shut down the Yahboom MCP server process.
+
+    Schedules an orderly exit after a short delay so in-flight responses can
+    flush. The owning process (uvicorn daemon or stdio client) reaps it.
+
+    ## Return Format
+    {"success": bool, "message": str, "reason": str}
+
+    ## Examples
+    yahboom_shutdown()
+    yahboom_shutdown(reason="robot packed up for the night")
+    """
+
+    async def _schedule_exit():
+        await asyncio.sleep(0.5)
+        os._exit(0)
+
+    logger.warning("Shutdown requested via yahboom_shutdown: %s", reason)
+    task = asyncio.create_task(_schedule_exit())
+    _shutdown_tasks.add(task)
+    task.add_done_callback(_shutdown_tasks.discard)
+    return {"success": True, "message": "Shutdown scheduled", "reason": reason}
+
+
+@app.post("/api/shutdown")
+async def api_shutdown(reason: str = "operator requested shutdown"):
+    """REST alias for the self-termination tool (POST /api/shutdown)."""
+
+    async def _schedule_exit():
+        await asyncio.sleep(0.5)
+        os._exit(0)
+
+    logger.warning("Shutdown requested via /api/shutdown: %s", reason)
+    task = asyncio.create_task(_schedule_exit())
+    _shutdown_tasks.add(task)
+    task.add_done_callback(_shutdown_tasks.discard)
+    return {"success": True, "message": "Shutdown scheduled", "reason": reason}
+
+
 # Mount FastMCP gateway - redundant in v3.1 if using from_fastapi, but kept for clarity
 # mcp.from_fastapi(app)
 
@@ -2129,6 +2200,20 @@ async def run_stdio():
 # ─────────────────────────────────────────────────────────────────────────────
 # Mandatory Capability Introspection Endpoint (WEBAPP_STANDARDS §1.4)
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+@app.get("/api/skills")
+async def get_skills():
+    """List registered Yahboom skills (skill-first chat preprompt source)."""
+    return {
+        "success": True,
+        "skills": [
+            {"name": "yahboom_quick_pilot", "uri": "yahboom://skills/quick-pilot"},
+            {"name": "yahboom_patrol_sweep", "uri": "yahboom://skills/patrol-sweep"},
+            {"name": "yahboom_emergency_halt", "uri": "yahboom://skills/emergency-halt"},
+            {"name": "yahboom_diagnostic_triage", "uri": "yahboom://skills/diagnostic-triage"},
+        ],
+    }
 
 
 @app.get("/api/v1/bridge/proxies")
@@ -2201,7 +2286,7 @@ async def get_capabilities():
     available_missions = ["patrol", "alarm", "briefing", "kaffeehaus"]
     return {
         "status": "ok",
-        "server": {"name": "yahboom-mcp", "version": "2.4.0", "fastmcp": "3.4.2"},
+        "server": {"name": "yahboom-mcp", "version": VERSION, "fastmcp": "3.4.4"},
         "tool_surface": {
             "total": len(portmanteau_ops) + len(atomic_tools),
             "portmanteau_count": 1,
@@ -2253,7 +2338,7 @@ def main():
         default="stdio",
         help="Transport mode: stdio (MCP only), http (Dashboard+SSE), dual (Both)",
     )
-    parser.add_argument("--host", default="0.0.0.0")  # noqa: S104
+    parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=10892)
     parser.add_argument("--robot-ip", help="IP address of the Yahboom robot")
     parser.add_argument("--debug", action="store_true")
