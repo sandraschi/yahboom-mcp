@@ -15,7 +15,7 @@ class SSHBridge:
         self.host = host
         self.user = user
         self.password = password or os.getenv("YAHBOOM_PASSWORD")
-        self.client = None
+        self.client: paramiko.SSHClient | None = None
         self.connected = False
         self.lock = threading.Lock()
         self._last_exec_error_log: float | None = None
@@ -85,6 +85,7 @@ class SSHBridge:
                 if not self.connect():
                     return "", "SSH Not Connected", -1
 
+            assert self.client is not None, "SSH client must be set after connect"
             try:
                 _stdin, stdout, stderr = self.client.exec_command(command)
                 out = stdout.read().decode().strip()
@@ -114,6 +115,7 @@ class SSHBridge:
                 if not self.connect():
                     return "", "SSH Not Connected", -1
 
+            assert self.client is not None, "SSH client must be set after connect"
             try:
                 # Use -S to read password from stdin
                 sudo_cmd = f"sudo -S {command}"
@@ -143,6 +145,7 @@ class SSHBridge:
                 if not self.connect():
                     raise ConnectionError("SSH Not Connected")
 
+            assert self.client is not None, "SSH client must be set after connect"
             sftp = self.client.open_sftp()
             try:
                 logger.info(f"SFTP: Uploading {local_path} to {remote_path}...")

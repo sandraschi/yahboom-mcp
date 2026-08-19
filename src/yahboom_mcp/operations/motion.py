@@ -13,14 +13,13 @@ async def execute(
     payload: dict | None = None,
 ) -> dict:
     """Execute motion operations: forward, backward, turn_left, turn_right, stop."""
-    correlation_id = ctx.correlation_id if ctx else "manual-execution"
+    from ..state import _state, ctx_request_id
+
+    correlation_id = ctx_request_id(ctx)
     logger.info(
         f"Motion: {operation} (param1={param1}, param2={param2})",
         extra={"correlation_id": correlation_id},
     )
-
-    # Use bridge from global state
-    from ..state import _state
 
     bridge = _state.get("bridge")
 

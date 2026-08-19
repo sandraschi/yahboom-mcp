@@ -206,6 +206,10 @@ class ROS2Bridge:
         self.fallback_host = fallback_host
         self.ros: roslibpy.Ros | None = None
         self.connected = False
+        # SSH handle for on-robot commands. server.py sets `bridge.ssh`; a
+        # legacy `ssh_bridge` alias is kept for older call sites.
+        self.ssh: Any = None
+        self.ssh_bridge: Any = None
         self.state: dict[str, Any] = {
             "imu": {},
             "odom": {},

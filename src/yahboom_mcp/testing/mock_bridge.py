@@ -96,6 +96,9 @@ class MockROS2Bridge:
         logger.info("MockROS2Bridge: connected (no network) with pre-flight success")
         return True
 
+    async def monitor_connection(self, interval: float = 10.0, on_reconnect=None) -> None:
+        """Compatibility no-op watchdog: the mock bridge never drops."""
+
     async def get_all_topics(self) -> list[list[str]]:
         """Mock return for the 74+ topics discovered on the real robot."""
         if not self.connected:

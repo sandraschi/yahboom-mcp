@@ -292,10 +292,10 @@ async def execute(
     volume  (param1 = 0-100)
         Set Pi ALSA master volume.  Also sets C-Media USB Speaker if card 2 present.
     """
-    correlation_id = ctx.correlation_id if ctx else "manual-execution"
-    logger.info("Voice: %s", operation, extra={"correlation_id": correlation_id})
+    from ..state import _state, ctx_request_id
 
-    from ..state import _state
+    correlation_id = ctx_request_id(ctx)
+    logger.info("Voice: %s", operation, extra={"correlation_id": correlation_id})
 
     ssh = _state.get("ssh")
 

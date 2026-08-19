@@ -297,7 +297,7 @@ class MissionManager:
                 await self._check_critical_safety()  # Physical button silences alarm
                 brightness = i * 25
                 # Warm orange to bright yellow
-                await led_execute(brightness, int(brightness * 0.8), 0)
+                await led_execute(None, operation="set", param1=brightness, param2=int(brightness * 0.8), param3=0)
                 self.progress = i * 10
                 await asyncio.sleep(1)
 
@@ -512,7 +512,7 @@ class MissionManager:
                         if not cleared:
                             self._add_log("Mapping: obstruction blocking path — widening search.")
                             # Try strafe to find gap (mecanum advantage)
-                            await self.ros_bridge.publish_velocity(linear_x=0.0, linear_y=0.15)
+                            await self.ros_bridge.publish_velocity(linear_x=0.0, angular_z=0.0, linear_y=0.15)
                             await asyncio.sleep(1.0)
                             await self.ros_bridge.publish_velocity(0.0, 0.0)
                     await self.ros_bridge.publish_velocity(linear_x=SWEEP_SPEED, angular_z=0.0)
@@ -677,6 +677,8 @@ async def execute(action: str, mission_id: str | None = None):
     # For now, we will assume singleton is initialized in server.py
     mgr = MissionManager.get_instance()
     if action == "run":
+        if not mission_id:
+            return fail_response("mission_id is required for action 'run'")
         return await mgr.run_mission(mission_id)
     elif action == "stop":
         return await mgr.stop_mission()

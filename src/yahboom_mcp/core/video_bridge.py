@@ -1,8 +1,10 @@
 import asyncio
 import base64
 import logging
+import os
 import threading
 import time
+from typing import Any
 
 import cv2
 import numpy as np
@@ -30,12 +32,12 @@ class VideoBridge:
 
     def __init__(
         self,
-        ros_client: roslibpy.Ros,
-        topic_name: str = "/image_raw/compressed",
-        ssh_bridge=None,
+        ros_client: Any,
+        ssh_bridge: Any = None,
+        topic_name: str | None = None,
     ):
         self.ros = ros_client
-        self.topic_name = topic_name
+        self.topic_name = topic_name or os.environ.get("YAHBOOM_CAMERA_TOPIC", "/image_raw/compressed")
         self.topic: roslibpy.Topic | None = None
         self.last_frame: np.ndarray | None = None
         self.frame_lock = threading.Lock()
@@ -48,8 +50,6 @@ class VideoBridge:
         self._direct_thread: threading.Thread | None = None
         self._direct_active = False
         self._ros_start_time: float | None = None
-
-        import os
 
         self._force_direct = os.environ.get("YAHBOOM_CAMERA_DIRECT", "0") == "1"
         self._device = int(os.environ.get("YAHBOOM_CAMERA_DEVICE", "0"))

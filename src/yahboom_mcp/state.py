@@ -12,3 +12,12 @@ _state: dict[str, Any] = {
     "sequencer": None,
     "resync_all_components": None,
 }
+
+
+def ctx_request_id(ctx: Any) -> str:
+    """Best-effort request id from a FastMCP Context.
+
+    FastMCP 3.4 Context exposes ``request_id`` (not ``correlation_id``).
+    Returned dicts keep the ``correlation_id`` key for back-compat.
+    """
+    return getattr(ctx, "request_id", None) or "manual-execution"

@@ -1,4 +1,37 @@
 
+## [Unreleased] — 2026-08-19
+
+### Added
+- **`yahboom_shutdown`** MCP tool + `POST /api/shutdown` (self-termination).
+- **`GET /api/skills`** — registered skill listing (skill-first chat source).
+- **Session-context injection** for Claude Code (`.claude-plugin/`), Cursor
+  (`.cursorrules`), Windsurf, Copilot, OpenCode and Antigravity skills.
+- **docs/ fleet set**: `CONFIGURATION.md`, `DEVELOPMENT.md`, `TOOLS.md`,
+  `TROUBLESHOOTING.md`, `ONBOARDING.md`.
+- **LLM Zustand store** (`webapp/src/lib/llm-store.ts`) with `llm_provider` /
+  `llm_model` localStorage persistence; `llm-provider-select` /
+  `llm-model-select` data-testids.
+- `renovate.json`, `.github/copilot-instructions.md`, `.agents/` skills.
+
+### Changed
+- **CORS**: `allow_origins=["*"]` replaced with the fleet standard (explicit
+  origins + unconditional LAN/Tailscale/Tauri regex).
+- **CI**: added `pyright src/` and webapp `npm run build` (typecheck) gates.
+- **Ruff**: `T20` added to `select`; pyright dev dep; coverage `fail_under=30`.
+- **Pyright-clean**: fixed 45 type errors incl. latent runtime bugs
+  (`ctx.correlation_id` → `ctx_request_id`, undefined `topic_name` in
+  `VideoBridge`, `_get_ssh` wrong relative import, missing return for unknown
+  `yahboom_tool` ops, broken MCP bridge `Provider` import).
+- **Tauri**: `resources/.env.example` bundled (build was failing); `free_port`
+  now polls until the port is released.
+- Version metadata aligned to `2.5.0b1` (glama, capabilities, health, justfile).
+
+### Fixed
+- `native/resources/.env.example` missing → `cargo check` / NSIS build broke.
+- `mcpb/src/` staging was stale/flattened (rebuild in pack step).
+
+---
+
 ## [Unreleased] — 2026-08-06
 
 ### Added — Dreame floorplan integration (Boomy)

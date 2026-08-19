@@ -27,7 +27,9 @@ async def execute(
 
     source: yahboom | dreame | auto (try yahboom then dreame).
     """
-    correlation_id = getattr(ctx, "correlation_id", None) if ctx else "manual-execution"
+    from ..state import ctx_request_id
+
+    correlation_id = ctx_request_id(ctx)
     logger.info(
         "LIDAR operation: %s source=%s",
         operation,
@@ -61,7 +63,7 @@ async def _read_scan(correlation_id: str, source: str) -> dict:
 
     bridge = _state.get("bridge")
     yahboom_ok = bridge and bridge.connected
-    scan = (await bridge.get_sensor_data("scan")) if yahboom_ok else {}
+    scan = (await bridge.get_sensor_data("scan")) if bridge and yahboom_ok else {}
 
     if source == "dreame":
         return await _read_dreame_map(correlation_id, None, None)

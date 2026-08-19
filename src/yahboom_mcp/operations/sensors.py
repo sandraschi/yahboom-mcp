@@ -23,10 +23,10 @@ async def execute(
       read_lidar    → /scan       (nearest obstacle per sector)
       read_all      → full telemetry snapshot from all sensors
     """
-    correlation_id = ctx.correlation_id if ctx else "manual-execution"
-    logger.info(f"Sensors: {operation}", extra={"correlation_id": correlation_id})
+    from ..state import _state, ctx_request_id
 
-    from ..state import _state
+    correlation_id = ctx_request_id(ctx)
+    logger.info(f"Sensors: {operation}", extra={"correlation_id": correlation_id})
 
     bridge = _state.get("bridge")
 

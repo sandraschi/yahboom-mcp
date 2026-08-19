@@ -143,7 +143,7 @@ _SOUNDS = {
 
 
 def _get_ssh():
-    from .state import _state
+    from ..state import _state
 
     ssh = _state.get("ssh")
     if ssh and ssh.connected:

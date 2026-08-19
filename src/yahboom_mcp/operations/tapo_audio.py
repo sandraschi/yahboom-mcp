@@ -29,7 +29,7 @@ logger = logging.getLogger("yahboom-mcp.operations.tapo_audio")
 _tapo = None
 
 
-async def _get_tapo():
+async def _get_tapo() -> Any:
     global _tapo
     if _tapo is None:
         try:

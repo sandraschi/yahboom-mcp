@@ -19,18 +19,17 @@ async def execute(
     Provides real-time system health, hardware configuration, and stack inspection.
     Includes SSH fallback for low-level kernel diagnostics and command execution.
     """
-    correlation_id = ctx.correlation_id if ctx else "manual-execution"
-    logger.info(f"Diagnostics: {operation}", extra={"correlation_id": correlation_id})
+    from ..state import _state, ctx_request_id
 
-    # Use bridge and ssh from global state
-    from ..state import _state
+    correlation_id = ctx_request_id(ctx)
+    logger.info(f"Diagnostics: {operation}", extra={"correlation_id": correlation_id})
 
     bridge = _state.get("bridge")
     ssh = _state.get("ssh")
     bridge_connected = bridge.connected if bridge else False
 
     if operation == "health_check":
-        battery_data = await bridge.get_sensor_data("battery") if bridge_connected else {}
+        battery_data = await bridge.get_sensor_data("battery") if bridge and bridge_connected else {}
 
         return {
             "success": True,

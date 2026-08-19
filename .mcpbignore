@@ -57,6 +57,20 @@ CLAUDE.md
 HANDOVER.md
 INSTALL.md
 STATUS.md
+docs/
+reports/
+BUILD_LOG.md
+
+# Session-context injection + IDE rules (dev-facing, not runtime)
+.claude-plugin/
+.cursorrules
+.windsurfrules
+.agents/
+.opencode/
+.github/
+.github/copilot-instructions.md
+renovate.json
+fleet-start.config.ps1
 
 # Temp and cache
 tmp/

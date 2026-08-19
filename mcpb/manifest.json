@@ -30,20 +30,25 @@
     { "name": "audio", "description": "Play/store/manage audio files through USB voice module speaker: play MP3/WAV, built-in sound effects, store/play_stored/list_stored/delete_stored/stop." }
   ],
   "prompts": [
-    { "name": "yahboom_quick_start", "description": "Step-by-step instructions to connect and run the Yahboom Raspbot v2." },
-    { "name": "yahboom_patrol", "description": "Generate a patrol plan (square or figure-8) for a given duration." },
-    { "name": "yahboom_diagnostics", "description": "Diagnostic checklist for the Yahboom robot and MCP server." },
-    { "name": "yahboom_patrol_apartment", "description": "Standard action: patrol the apartment (full circuit, avoid obstacles)." },
-    { "name": "yahboom_go_to_recharge", "description": "Standard action: drive to charging station and stop." }
-  ],
-  "skills": [
-    { "name": "yahboom_quick_pilot", "description": "Quick pilot skill for immediate robot control." },
-    { "name": "yahboom_patrol_sweep", "description": "Patrol sweep skill for autonomous area coverage." },
-    { "name": "yahboom_emergency_halt", "description": "Emergency halt skill for immediate robot stop." },
-    { "name": "yahboom_diagnostic_triage", "description": "Diagnostic triage skill for robot health checks." }
-  ],
-  "resources": {
-    "streaming": ["/stream (MJPEG video)", "/api/v1/logs/stream (SSE logs)"],
-    "rest": ["GET /api/v1/health", "GET /api/v1/telemetry", "GET /api/v1/slam/map", "POST /api/v1/control/move"]
-  }
+    {
+      "name": "yahboom_quick_start",
+      "text": "Step-by-step connection instructions. 1. Ensure robot powered and on same LAN with rosbridge running. 2. Set YAHBOOM_IP and start server: uv run python -m yahboom_mcp.server --mode dual --port 10892. 3. Open dashboard at http://localhost:10893. 4. Use yahboom_tool(operation='health_check') first, then motion operations. 5. For high-level goals use yahboom_agentic_workflow."
+    },
+    {
+      "name": "yahboom_patrol",
+      "text": "Generate a patrol plan for the Yahboom robot. Use yahboom_agentic_workflow with a goal like 'Patrol in a square: move forward 2 seconds, turn left 90 degrees, repeat 4 times, then stop and report battery.' Always check health first."
+    },
+    {
+      "name": "yahboom_diagnostics",
+      "text": "Run diagnostics: 1. Call yahboom_tool(operation='health_check') for ROS bridge and battery. 2. If connected, call read_imu and read_battery. 3. Check dashboard at http://localhost:10893. 4. If disconnected, verify YAHBOOM_IP and rosbridge_server."
+    },
+    {
+      "name": "yahboom_patrol_apartment",
+      "text": "Execute apartment patrol: 1. Call health_check, ensure battery > 20%. 2. Use agentic workflow: 'Patrol the apartment: do a full circuit of main rooms, move forward along walls, turn at corners, avoid obstacles using LIDAR.' 3. Return to start and stop."
+    },
+    {
+      "name": "yahboom_go_to_recharge",
+      "text": "Send robot to charging station. 1. health_check — if battery < 15% prioritise short path. 2. Use agentic workflow: 'Go to recharge: drive to charging station and stop, aligned with dock.' 3. If dock position known use forward/turn sequence."
+    }
+  ]
 }

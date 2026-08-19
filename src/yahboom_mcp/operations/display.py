@@ -120,10 +120,10 @@ async def execute(
     Driver auto-detected from I2C probe (ssd1306 default).
     Override with payload={"driver": "sh1106", "address": "0x3d"}.
     """
-    correlation_id = ctx.correlation_id if ctx else "manual-execution"
-    logger.info(f"Display: {operation}", extra={"correlation_id": correlation_id})
+    from ..state import _state, ctx_request_id
 
-    from ..state import _state
+    correlation_id = ctx_request_id(ctx)
+    logger.info(f"Display: {operation}", extra={"correlation_id": correlation_id})
 
     ssh = _state.get("ssh")
 

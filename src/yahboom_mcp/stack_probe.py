@@ -15,8 +15,9 @@ import os
 import re
 import shlex
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger("yahboom-mcp.stack-probe")
 
@@ -68,7 +69,7 @@ async def _tcp_port_open(host: str, port: int, timeout: float = 1.2) -> dict[str
         try:
             close_m = getattr(reader, "aclose", None)
             if callable(close_m):
-                await close_m()
+                await cast(Callable[[], Any], close_m)()
         except Exception:
             pass
         return {"ok": True, "error": None}

@@ -42,13 +42,13 @@ class ESP32Bridge:
         }
         self.ros = None  # No ROS; video_bridge checks this
 
-    async def connect(self) -> bool:
+    async def connect(self, timeout: float = 15.0) -> bool:
         """Connect to ESP32 TCP server."""
         try:
             logger.info("Connecting to ESP32 bridge at %s:%s...", self.host, self.port)
             self._reader, self._writer = await asyncio.wait_for(
                 asyncio.open_connection(self.host, self.port),
-                timeout=10.0,
+                timeout=timeout,
             )
             self.connected = True
             self._read_task = asyncio.create_task(self._read_loop())
@@ -62,6 +62,9 @@ class ESP32Bridge:
             logger.error("ESP32 connection failed: %s", e)
             self.connected = False
             return False
+
+    async def monitor_connection(self, interval: float = 10.0, on_reconnect=None) -> None:
+        """Compatibility no-op watchdog: the ESP32 bridge reconnects on demand."""
 
     async def _read_loop(self) -> None:
         """Background task: read lines and update state."""

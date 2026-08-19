@@ -15,14 +15,16 @@ import logging
 import os
 import sys
 import time
+from collections.abc import Callable
 from contextlib import asynccontextmanager
+from typing import Any, cast
 
 import httpx
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
 from pydantic import BaseModel
 
 from . import fail_response
@@ -122,7 +124,8 @@ async def lifespan(fastapi_app: FastAPI):
     async def resync_all_components():
         nonlocal video_bridge
         logger.info("Synchronizing peripherals and video stream...")
-        if getattr(bridge, "ros", None) and bridge.ros.is_connected:
+        ros = getattr(bridge, "ros", None)
+        if ros and ros.is_connected:
             if video_bridge:
                 video_bridge.stop()
             if getattr(bridge, "skip_video_bridge", False):
@@ -159,7 +162,8 @@ async def lifespan(fastapi_app: FastAPI):
         connected = await bridge.connect(timeout=15.0)
 
         # 3. Initial video bridge activation if ROS is up
-        if connected and getattr(bridge, "ros", None) and bridge.ros.is_connected:
+        ros = getattr(bridge, "ros", None)
+        if connected and ros and ros.is_connected:
             if getattr(bridge, "skip_video_bridge", False):
                 logger.info("Mock bridge: VideoBridge skipped (CI / no roslibpy)")
             else:
@@ -234,16 +238,20 @@ _bridge_proxies: list[dict[str, str]] = []
 bridge_urls = os.getenv("MCP_BRIDGE_URLS", "")
 if bridge_urls:
     try:
-        from fastmcp.server.providers.base import Provider as ProxyProvider
+        from fastmcp.server.providers import Provider
     except ImportError:
-        logger.warning("MCP_BRIDGE_URLS set but ProxyProvider not available in this FastMCP version")
+        logger.warning("MCP_BRIDGE_URLS set but Provider not available in this FastMCP version")
     else:
         for url in bridge_urls.split(","):
             url = url.strip()
             if url:
                 try:
-                    provider = ProxyProvider()
-                    provider.add_transform(lambda _, u=url: {"url": u})
+                    provider = Provider()
+
+                    def _url_transform(_tool: Any, u: str = url) -> dict[str, str]:
+                        return {"url": u}
+
+                    provider.add_transform(_url_transform)  # type: ignore[arg-type]
                     mcp.add_provider(provider)
                     _bridge_proxies.append({"url": url, "status": "active"})
                     logger.info("MCP bridge proxy mounted: %s", url)
@@ -481,7 +489,7 @@ async def yahboom_demo(
 
 
 @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False}, version="2.4.0")
-async def yahboom_agentic_workflow(goal: str) -> str:
+async def yahboom_agentic_workflow(goal: str, ctx: Context) -> str:
     """
     Achieve a high-level robot goal by planning and executing a sequence of operations (SEP-1577).
     Uses sampling to let the LLM call get_robot_health, move_robot, and read_sensors as sub-tools.
@@ -495,7 +503,7 @@ async def yahboom_agentic_workflow(goal: str) -> str:
     """
     from .agentic import yahboom_agentic_workflow as workflow_exec
 
-    return await workflow_exec(goal)
+    return await workflow_exec(goal, ctx)
 
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True}, version="2.4.0")
@@ -586,7 +594,7 @@ async def ros_restart_bringup() -> str:
     # Give it time to initialize hardware before trying to connect bridge
     await asyncio.sleep(5)
 
-    bridge: ROS2Bridge = _state.get("bridge")
+    bridge = _state.get("bridge")
     if bridge:
         await bridge.resync_metadata()
 
@@ -1220,9 +1228,9 @@ async def telemetry():
     """
     bridge = _state.get("bridge")
     ros_live = bridge and bridge.ros and bridge.ros.is_connected
-    if ros_live and not bridge.connected:
+    if ros_live and bridge and not bridge.connected:
         bridge.connected = True  # sync stale flag
-    if ros_live:
+    if ros_live and bridge:
         data = bridge.get_full_telemetry()
         data["status"] = "live"
         data["source"] = "live"
@@ -1588,7 +1596,8 @@ async def control_buzzer(req: SoundRequest):
     bridge = _state.get("bridge")
     if not bridge:
         raise HTTPException(status_code=503, detail="Bridge not initialized")
-    ok = await getattr(bridge, "publish_beep", lambda _: False)(req.duration)
+    publish_beep = getattr(bridge, "publish_beep", None)
+    ok = await cast(Callable[[float], Any], publish_beep)(req.duration) if callable(publish_beep) else False
     return {"success": ok, "duration": req.duration}
 
 
@@ -1980,7 +1989,7 @@ async def _run_agent_mission(req: AgentMissionRequest) -> dict:
         pub = getattr(bridge, "publish_mission_json", None)
         if pub and callable(pub):
             try:
-                published = await pub(plan)
+                published = await cast(Callable[[Any], Any], pub)(plan)
             except Exception as e:
                 publish_error = str(e)
                 logger.warning("publish_mission_json failed: %s", e)
@@ -2357,8 +2366,9 @@ def main():
         # In HTTP or Dual mode, we run the FastAPI app via uvicorn
         logger.info("Unified Gateway Routes:")
         for route in app.routes:
-            if hasattr(route, "path"):
-                logger.info(f"  {route.path} -> {route.name}")
+            path = getattr(route, "path", None)
+            if path:
+                logger.info(f"  {path} -> {getattr(route, 'name', '')}")
 
         logger.info(f"Starting Unified Gateway on {args.host}:{args.port}")
         uvicorn.run(app, host=args.host, port=args.port, log_level="info")

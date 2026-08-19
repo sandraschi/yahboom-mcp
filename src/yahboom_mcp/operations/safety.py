@@ -19,10 +19,10 @@ async def execute(
     Execute global safety operations.
     Operation: stop_all -> Stops motion, missions, sequencers, and recordings.
     """
-    correlation_id = ctx.correlation_id if ctx else "manual-execution"
-    logger.info(f"Safety: {operation}", extra={"correlation_id": correlation_id})
+    from ..state import _state, ctx_request_id
 
-    from ..state import _state
+    correlation_id = ctx_request_id(ctx)
+    logger.info(f"Safety: {operation}", extra={"correlation_id": correlation_id})
 
     bridge = _state.get("bridge")
     sequencer = _state.get("sequencer")
