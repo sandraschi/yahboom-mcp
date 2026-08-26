@@ -48,6 +48,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     stream=sys.stderr,
 )
+logging.getLogger("twisted").setLevel(logging.WARNING)
 
 
 class EndpointFilter(logging.Filter):
@@ -2364,6 +2365,11 @@ def main():
     parser.add_argument("--debug", action="store_true")
 
     args = parser.parse_args()
+
+    if os.getenv("YAHBOOM_TAURI") == "1":
+        args.mode = "http"
+        args.port = int(os.getenv("YAHBOOM_MCP_PORT", args.port))
+        args.host = os.getenv("YAHBOOM_MCP_HOST", args.host)
 
     if args.robot_ip:
         os.environ["YAHBOOM_IP"] = args.robot_ip
