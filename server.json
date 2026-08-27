@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.sandraschi/yahboom-mcp",
+  "description": "SOTA 2026 Yahboom Raspbot v2 ROS 2 MCP Server",
+  "version": "2.5.0b1",
+  "repository": {
+    "url": "https://github.com/sandraschi/yahboom-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/sandraschi/yahboom-mcp/releases/download/v2.5.0b1/yahboom-mcp-v2.5.0b1.mcpb",
+      "fileSha256": "0d911548d938d8d0fb18470c9445b0220e4581c9c87b5c263f4e949f7766afb9",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
