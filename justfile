@@ -70,17 +70,11 @@ shell:
 
 # Execute comprehensive linting (Ruff + TypeScript + Biome)
 lint:
-    uv run ruff check .
-    Set-Location '{{justfile_directory()}}\webapp'
-    npx tsc --noEmit
-    npx @biomejs/biome ci .
+    uv run ruff check .; Set-Location '{{justfile_directory()}}\webapp'; npx tsc --noEmit; npx @biomejs/biome ci .
 
 # Execute auto-fixes and formatting
 fix:
-    uv run ruff check . --fix --unsafe-fixes
-    uv run ruff format .
-    Set-Location '{{justfile_directory()}}\webapp'
-    npx @biomejs/biome check --write .
+    uv run ruff check . --fix --unsafe-fixes; uv run ruff format .; Set-Location '{{justfile_directory()}}\webapp'; npx @biomejs/biome check --write .
 
 # Fast quality check (lint + unit tests)
 check: lint test-unit
