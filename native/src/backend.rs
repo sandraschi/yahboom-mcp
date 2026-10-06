@@ -14,7 +14,10 @@ use tauri::{AppHandle, Emitter, Manager};
 pub struct BackendProcess(pub Mutex<Option<Child>>);
 
 const BACKEND_NAME: &str = "yahboom-mcp-backend.exe";
-const BACKEND_PORT: u16 = 10892;
+// Operator backend port (claimed as yahboom-mcp-native). Never the dev backend port 10892:
+// the installed app and `start.ps1` must run side by side. Keep in sync with native/build.ps1
+// (VITE_API_BASE).
+const BACKEND_PORT: u16 = 11246;
 
 fn dev_backend_path() -> Option<PathBuf> {
     if !cfg!(debug_assertions) {
@@ -97,7 +100,10 @@ pub fn materialize_backend(app: &AppHandle) -> Result<PathBuf, String> {
         app,
         &format!("using bundled backend: {}", bundled.display()),
     );
-    Ok(bundled)
+    // Strip Windows extended-length prefix
+    let s = bundled.to_string_lossy().to_string();
+    let clean = s.strip_prefix("\\\\?\\").map(PathBuf::from).unwrap_or(bundled.clone());
+    Ok(clean)
 }
 
 fn free_port(port: u16) {
