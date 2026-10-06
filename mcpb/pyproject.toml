@@ -5,7 +5,7 @@ description = "SOTA 2026 Yahboom Raspbot v2 ROS 2 MCP Server"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastmcp==3.2.0",
+    "fastmcp>=3.4.4,<4",
     "httpx>=0.27.0",
     "pydantic>=2.0.0",
     "pyyaml>=6.0",
@@ -31,8 +31,10 @@ dev = [
     "pytest-cov>=5.0.0",
     "pytest-timeout>=2.3.0",
     "httpx[asyncio]>=0.27.0",   # ASGI test client for snapshot endpoint tests
-    "anyio>=4.0.0",              # required by httpx ASGI transport
-    "ruff>=0.9.0",
+    "anyio>=4.0.0",             # required by httpx ASGI transport
+    "ruff>=0.16.0,<0.17",
+    "pre-commit>=4.6.1",
+    "pyright>=1.1.390",
 ]
 # Same packages the MCP installs on the Pi over SSH for voice + OLED; optional locally for smoke tests.
 robot-pi = [
@@ -77,20 +79,38 @@ branch = true
 source = ["yahboom_mcp"]
 omit = ["*/testing/*", "*/tests/*"]
 
+[tool.coverage.report]
+# Fleet TESTING_GUIDE threshold. 30% reflects hardware-gated modules
+# (missions/tapo/voice need the robot); raise as coverage grows.
+fail_under = 30
+show_missing = true
+exclude_lines = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "except ImportError:",
+    "pragma: no cover",
+]
+
 [tool.ruff]
 line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "S", "UP", "RUF"]
+select = ["E", "F", "W", "I", "B", "S", "UP", "RUF", "T20"]
 # S110: intentional bare except+pass in disconnect/teardown paths.
 # S311: random used for LED/visual effects, not cryptography.
-# RUF001–RUF003: typographic punctuation in operator-facing strings/comments.
-ignore = ["S101", "B008", "S108", "S110", "S311", "RUF001", "RUF002", "RUF003"]
+# RUF001-RUF003: typographic punctuation in operator-facing strings/comments.
+# T20 (print-call) enforced from 2026-08-19; src prints are inside remote
+# Pi SSH script templates (string content), not host runtime - verified clean.
+ignore = ["S101", "B008", "S108", "S110", "S311", "RUF001", "RUF002", "RUF003", "S106", "S112", "RUF012", "S603", "S607", "S324", "E402"]
 
 # Legacy: allow >120 columns in application code until wrapped incrementally.
 [tool.ruff.lint.per-file-ignores]
 "src/**/*.py" = ["E501"]
+"ros2/**" = ["E501", "UP031", "S603", "S607", "S110", "S112", "S324", "RUF001", "RUF002", "RUF003"]
+"scripts/**" = ["T20", "S101", "S104", "S105", "S310", "S311", "S507", "S602", "E722", "E741", "F841", "B007", "E501", "UP031", "RUF059", "RUF001", "RUF002", "RUF003"]
+"scratch/**" = ["T20", "S101", "S105", "S310", "S311", "S507", "E722", "E741", "E501", "UP031", "RUF059", "RUF001", "RUF002", "RUF003"]
+"/*.py" = ["T20", "S101", "S104", "S105", "S310", "S311", "S507", "E722", "E741", "E701", "E501", "UP031", "F811", "RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -101,4 +121,7 @@ dev = [
     "pytest>=8.4.2",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.1.0",
+    "pyright>=1.1.390",
+    "pyinstaller>=6.22.2",
+    "pywin32>=311",
 ]
