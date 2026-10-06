@@ -12,6 +12,7 @@ import numpy as np
 import roslibpy
 
 logger = logging.getLogger("yahboom-mcp.core.ros2_bridge")
+logging.getLogger("twisted").setLevel(logging.WARNING)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -300,6 +301,7 @@ class ROS2Bridge:
         if ros is None:
             return
         try:
+            ros.is_connecting = False
             factory = getattr(ros, "factory", None)
             stop = getattr(factory, "stopTrying", None) if factory is not None else None
             if callable(stop):
@@ -866,6 +868,7 @@ class ROS2Bridge:
         if self.ros:
             logger.info("Closing ROSBridge connection...")
             try:
+                self.ros.is_connecting = False
                 factory = getattr(self.ros, "factory", None)
                 stop = getattr(factory, "stopTrying", None) if factory is not None else None
                 if callable(stop):
