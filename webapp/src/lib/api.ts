@@ -3,7 +3,11 @@
  * Backend: http://localhost:10892 (start.ps1).
  */
 
-const API_BASE = "";
+/**
+ * Backend origin. "" in dev (the Vite proxy makes same-origin correct). Installer builds set
+ * VITE_API_BASE to the operator backend (see native/build.ps1): the Tauri webview has no proxy.
+ */
+export const API_BASE: string = import.meta.env.VITE_API_BASE ?? "";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;

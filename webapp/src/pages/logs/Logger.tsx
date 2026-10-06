@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { type Health, api } from "../../lib/api";
+import { API_BASE, type Health, api } from "../../lib/api";
 
 const MAX_LINES = 2000;
 
@@ -46,7 +46,7 @@ export default function Logger() {
     setSseState("connecting");
     const connect = () => {
       es?.close();
-      es = new EventSource("/api/v1/logs/stream");
+      es = new EventSource(`${API_BASE}/api/v1/logs/stream`);
       es.onopen = () => setSseState("open");
       es.onmessage = (ev) => {
         const text = typeof ev.data === "string" ? ev.data : String(ev.data);
