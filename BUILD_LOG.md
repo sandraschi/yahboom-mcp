@@ -20,3 +20,9 @@
 
 ### Open issues
 - None — all fleet gaps closed.
+
+## Build Failure - 2026-08-26 15:30:13
+
+### Smoke FAILED
+Port: 10892
+timeout: port 10892 never opened after 30s

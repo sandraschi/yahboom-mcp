@@ -76,6 +76,20 @@ This project clearly distinguishes between human-operable controls and machine-o
 
 ---
 
+## Fleet Crossconnects (Companions)
+
+`yahboom-mcp` works completely standalone. You can optionally connect it with companion servers in the `sandraschi` fleet to unlock extended features:
+
+| Companion Server | Feature Unlocked | Status | Setup |
+|---|---|---|---|
+| [`speech-mcp`](https://github.com/sandraschi/speech-mcp) | spoken-feedback, voice-synthesis | Optional | [Install Guide](https://github.com/sandraschi/speech-mcp#quick-install) |
+| [`reaper-mcp`](https://github.com/sandraschi/reaper-mcp) | audio-playback, soundboard-fx | Optional | [Install Guide](https://github.com/sandraschi/reaper-mcp#quick-install) |
+| [`virtualdj-mcp`](https://github.com/sandraschi/virtualdj-mcp) | deck-control, music-playback | Optional | [Install Guide](https://github.com/sandraschi/virtualdj-mcp#quick-install) |
+
+> **Self-Contained Companions**: Fleet companions operate independently. Installing companions does not trigger transitive dependency chains.
+
+---
+
 ## 📂 Documentation Pillars
 
 | Pillar | Focus | Key Topics |
