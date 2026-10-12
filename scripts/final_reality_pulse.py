@@ -1,7 +1,6 @@
 import asyncio
 import base64
 import os
-import time
 
 from yahboom_mcp.core.ros2_bridge import ROS2Bridge
 from yahboom_mcp.core.ssh_bridge import SSHBridge
@@ -29,11 +28,11 @@ async def final_reality_pulse():
     ssh.execute(
         "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && ros2 topic pub --once /RGBLight std_msgs/msg/Int32 {data: 1}'"
     )
-    time.sleep(1)
+    await asyncio.sleep(1)
     ssh.execute(
         "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && ros2 topic pub --once /RGBLight std_msgs/msg/Int32 {data: 2}'"
     )
-    time.sleep(1)
+    await asyncio.sleep(1)
     ssh.execute(
         "docker exec yahboom_ros2 bash -c 'source /opt/ros/humble/setup.bash && ros2 topic pub --once /RGBLight std_msgs/msg/Int32 {data: 3}'"
     )
