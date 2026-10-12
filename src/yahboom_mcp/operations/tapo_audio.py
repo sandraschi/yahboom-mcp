@@ -129,7 +129,8 @@ async def speak(text: str, volume: int = 80) -> dict[str, Any]:
 
         # Convert MP3 to 8kHz μ-law using ffmpeg
         mulaw_path = audio_path + ".ulaw"
-        subprocess.run(
+        await asyncio.to_thread(
+            subprocess.run,
             [
                 "ffmpeg",
                 "-y",
