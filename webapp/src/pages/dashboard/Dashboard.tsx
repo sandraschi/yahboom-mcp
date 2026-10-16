@@ -407,6 +407,17 @@ export default function Dashboard() {
               <p className="text-[10px] text-amber-200/85 max-w-3xl leading-relaxed">{rc.hint}</p>
             )}
 
+            {/* First-time hardware bring-up cue (ONBOARDING_STANDARD under-hero CTA) */}
+            {!connected && (
+              <Link
+                to="/onboarding"
+                data-testid="onboarding-cue"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/40 text-xs font-bold text-red-200 hover:bg-red-500/30 transition-colors w-fit"
+              >
+                New robot? Start hardware bring-up
+              </Link>
+            )}
+
             {health?.stack && (
               <div className="max-w-4xl">
                 <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wide mb-2">

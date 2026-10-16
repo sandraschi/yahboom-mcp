@@ -1,4 +1,29 @@
 
+## [Unreleased] — 2026-10-16 (assfix)
+
+### Fixed
+- **MCPB manifests**: `${PWD}` → `${__dirname}` in `manifest.json` and
+  `mcpb/manifest.json` (Claude Desktop does not expand `${PWD}`; bundles failed
+  on real installs). Same fix in `mcpb/README.md` example config.
+- **Ruff S110/S112**: removed from `pyproject.toml` ignore (footgun rule); all
+  21 silent `except: pass` sites in disconnect/teardown/probe paths now log at
+  debug with traceback (`core/`, `operations/tapo_audio.py`, `stack_probe.py`,
+  `server.py`).
+- **justfile `build-native`**: joined into one `;`-separated line (just runs each
+  recipe line as a separate shell — the lone `Set-Location` never applied).
+  Also deduped `-NoProfile` in `e2e`, added `fmt` alias.
+- **`.mcpbignore`**: now excludes `webapp/`, `data/`, `*.bak`, `*.bak.*`.
+
+### Added
+- **`_error_response()`** shared helper (`yahboom_mcp/__init__.py`, §7.1
+  Pattern 3): `logger.exception` auto-log + dialogic return; wired into the
+  `yahboom_tool` dispatcher and `yahboom_agent_mission`.
+- **`scripts/mcpb-pack.ps1`** fleet shim → `mcp-central-docs` canonical pack.
+- **Onboarding cue**: under-hero "Start hardware bring-up" link
+  (`data-testid="onboarding-cue"`) on Dashboard when robot is not connected.
+- Assess report: `reports/assess-2026-10-16.md` +
+  `docs/assess-reports/2026-10-16.md` (self-assessed rescore 67/100, unverified).
+
 ## [Unreleased] — 2026-08-19
 
 ### Added

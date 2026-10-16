@@ -76,6 +76,9 @@ lint:
 fix:
     uv run ruff check . --fix --unsafe-fixes; uv run ruff format .; Set-Location '{{justfile_directory()}}\webapp'; npx @biomejs/biome check --write .
 
+# Format alias (fleet gate name)
+fmt: fix
+
 # Fast quality check (lint + unit tests)
 check: lint test-unit
 
@@ -86,7 +89,7 @@ test:
     uv run pytest
 
 e2e:
-    powershell.exe -NoProfile -NoProfile -ExecutionPolicy Bypass -File "D:\Dev\repos\mcp-central-docs\scripts\playwright-audit.ps1" -RepoPath "{{justfile_directory()}}"
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Dev\repos\mcp-central-docs\scripts\playwright-audit.ps1" -RepoPath "{{justfile_directory()}}"
 
 # Run fast unit tests (no hardware simulation)
 test-unit:
@@ -166,12 +169,9 @@ build-sidecar:
     Set-Location '{{justfile_directory()}}'; powershell.exe -NoProfile -File native\build-sidecar.ps1
 
 # Build the Tauri NSIS desktop installer (full pipeline: frontend -> sidecar -> Rust -> NSIS)
+# NOTE: just runs each recipe line as a separate powershell.exe, so Set-Location on
+# its own line would not carry over — invoke by absolute path instead (TRAPS #37).
 build-native: build-sidecar
-    $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
-    $vcvars = "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-    $envOutput = cmd /c "`"$vcvars`" > nul & set" | Where-Object { $_ -match '^(INCLUDE|LIB|LIBPATH|VCToolsVersion|WindowsSdkDir|UniversalCRTSdkDir|UCRTVersion)=' }
-    foreach ($line in $envOutput) { $parts = $line.Split('=', 2); Set-Item -Path "env:$($parts[0])" -Value $parts[1] -ErrorAction SilentlyContinue }
-    Set-Location '{{justfile_directory()}}\native'
-    npx @tauri-apps/cli build --bundles nsis
+    $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"; $vcvars = "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"; $envOutput = cmd /c "`"$vcvars`" > nul & set" | Where-Object { $_ -match '^(INCLUDE|LIB|LIBPATH|VCToolsVersion|WindowsSdkDir|UniversalCRTSdkDir|UCRTVersion)=' }; foreach ($line in $envOutput) { $parts = $line.Split('=', 2); Set-Item -Path "env:$($parts[0])" -Value $parts[1] -ErrorAction SilentlyContinue }; Set-Location '{{justfile_directory()}}\native'; npx @tauri-apps/cli build --bundles nsis
 
 # Bootstrap: install dev deps + pre-commit hook

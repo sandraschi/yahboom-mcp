@@ -2,7 +2,7 @@
 
 **Current SOTA:** v2.5.0b1
 **Operational Status:** Production — Autonomous Missions Capable
-**Last Updated:** 2026-08-19
+**Last Updated:** 2026-10-16 (assfix: manifests fixed, S110/S112 enforced, all gates green)
 
 ## Connectivity & Infrastructure
 
