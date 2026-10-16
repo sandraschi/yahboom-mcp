@@ -4,11 +4,22 @@
   "operator_exe": "yahboom-mcp-operator.exe",
   "backend_process_names": ["yahboom-mcp-operator", "yahboom-mcp-backend"],
   "backend_port": 10892,
-  "health_path": "/health",
+  "health_path": "/api/v1/health",
   "diagnostics_path": "/api/v1/diagnostics",
-  "feature_smoke_path": "/api/v1/status",
+  "feature_smoke_path": "/api/capabilities",
   "window_title_re": "Yahboom MCP",
   "nsis_glob": "native/target/release/bundle/nsis/Yahboom MCP_*_x64-setup.exe",
   "bridge_ok_text": "API reachable",
-  "uninstall_registry_filter": "*Yahboom MCP*"
+  "uninstall_registry_filter": "*Yahboom MCP*",
+  "nav_routes": [
+    ["Dashboard", "Robot"],
+    ["Status", "Status"],
+    ["AI Companion", "Companion"],
+    ["Missions", "Missions"],
+    ["Diagnostic Hub", "Diagnos"],
+    ["Server logs", "logs"],
+    ["MCP Tools", "Tool"],
+    ["Settings", "Settings"],
+    ["Help", "Help"]
+  ]
 }

@@ -36,8 +36,8 @@ async def _get_tapo() -> Any:
             from pytapo import Tapo
 
             _tapo = Tapo(_TP_URL, _TP_USER, _TP_PASS)
-        except Exception as e:
-            logger.error("Tapo auth failed: %s", e)
+        except Exception:
+            logger.exception("Tapo auth failed")
             raise
     return _tapo
 
@@ -97,8 +97,8 @@ async def _stream_audio_to_tapo(mulaw_bytes: bytes):
 
         writer.close()
         return True
-    except Exception as e:
-        logger.error("Tapo audio stream failed: %s", e)
+    except Exception:
+        logger.exception("Tapo audio stream failed")
         return False
 
 
@@ -164,7 +164,7 @@ async def speak(text: str, volume: int = 80) -> dict[str, Any]:
         ok = await _stream_audio_to_tapo(mulaw)
         return {"success": ok, "message": f"Spoke through Tapo: {text[:60]}..."}
     except Exception as e:
-        logger.error("Tapo speak error: %s", e)
+        logger.exception("Tapo speak error")
         return fail_response(str(e))
 
 

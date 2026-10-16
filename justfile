@@ -19,11 +19,12 @@ default:
 
 # --- Lifecycle ---
 
-# Synchronize all dependencies and dev extras + pre-commit + webapp
+# Synchronize all dependencies and dev extras + pre-commit + webapp (bun is the
+# fleet package manager; $env:USERPROFILE path because bun lives off-PATH)
 bootstrap:
     uv sync --extra dev
     uv run pre-commit install
-    Set-Location webapp; npm ci; if ($LASTEXITCODE -ne 0) { npm install }
+    Set-Location webapp; & "$env:USERPROFILE\.bun\bin\bun.exe" install --frozen-lockfile
     Write-Host "Pre-commit hooks installed." -ForegroundColor Green
 
 # Workspace sanitization (clean caches and build artifacts)
@@ -81,6 +82,10 @@ fmt: fix
 
 # Fast quality check (lint + unit tests)
 check: lint test-unit
+
+# Full certification gate (lint + types + tests + webapp)
+certify:
+    uv run ruff check .; uv run ruff format --check .; uv run pyright src/; uv run pytest tests/ -q --tb=short --no-cov; Set-Location '{{justfile_directory()}}\webapp'; npx tsc --noEmit; npx @biomejs/biome ci .
 
 # --- Testing ---
 
