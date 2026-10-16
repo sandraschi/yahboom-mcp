@@ -1,3 +1,8 @@
+---
+name: session-start
+description: Yahboom MCP session context - robot health check and tool awareness on session start.
+---
+
 # session-start
 
 ## Session Context (Yahboom MCP)
