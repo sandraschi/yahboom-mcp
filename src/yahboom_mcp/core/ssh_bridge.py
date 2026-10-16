@@ -57,13 +57,13 @@ class SSHBridge:
             logger.info(f"SSH successfully connected to {self.host}")
             return True
         except paramiko.AuthenticationException:
-            logger.error(f"SSH Authentication failed for {self.user}@{self.host}. Check YAHBOOM_PASSWORD.")
+            logger.exception(f"SSH Authentication failed for {self.user}@{self.host}. Check YAHBOOM_PASSWORD.")
             return False
         except TimeoutError:
-            logger.error(f"SSH Connection timed out to {self.host}. Is the robot powered on?")
+            logger.exception(f"SSH Connection timed out to {self.host}. Is the robot powered on?")
             return False
-        except Exception as e:
-            logger.error(f"SSH Critical failure connecting to {self.host}: {e}")
+        except Exception:
+            logger.exception(f"SSH Critical failure connecting to {self.host}")
             return False
 
     async def execute(self, command: str) -> tuple[str, str, int]:

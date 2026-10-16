@@ -30,8 +30,8 @@ async def _publish_both(ros_bridge, pan: int, tilt: int, ssh_bridge=None) -> boo
             topic.publish(roslibpy.Message({"servo_s1": pan, "servo_s2": tilt}))
             logger.info("Servo direct publish: pan=%d tilt=%d", pan, tilt)
             return True
-        except Exception as e:
-            logger.error("Direct servo publish failed: %s", e)
+        except Exception:
+            logger.exception("Direct servo publish failed")
 
     # SSH I2C fallback
     ok = await _ssh_servo_fallback(ssh_bridge, pan, tilt)

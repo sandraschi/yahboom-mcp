@@ -201,8 +201,8 @@ class VideoBridge:
                         f"Encoding: {message.get('encoding')}"
                     )
 
-        except Exception as e:
-            logger.error(f"VideoBridge: error decoding image frame: {e}")
+        except Exception:
+            logger.exception("VideoBridge: error decoding image frame")
 
     def get_latest_frame_jpeg(self) -> bytes | None:
         """Return the latest frame encoded as JPEG bytes."""

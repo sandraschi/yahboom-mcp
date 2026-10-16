@@ -55,11 +55,11 @@ class ESP32Bridge:
             logger.info("ESP32 bridge connected")
             return True
         except TimeoutError:
-            logger.error("ESP32 connection timeout to %s:%s", self.host, self.port)
+            logger.exception("ESP32 connection timeout to %s:%s", self.host, self.port)
             self.connected = False
             return False
-        except OSError as e:
-            logger.error("ESP32 connection failed: %s", e)
+        except OSError:
+            logger.exception("ESP32 connection failed")
             self.connected = False
             return False
 

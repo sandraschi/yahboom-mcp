@@ -364,8 +364,8 @@ class ROS2Bridge:
                 try:
                     await self._setup_topics()
                     logger.info("Telemetry topics successfully registered.")
-                except Exception as e:
-                    logger.error("Partial telemetry failure: %s", e)
+                except Exception:
+                    logger.exception("Partial telemetry failure")
 
                 # Do not call on_reconnect_callback here: it is async and callers
                 # (watchdog, /api/v1/reconnect) run resync/video after connect().
@@ -379,8 +379,8 @@ class ROS2Bridge:
             self._dispose_failed_ros_client()
             self.host = original_host
             return False
-        except Exception as e:
-            logger.error("Critical failure during bridge initialization at %s: %s", current_host, e)
+        except Exception:
+            logger.exception("Critical failure during bridge initialization at %s", current_host)
             self._dispose_failed_ros_client()
             self.host = original_host
             return False
