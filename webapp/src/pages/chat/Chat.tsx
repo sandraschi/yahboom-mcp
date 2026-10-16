@@ -15,7 +15,7 @@ import {
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { type ChatMessage, api } from "../../lib/api";
+import { API_BASE, type ChatMessage, api } from "../../lib/api";
 
 const LS_HISTORY = "yahboom-chat-history";
 const LS_PERSONALITY = "yahboom-chat-personality";
@@ -87,6 +87,7 @@ const Chat: React.FC = () => {
     () => localStorage.getItem(LS_PERSONALITY) || "operator",
   );
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
+  const [skillNames, setSkillNames] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,9 +103,15 @@ const Chat: React.FC = () => {
   }, [personality]);
 
   useEffect(() => {
-    fetch("/api/health")
+    fetch(`${API_BASE}/api/health`)
       .then((r) => setBackendOk(r.ok))
       .catch(() => setBackendOk(false));
+    // Skill-first: load registered skill names on mount (backend merges the
+    // full skill texts into the chat system prompt server-side).
+    api
+      .getSkills()
+      .then((s) => setSkillNames((s?.skills ?? []).map((k) => k.name)))
+      .catch(() => setSkillNames([]));
   }, []);
 
   useEffect(() => {
@@ -151,9 +158,62 @@ const Chat: React.FC = () => {
           })),
           { role: "user", content: text },
         ];
-        const res = await api.postChat(history);
-        const content = res?.message?.content ?? "No response.";
-        setMessages((prev) => [...prev, { role: "ai", content }]);
+        // Streaming proxy (POST /api/llm/chat/stream, SSE OpenAI-style chunks).
+        const resp = await fetch(`${API_BASE}/api/llm/chat/stream`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: history, personality }),
+        });
+        if (!resp.ok || !resp.body) {
+          const t = await resp.text().catch(() => "");
+          throw new Error(t || `HTTP ${resp.status}`);
+        }
+        // Placeholder AI message, filled progressively as chunks arrive.
+        setMessages((prev) => [...prev, { role: "ai", content: "" }]);
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        let acc = "";
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const parts = buf.split("\n\n");
+          buf = parts.pop() ?? "";
+          for (const part of parts) {
+            const line = part.trim();
+            if (!line.startsWith("data:")) continue;
+            const data = line.slice(5).trim();
+            if (data === "[DONE]") continue;
+            try {
+              const chunk = JSON.parse(data);
+              if (chunk.error) throw new Error(chunk.error);
+              const delta = chunk?.choices?.[0]?.delta?.content ?? chunk?.message?.content ?? "";
+              if (delta) {
+                acc += delta;
+                const snapshot = acc;
+                setMessages((prev) => {
+                  const next = [...prev];
+                  next[next.length - 1] = { role: "ai", content: snapshot };
+                  return next;
+                });
+              }
+            } catch (err) {
+              if (err instanceof SyntaxError) continue; // partial chunk, wait for more
+              throw err;
+            }
+          }
+        }
+        if (!acc) {
+          // Fallback: buffered proxy (non-streaming path).
+          const res = await api.postChat(history, personality);
+          const content = res?.message?.content ?? "No response.";
+          setMessages((prev) => {
+            const next = [...prev];
+            next[next.length - 1] = { role: "ai", content };
+            return next;
+          });
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Request failed";
         setError(msg);
@@ -162,7 +222,7 @@ const Chat: React.FC = () => {
         setLoading(false);
       }
     },
-    [input, loading, messages],
+    [input, loading, messages, personality],
   );
 
   const handleClear = useCallback(() => {
@@ -195,13 +255,22 @@ const Chat: React.FC = () => {
         <MessageSquare className="text-indigo-400 w-8 h-8" />
         <div className="flex-1">
           <h1 className="text-3xl font-bold text-white tracking-tight">AI Companion</h1>
-          <p className="text-slate-400 text-sm">
+          <p className="text-slate-300 text-sm">
             Natural language interface for Yahboom Raspbot v2.{" "}
             {modelHint ? `Model: ${modelHint}` : "Select a model in Settings."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500 font-mono bg-slate-800 px-2 py-0.5 rounded">
+        <div data-testid="chat-controls" className="flex items-center gap-2">
+          {skillNames.length > 0 && (
+            <span
+              data-testid="chat-skills"
+              title={skillNames.join(", ")}
+              className="text-[10px] uppercase tracking-wider text-emerald-400 font-mono bg-slate-800 px-2 py-0.5 rounded"
+            >
+              skills:{skillNames.length}
+            </span>
+          )}
+          <span className="text-[10px] uppercase tracking-wider text-slate-300 font-mono bg-slate-800 px-2 py-0.5 rounded">
             skill:robot-operator
           </span>
           <select
@@ -229,7 +298,7 @@ const Chat: React.FC = () => {
             </span>
           )}
           {backendOk === null && (
-            <span className="flex items-center gap-1 text-xs text-slate-500">
+            <span className="flex items-center gap-1 text-xs text-slate-300">
               <Loader2 className="w-3 h-3 animate-spin" />
               ...
             </span>
@@ -242,7 +311,7 @@ const Chat: React.FC = () => {
           <button
             key={p}
             onClick={() => setInput(p)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] border border-slate-700 text-slate-400 hover:text-white hover:border-indigo-500/40 transition-colors bg-slate-900/50"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] border border-slate-700 text-slate-300 hover:text-white hover:border-indigo-500/40 transition-colors bg-slate-900/50"
           >
             <Sparkles className="w-2.5 h-2.5" />
             {p}
@@ -286,7 +355,7 @@ const Chat: React.FC = () => {
               <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-indigo-500/20 text-indigo-400">
                 <Loader2 size={20} className="animate-spin" />
               </div>
-              <div className="p-5 rounded-2xl text-sm text-slate-500">Thinking\u2026</div>
+              <div className="p-5 rounded-2xl text-sm text-slate-300">Thinking\u2026</div>
             </motion.div>
           )}
           <div ref={bottomRef} />
@@ -297,7 +366,7 @@ const Chat: React.FC = () => {
             data-testid="chat-export"
             onClick={handleExport}
             disabled={messages.length === 0}
-            className="p-1.5 rounded text-slate-500 hover:text-slate-300 disabled:opacity-30"
+            className="p-1.5 rounded text-slate-300 hover:text-slate-300 disabled:opacity-30"
             title="Export"
           >
             <Download className="w-3.5 h-3.5" />
@@ -306,7 +375,7 @@ const Chat: React.FC = () => {
             data-testid="chat-clear"
             onClick={handleClear}
             disabled={messages.length === 0}
-            className="p-1.5 rounded text-slate-500 hover:text-slate-300 disabled:opacity-30"
+            className="p-1.5 rounded text-slate-300 hover:text-slate-300 disabled:opacity-30"
             title="Clear"
           >
             <Eraser className="w-3.5 h-3.5" />
