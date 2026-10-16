@@ -122,7 +122,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3" data-testid="backend-dot">
               <ShieldAlert className="text-indigo-500 w-5 h-5 animate-pulse" />
-              <span className="text-[10px] uppercase tracking-[0.3em] font-black text-slate-400">
+              <span className="text-[10px] uppercase tracking-[0.3em] font-black text-slate-300">
                 Boomy System Core
               </span>
             </div>
@@ -162,7 +162,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           <button
             type="button"
             onClick={toggle}
-            className="p-2 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-colors"
+            className="p-2 rounded-xl text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
             title={
               light
                 ? "Switch to dark (experimental light mode)"

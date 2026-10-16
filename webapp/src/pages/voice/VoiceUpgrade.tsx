@@ -126,7 +126,10 @@ export default function VoiceUpgrade() {
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
+              <h1
+                data-testid="voice-upgrade-title"
+                className="text-3xl font-black tracking-tight flex items-center gap-3"
+              >
                 <Sparkles className="w-8 h-8 text-indigo-400" />
                 Voice Upgrade
               </h1>

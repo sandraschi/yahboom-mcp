@@ -442,7 +442,7 @@ const Stat = ({
   <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border bg-black/60 backdrop-blur border-white/10">
     <Icon size={14} className={`text-${color}-400 flex-shrink-0`} />
     <div>
-      <div className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">{label}</div>
+      <div className="text-[10px] text-slate-300 uppercase tracking-widest font-bold">{label}</div>
       <div className={`text-sm font-bold text-${color}-300 tabular-nums`}>{value}</div>
     </div>
   </div>
@@ -469,7 +469,7 @@ const Viz = () => {
             <p className="font-mono text-[10px] text-amber-500 font-bold uppercase tracking-widest mt-0.5">
               v0.1 Pre-Alpha · Everything is jumbled · Work in Progress (Haha)
             </p>
-            <p className="text-slate-400 text-xs mt-1">
+            <p className="text-slate-300 text-xs mt-1">
               Raspbot v2 — Using X3 proxy meshes for now
               {" · "}
               <a

@@ -46,7 +46,7 @@ const Analytics: React.FC = () => {
           <Activity className="text-indigo-400 w-8 h-8" />
           <div>
             <h1 className="text-3xl font-bold text-white tracking-tight">Telemetry Analytics</h1>
-            <p className="text-slate-400 text-sm">
+            <p className="text-slate-300 text-sm">
               Deep inspection of inertial pathing and power flux data.
             </p>
           </div>
@@ -71,7 +71,7 @@ const Analytics: React.FC = () => {
               <Zap className="text-yellow-400 w-4 h-4" />
               Power Flux History
             </h3>
-            <span className="text-xs font-medium text-slate-500 font-mono">
+            <span className="text-xs font-medium text-slate-300 font-mono">
               {current?.voltage?.toFixed(2) ?? "0.00"}V • {current?.battery?.toFixed(0) ?? "0"}%
             </span>
           </div>
@@ -106,7 +106,7 @@ const Analytics: React.FC = () => {
               <TrendingUp className="text-green-400 w-4 h-4" />
               Inertial Pathing
             </h3>
-            <span className="text-xs font-medium text-slate-500 font-mono">IMU ACTIVE</span>
+            <span className="text-xs font-medium text-slate-300 font-mono">IMU ACTIVE</span>
           </div>
           <div className="h-64 flex items-center justify-center p-8">
             <div className="w-48 h-48 rounded-full border border-white/5 relative flex items-center justify-center">
@@ -159,7 +159,7 @@ const Analytics: React.FC = () => {
             <BarChart3 className={isConnected ? "text-emerald-400" : "text-red-400"} size={20} />
           </div>
           <div>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+            <p className="text-[10px] text-slate-300 uppercase tracking-widest font-bold">
               Data Fidelity
             </p>
             <p className="text-sm font-mono text-white">
