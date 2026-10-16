@@ -10,8 +10,8 @@ Add to \claude_desktop_config.json\:
   "mcpServers": {
     "yahboom-mcp": {
       "command": "uv",
-      "args": ["run", "--directory", "\D:\Dev\repos", "python", "-m", "yahboom_mcp"],
-      "env": { "PYTHONPATH": "\D:\Dev\repos/src" }
+      "args": ["run", "--directory", "${__dirname}", "python", "-m", "yahboom_mcp"],
+      "env": { "PYTHONPATH": "${__dirname}/src" }
     }
   }
 }

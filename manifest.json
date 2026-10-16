@@ -9,9 +9,9 @@
     "entry_point": "src/yahboom_mcp/server.py",
     "mcp_config": {
       "command": "uv",
-      "args": ["run","--directory","${PWD}","python","-m","yahboom_mcp"],
+      "args": ["run","--directory","${__dirname}","python","-m","yahboom_mcp"],
       "env": {
-        "PYTHONPATH": "${PWD}/src",
+        "PYTHONPATH": "${__dirname}/src",
         "PYTHONUNBUFFERED": "1"
       }
     }
