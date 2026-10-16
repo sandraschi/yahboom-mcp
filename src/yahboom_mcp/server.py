@@ -11,6 +11,7 @@ It supports native FastMCP 3.2.0 Prompts and formalized Claude Skills.
 
 import asyncio
 import collections
+import json
 import logging
 import os
 import sys
@@ -34,6 +35,12 @@ from .core.ssh_bridge import SSHBridge
 from .core.video_bridge import VideoBridge
 from .operations import lightstrip, missions, voice
 from .operations.trajectory import TrajectoryManager
+from .output_schemas import (
+    DIALOGIC_SCHEMA,
+    LOGS_SCHEMA,
+    MISSION_SCHEMA,
+    PORTMANTEAU_SCHEMA,
+)
 from .stack_probe import build_stack_overview, driver_stack_snapshot, invalidate_stack_caches
 from .state import _state
 
@@ -412,7 +419,11 @@ async def _lmstudio_post(path: str, json_data: dict) -> dict | None:
 # --- SOTA 2026 Main Robot Tools ---
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False}, version="2.4.0")
+@mcp.tool(
+    output_schema=PORTMANTEAU_SCHEMA,
+    annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False},
+    version="2.4.0",
+)
 async def yahboom_tool(
     operation: str,
     param1: str | float | None = None,
@@ -448,7 +459,11 @@ async def yahboom_tool(
     )
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False}, version="2.5.0")
+@mcp.tool(
+    output_schema=DIALOGIC_SCHEMA,
+    annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False},
+    version="2.5.0",
+)
 async def yahboom_demo(
     operation: str = "describe",
     pattern: str = "smiley",
@@ -518,7 +533,11 @@ async def yahboom_agentic_workflow(goal: str, ctx: Context) -> str:
     return await workflow_exec(goal, ctx)
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True}, version="2.4.0")
+@mcp.tool(
+    output_schema=DIALOGIC_SCHEMA,
+    annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
+    version="2.4.0",
+)
 async def yahboom_help_tool(category: str | None = None, topic: str | None = None) -> dict:
     """
     Multi-level help system for the Yahboom MCP server.
@@ -620,6 +639,7 @@ class LLMSettingsUpdate(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[dict[str, str]]  # [{ "role": "user"|"assistant"|"system", "content": "..." }]
+    personality: str | None = None  # chat persona id (operator|engineer|teacher|custom)
 
 
 # System preprompt so the chat LLM talks intelligently about Yahboom (hardware, tools, workflows).
@@ -787,6 +807,7 @@ async def yahboom_help(
 
     if not category:
         return {
+            "success": True,
             "help": "Yahboom ROS 2 MCP Help System",
             "usage": "Call with category= to drill down, then category+topic= for full detail.",
             "categories": {k: v["description"] for k, v in cats.items()},
@@ -795,12 +816,14 @@ async def yahboom_help(
     cat = cats.get(category)
     if not cat:
         return {
+            "success": False,
             "error": f"Unknown category: '{category}'",
             "available": list(cats.keys()),
         }
 
     if not topic:
         return {
+            "success": True,
             "category": category,
             "description": cat["description"],
             "topics": {k: v[:80] + "…" if len(v) > 80 else v for k, v in cat["topics"].items()},
@@ -810,11 +833,13 @@ async def yahboom_help(
     detail = cat["topics"].get(topic)
     if not detail:
         return {
+            "success": False,
             "error": f"Unknown topic: '{topic}' in category '{category}'",
             "available": list(cat["topics"].keys()),
         }
 
     return {
+        "success": True,
         "category": category,
         "topic": topic,
         "detail": detail,
@@ -903,7 +928,11 @@ async def restart_ros_bringup():
 # --- LIDAR portmanteau (Yahboom optional + Dreame D20 Pro scan) ---
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True}, version="2.4.0")
+@mcp.tool(
+    output_schema=DIALOGIC_SCHEMA,
+    annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
+    version="2.4.0",
+)
 async def lidar(
     ctx=None,
     operation: str = "read",
@@ -1906,9 +1935,17 @@ async def chat_completion(body: ChatRequest):
     if not messages:
         raise HTTPException(status_code=400, detail="messages array is required")
     # Prepend system message so the LLM gets Yahboom context (dashboard chat has no MCP tools).
-    preprompt = {"role": "system", "content": YAHBOOM_CHAT_PREPROMPT}
+    # Skill-first: registered skill texts are merged into the system prompt, then the
+    # selected chat personality. Frontend loads the same skill list via GET /api/skills.
+    from .skills import skill_preprompt
+
+    system_content = YAHBOOM_CHAT_PREPROMPT + "\n\n## Robot skills (always follow)\n" + skill_preprompt()
+    persona = (body.personality or "").strip().lower()
+    if persona and persona != "custom":
+        system_content += f"\n\nOperator persona: answer as a {persona}."
+    preprompt = {"role": "system", "content": system_content}
     if messages and messages[0].get("role") == "system":
-        messages[0]["content"] = YAHBOOM_CHAT_PREPROMPT + "\n\n" + (messages[0].get("content") or "")
+        messages[0]["content"] = system_content + "\n\n" + (messages[0].get("content") or "")
     else:
         messages.insert(0, preprompt)
 
@@ -1943,6 +1980,170 @@ async def chat_completion(body: ChatRequest):
             },
             "provider": "ollama",
         }
+
+
+# --- Canonical /api/llm/* contract (fleet 1E; thin aliases over /api/v1/settings/*) ---
+
+
+@app.get("/api/llm/discover")
+async def llm_discover():
+    """LLM provider auto-discovery: Ollama/LM Studio reachability + GPU."""
+    return {
+        "ollama": await ollama_status(),
+        "lmstudio": await lmstudio_status(),
+        "gpu": await get_gpu_status(),
+    }
+
+
+@app.get("/api/llm/providers")
+async def llm_providers():
+    """Provider registry: local detected flags + cloud configured flags (never key bytes)."""
+    ollama = await ollama_status()
+    lmstudio = await lmstudio_status()
+    gemini_key = bool((os.environ.get("YAHBOOM_GEMINI_API_KEY") or "").strip())
+    settings = await get_llm_settings()
+    return {
+        "providers": [
+            {
+                "value": "ollama",
+                "label": "Ollama",
+                "kind": "local",
+                "free": True,
+                "detected": bool(ollama.get("connected")),
+                "needs_key": False,
+                "base_url": ollama.get("base_url"),
+            },
+            {
+                "value": "lmstudio",
+                "label": "LM Studio",
+                "kind": "local",
+                "free": True,
+                "detected": bool(lmstudio.get("connected")),
+                "needs_key": False,
+                "base_url": lmstudio.get("base_url"),
+            },
+            {
+                "value": "gemini",
+                "label": "Gemini (missions)",
+                "kind": "cloud",
+                "free": False,
+                "detected": gemini_key,
+                "needs_key": True,
+            },
+        ],
+        "selected": settings,
+    }
+
+
+@app.get("/api/llm/models")
+async def llm_models(provider: str = "ollama"):
+    """Model list per provider: live when reachable, empty with error otherwise."""
+    prov = (provider or "ollama").strip().lower()
+    if prov == "lmstudio":
+        return await lmstudio_models()
+    return await ollama_models()
+
+
+@app.get("/api/llm/onboarding")
+async def llm_onboarding():
+    """Fresh-install starter facts + recommended path for the under-hero cue."""
+    disc = await llm_discover()
+    settings = await get_llm_settings()
+    steps = [
+        "Pick a provider below (local Ollama/LM Studio is free; Gemini needs a key).",
+        "Press Test, choose a model, save in Settings.",
+        "Ask the Chat a battery question to confirm the loop.",
+    ]
+    if disc["ollama"].get("connected"):
+        recommended = "ollama"
+    elif disc["lmstudio"].get("connected"):
+        recommended = "lmstudio"
+    else:
+        recommended = "none"
+    return {
+        "providers_seen": {
+            "ollama": bool(disc["ollama"].get("connected")),
+            "lmstudio": bool(disc["lmstudio"].get("connected")),
+            "gpu": bool(disc["gpu"].get("detected")),
+        },
+        "recommended": recommended,
+        "selected": settings,
+        "steps": steps,
+    }
+
+
+@app.post("/api/llm/chat")
+async def llm_chat(body: ChatRequest):
+    """Backend chat proxy (canonical path; same handler as POST /api/v1/chat)."""
+    return await chat_completion(body)
+
+
+@app.post("/api/llm/chat/stream")
+async def llm_chat_stream(body: ChatRequest):
+    """Streaming backend chat proxy (SSE, OpenAI-style chunks)."""
+    provider = (_llm_settings.get("provider") or "ollama").strip().lower()
+    model = (_llm_settings.get("model") or "").strip()
+    if not model:
+        raise HTTPException(status_code=400, detail="No model selected. Configure LLM model in Settings.")
+    from .skills import skill_preprompt
+
+    system_content = YAHBOOM_CHAT_PREPROMPT + "\n\n## Robot skills (always follow)\n" + skill_preprompt()
+    persona = (body.personality or "").strip().lower()
+    if persona and persona != "custom":
+        system_content += f"\n\nOperator persona: answer as a {persona}."
+    messages = list(body.messages or [])
+    if not messages:
+        raise HTTPException(status_code=400, detail="messages array is required")
+    if messages and messages[0].get("role") == "system":
+        messages[0]["content"] = system_content + "\n\n" + (messages[0].get("content") or "")
+    else:
+        messages.insert(0, {"role": "system", "content": system_content})
+
+    async def ollama_gen():
+        payload = {"model": model, "messages": messages, "stream": True}
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                async with client.stream("POST", f"{OLLAMA_BASE_URL.rstrip('/')}/api/chat", json=payload) as resp:
+                    if resp.status_code != 200:
+                        yield f"data: {json.dumps({'error': f'Ollama HTTP {resp.status_code}'})}\n\n"
+                        return
+                    async for line in resp.aiter_lines():
+                        line = (line or "").strip()
+                        if not line:
+                            continue
+                        try:
+                            chunk = json.loads(line)
+                        except ValueError:
+                            continue
+                        text = ((chunk.get("message") or {}).get("content")) or ""
+                        if text:
+                            yield f"data: {json.dumps({'choices': [{'delta': {'content': text}}]})}\n\n"
+                        if chunk.get("done"):
+                            break
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    async def lmstudio_gen():
+        payload = {"model": model, "messages": messages, "stream": True, "temperature": 0.7}
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                async with client.stream(
+                    "POST", f"{LMSTUDIO_BASE_URL.rstrip('/')}/api/v0/chat/completions", json=payload
+                ) as resp:
+                    if resp.status_code != 200:
+                        yield f"data: {json.dumps({'error': f'LM Studio HTTP {resp.status_code}'})}\n\n"
+                        return
+                    async for line in resp.aiter_lines():
+                        line = (line or "").strip()
+                        if line:
+                            yield f"{line}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    gen = lmstudio_gen() if provider == "lmstudio" else ollama_gen()
+    return StreamingResponse(gen, media_type="text/event-stream")
 
 
 class AgentMissionRequest(BaseModel):
@@ -2051,7 +2252,7 @@ async def agent_mission_plan(req: AgentMissionRequest):
     return result
 
 
-@mcp.tool()
+@mcp.tool(output_schema=MISSION_SCHEMA)
 async def yahboom_agent_mission(
     goal: str,
     provider: str = "auto",
@@ -2083,7 +2284,7 @@ async def yahboom_agent_mission(
     return out
 
 
-@mcp.tool()
+@mcp.tool(output_schema=DIALOGIC_SCHEMA)
 async def audio(
     file_path: str = "",
     operation: str = "play",
@@ -2123,7 +2324,7 @@ async def audio(
     )
 
 
-@mcp.tool(annotations={"readOnlyHint": True}, version="0.1.0")
+@mcp.tool(output_schema=LOGS_SCHEMA, annotations={"readOnlyHint": True}, version="0.1.0")
 async def query_logs(
     source: str | None = None,
     level: str | None = None,
@@ -2162,6 +2363,60 @@ async def query_logs(
     return {"success": True, "logs": logs, "count": len(logs), "total_matching": total}
 
 
+@mcp.tool(app=True, annotations={"readOnlyHint": True})
+async def show_robot_status_card():
+    """Show Yahboom robot link status as a rich Prefab card.
+
+    Reads the in-process bridge/video/SSH state (no network calls, works
+    offline) and renders link state, uptime, and version — no need to parse
+    JSON in chat.
+
+    ## Return Format
+    PrefabApp with the robot status card.
+
+    ## Examples
+    show_robot_status_card()
+    """
+    try:
+        from prefab_ui.app import PrefabApp
+        from prefab_ui.components import (
+            Card,
+            CardContent,
+            Column,
+            Grid,
+            Heading,
+            Muted,
+            Separator,
+            Text,
+        )
+    except ImportError:
+        return {"success": False, "message": "prefab-ui not installed (pip install prefab-ui>=0.14.0)"}
+
+    bridge = _state.get("bridge")
+    video = _state.get("video_bridge")
+    ssh = _state.get("ssh")
+    rows = [
+        ("ROS bridge", bool(bridge and getattr(bridge, "connected", False))),
+        ("Video", bool(video and getattr(video, "active", False))),
+        ("SSH", bool(ssh and getattr(ssh, "connected", False))),
+    ]
+    up = int(time.time() - start_time)
+
+    # NOTE: css_class is accepted at runtime (verified by direct PrefabApp
+    # construction); prefab-ui 0.19.1 stubs omit it, hence the ignores.
+    with Column(gap=4, css_class="p-4") as view:  # pyright: ignore[reportCallIssue]
+        Heading(f"Yahboom Raspbot v2 -- Robot Link ({VERSION})")
+        Separator()
+        with Grid(columns=3, gap=3):
+            for name, ok in rows:
+                with Card(), CardContent(css_class="pt-4"):  # pyright: ignore[reportCallIssue]
+                    Muted(name)
+                    Heading("Connected" if ok else "Offline")
+        Text(f"Uptime {up // 3600}h {(up % 3600) // 60}m — dashboard on :10893")
+
+    return PrefabApp(view=view, title="Yahboom Robot Status")
+
+
 # --- Entry Points ---
 
 
@@ -2169,7 +2424,9 @@ async def query_logs(
 _shutdown_tasks: set = set()
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False})
+@mcp.tool(
+    output_schema=DIALOGIC_SCHEMA, annotations={"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False}
+)
 async def yahboom_shutdown(reason: str = "operator requested shutdown") -> dict:
     """
     Gracefully shut down the Yahboom MCP server process.
@@ -2226,6 +2483,28 @@ async def run_stdio():
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@mcp.resource("yahboom://status")
+async def resource_status() -> str:
+    """Live robot link snapshot as JSON (bridge/video/SSH, version, uptime).
+
+    Dynamic MCP resource for clients that poll state without calling a tool.
+    """
+    import json as _json
+
+    bridge = _state.get("bridge")
+    video = _state.get("video_bridge")
+    ssh = _state.get("ssh")
+    return _json.dumps(
+        {
+            "version": VERSION,
+            "uptime_seconds": int(time.time() - start_time),
+            "ros_bridge": bool(bridge and getattr(bridge, "connected", False)),
+            "video": bool(video and getattr(video, "active", False)),
+            "ssh": bool(ssh and getattr(ssh, "connected", False)),
+        }
+    )
+
+
 @app.get("/api/skills")
 async def get_skills():
     """List registered Yahboom skills (skill-first chat preprompt source)."""
@@ -2244,6 +2523,55 @@ async def get_skills():
 async def get_bridge_proxies():
     """List active MCP bridge proxy providers and their status."""
     return {"proxies": _bridge_proxies, "count": len(_bridge_proxies)}
+
+
+async def _probe_app(url: str, timeout: float = 2.0) -> dict:
+    """Fail-soft liveness probe: any HTTP response counts as detected."""
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            r = await client.get(url)
+            return {"detected": True, "status_code": r.status_code}
+    except Exception as e:
+        return {"detected": False, "error": type(e).__name__}
+
+
+@app.get("/api/fleet/apps")
+async def fleet_apps():
+    """Fleet Apps Hub discovery: live-detected companions + this console.
+
+    Companions come from the repo's own env (Dreame map URL, speech URL), so
+    the hub never claims a status it did not probe. Unknown third-party apps
+    belong in the frontend "Experimental" section, not here.
+    """
+    from urllib.parse import urlparse
+
+    dreame_map = (os.environ.get("DREAME_MAP_URL") or "http://127.0.0.1:10894/api/v1/map").strip()
+    speech_base = (os.environ.get("YAHBOOM_SPEECH_MCP_URL") or "http://127.0.0.1:10909").strip().rstrip("/")
+    dreame_base = f"{urlparse(dreame_map).scheme}://{urlparse(dreame_map).netloc}"
+    entries = [
+        {
+            "name": "Yahboom Console",
+            "desc": "You are currently here.",
+            "url": None,
+            "primary": True,
+            "detected": True,
+        },
+        {
+            "name": "Dreame Map",
+            "desc": "D20 Pro floorplan overlay (standalone dreame-mcp).",
+            "url": dreame_base,
+            "primary": False,
+            **(await _probe_app(dreame_base)),
+        },
+        {
+            "name": "Speech",
+            "desc": "Spoken feedback + voice synthesis (speech-mcp).",
+            "url": speech_base,
+            "primary": False,
+            **(await _probe_app(speech_base)),
+        },
+    ]
+    return {"apps": entries, "count": len(entries)}
 
 
 @app.get("/api/capabilities")
@@ -2288,6 +2616,19 @@ async def get_capabilities():
         "config_show",
         "inspect_stack",
         "execute_command",
+        "audio_play",
+        "audio_store",
+        "audio_play_stored",
+        "audio_list_stored",
+        "audio_delete_stored",
+        "audio_stop",
+        "audio_sound",
+        "gripper_set",
+        "gripper_open",
+        "gripper_close",
+        "gripper_status",
+        "explore",
+        "explore_and_map",
     ]
     atomic_tools = [
         "yahboom_demo",
@@ -2299,6 +2640,10 @@ async def get_capabilities():
         "ros_resync",
         "ros_restart_bringup",
         "lidar",
+        "audio",
+        "query_logs",
+        "yahboom_shutdown",
+        "show_robot_status_card",
     ]
     prompt_names = [
         "yahboom_quick_start",
@@ -2308,9 +2653,13 @@ async def get_capabilities():
         "yahboom_go_to_recharge",
     ]
     available_missions = ["patrol", "alarm", "briefing", "kaffeehaus", "found_dog", "cafe_host"]
+    try:
+        from fastmcp import __version__ as _fastmcp_version
+    except ImportError:
+        _fastmcp_version = "3.4.4"
     return {
         "status": "ok",
-        "server": {"name": "yahboom-mcp", "version": VERSION, "fastmcp": "3.4.4"},
+        "server": {"name": "yahboom-mcp", "version": VERSION, "fastmcp": _fastmcp_version},
         "tool_surface": {
             "total": len(portmanteau_ops) + len(atomic_tools),
             "portmanteau_count": 1,
