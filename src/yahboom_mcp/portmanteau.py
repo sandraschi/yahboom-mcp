@@ -6,7 +6,7 @@ from typing import Annotated
 from fastmcp import Context
 from pydantic import Field
 
-from . import fail_response
+from . import _error_response, fail_response
 from .state import _state, ctx_request_id
 
 logger = logging.getLogger("yahboom-mcp.portmanteau")
@@ -201,5 +201,4 @@ async def yahboom_tool(
             return await missions.execute("run", mission_id="explore_and_map")
         return fail_response(f"Unknown operation: {operation}", operation=operation, correlation_id=correlation_id)
     except Exception as e:
-        logger.error(f"Operation {operation} failed: {e}", exc_info=True)
-        return fail_response(str(e), operation=operation, correlation_id=correlation_id)
+        return _error_response(f"Operation {operation} failed: {e}", operation=operation, correlation_id=correlation_id)

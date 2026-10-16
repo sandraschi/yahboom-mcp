@@ -259,13 +259,14 @@ class ROS2Bridge:
         except (TimeoutError, OSError, ConnectionError):
             return False
         except Exception:
+            logger.debug("Unexpected error in TCP preflight to %s:%s", host, port, exc_info=True)
             return False
         else:
             writer.close()
             try:
                 await writer.wait_closed()
             except Exception:
-                pass
+                logger.debug("Preflight writer close raised for %s:%s", host, port, exc_info=True)
             return True
 
     async def _pick_rosbridge_host(self, hosts: list[str]) -> str:
@@ -553,7 +554,7 @@ class ROS2Bridge:
                 names = await asyncio.wait_for(future_names, timeout=2.0)
                 via_roslib = [{"name": n, "type": "unknown"} for n in names]
             except Exception:
-                pass
+                logger.debug("rosapi topic fetch failed, falling back to SSH", exc_info=True)
 
         if via_roslib:
             return via_roslib
@@ -874,11 +875,11 @@ class ROS2Bridge:
                 if callable(stop):
                     stop()
             except Exception:
-                pass
+                logger.debug("ros factory stopTrying raised during disconnect", exc_info=True)
             try:
                 self.ros.terminate()
             except Exception:
-                pass
+                logger.debug("ros.terminate() raised during disconnect", exc_info=True)
             self.ros = None
             self._skip_rosapi_topics_and_types = False
 

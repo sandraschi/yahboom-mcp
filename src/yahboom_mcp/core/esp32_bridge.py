@@ -156,7 +156,7 @@ class ESP32Bridge:
                 self._writer.close()
                 await asyncio.wait_for(self._writer.wait_closed(), timeout=2.0)
             except Exception:
-                pass
+                logger.debug("ESP32 writer close raised during disconnect", exc_info=True)
             self._writer = None
         self._reader = None
         logger.info("ESP32 bridge disconnected")
