@@ -163,7 +163,7 @@ const SlamMap: React.FC = () => {
           <Layers className="text-indigo-400 w-8 h-8" />
           <div>
             <h1 className="text-2xl font-bold text-white tracking-tight">SLAM Map</h1>
-            <p className="text-slate-400 text-sm">
+            <p className="text-slate-300 text-sm">
               Real-time occupancy grid from slam_toolbox with robot pose + LIDAR overlay
             </p>
           </div>
@@ -187,7 +187,7 @@ const SlamMap: React.FC = () => {
             <AlertTriangle className="text-amber-400 w-5 h-5 flex-shrink-0" />
             <div>
               <p className="text-amber-300 font-semibold text-sm">No map data yet</p>
-              <p className="text-slate-400 text-xs mt-1">
+              <p className="text-slate-300 text-xs mt-1">
                 Run the "explore_and_map" mission to start mapping, or verify slam_toolbox is
                 publishing /map.
               </p>
@@ -246,7 +246,7 @@ const SlamMap: React.FC = () => {
 
       {/* Controls bar */}
       <div className="mt-4 flex items-center justify-between">
-        <div className="flex items-center gap-4 text-slate-400 text-sm">
+        <div className="flex items-center gap-4 text-slate-300 text-sm">
           {data && (
             <>
               <span>
@@ -269,7 +269,7 @@ const SlamMap: React.FC = () => {
             className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-colors ${
               showScan
                 ? "border-indigo-500/30 bg-indigo-500/10 text-indigo-300"
-                : "border-white/10 bg-white/5 text-slate-400"
+                : "border-white/10 bg-white/5 text-slate-300"
             }`}
           >
             <Target size={14} />
@@ -278,7 +278,7 @@ const SlamMap: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate("/missions")}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:text-slate-200 hover:bg-white/10 text-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:text-slate-200 hover:bg-white/10 text-sm"
           >
             <RefreshCw size={14} />
             Start mapping

@@ -70,7 +70,7 @@ const SensorsPage: React.FC = () => {
 
   if (loading && !data) {
     return (
-      <div className="flex items-center justify-center py-24 text-slate-500">
+      <div className="flex items-center justify-center py-24 text-slate-300">
         <RefreshCw className="w-8 h-8 animate-spin mr-2" />
         Loading sensors…
       </div>
@@ -84,7 +84,7 @@ const SensorsPage: React.FC = () => {
           <Gauge className="text-indigo-400 w-8 h-8" />
           <div>
             <h1 className="text-2xl font-bold text-white tracking-tight">Sensors</h1>
-            <p className="text-slate-400 text-sm">IR proximity and line-following front sensors.</p>
+            <p className="text-slate-300 text-sm">IR proximity and line-following front sensors.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -113,7 +113,7 @@ const SensorsPage: React.FC = () => {
           <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4">
             IR proximity sensors
           </h2>
-          <p className="text-xs text-slate-500 mb-4">
+          <p className="text-xs text-slate-300 mb-4">
             Distance readings (m). Configure ROS topic on robot to see live values.
           </p>
           <div className="flex flex-wrap gap-3">
@@ -122,7 +122,7 @@ const SensorsPage: React.FC = () => {
                 key={i}
                 className="flex flex-col items-center p-3 rounded-xl bg-white/5 border border-white/10 min-w-[3.5rem]"
               >
-                <span className="text-[10px] text-slate-500 uppercase font-mono">
+                <span className="text-[10px] text-slate-300 uppercase font-mono">
                   {IR_LABELS[i] ?? `IR${i}`}
                 </span>
                 <span className="text-sm font-mono text-slate-200 mt-1">
@@ -138,7 +138,7 @@ const SensorsPage: React.FC = () => {
           <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4">
             Line-following front sensors
           </h2>
-          <p className="text-xs text-slate-500 mb-4">
+          <p className="text-xs text-slate-300 mb-4">
             Binary IR line sensors (0 = floor, 1 = line). Topic{" "}
             <code className="text-indigo-400">/line_sensor</code>, type{" "}
             <code className="text-indigo-400">std_msgs/msg/Int32MultiArray</code>. Override with{" "}
@@ -151,7 +151,7 @@ const SensorsPage: React.FC = () => {
                 key={i}
                 className="flex flex-col items-center p-3 rounded-xl bg-white/5 border border-white/10 flex-1 max-w-[4.5rem] min-w-[3rem]"
               >
-                <span className="text-[10px] text-slate-500 uppercase font-mono">
+                <span className="text-[10px] text-slate-300 uppercase font-mono">
                   {lineLabels[i]!}
                 </span>
                 <span

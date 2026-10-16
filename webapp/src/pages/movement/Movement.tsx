@@ -249,7 +249,7 @@ const MovementPage: React.FC = () => {
             className="text-left p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-indigo-500/10 hover:border-indigo-500/30 disabled:opacity-50 disabled:pointer-events-none transition-all"
           >
             <p className="font-medium text-white">{preset.label}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{preset.description}</p>
+            <p className="text-xs text-slate-300 mt-0.5">{preset.description}</p>
           </button>
         ))}
       </div>
@@ -262,8 +262,13 @@ const MovementPage: React.FC = () => {
         <div className="flex items-center gap-4">
           <Gamepad2 className="text-indigo-400 w-8 h-8" />
           <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Movement</h1>
-            <p className="text-slate-400 text-sm">
+            <h1
+              data-testid="movement-title"
+              className="text-2xl font-bold text-white tracking-tight"
+            >
+              Movement
+            </h1>
+            <p className="text-slate-300 text-sm">
               Preset movements, patrols, and dances. Robot must be connected.
             </p>
           </div>
@@ -300,7 +305,7 @@ const MovementPage: React.FC = () => {
       )}
 
       {running && currentStep && (
-        <p className="text-slate-400 text-sm mb-4 font-mono">Running: {currentStep}</p>
+        <p className="text-slate-300 text-sm mb-4 font-mono">Running: {currentStep}</p>
       )}
 
       <div className="space-y-6">

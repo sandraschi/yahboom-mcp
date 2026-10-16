@@ -119,7 +119,7 @@ const Settings: React.FC = () => {
         <SettingsIcon className="text-indigo-400 w-8 h-8" />
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">System Settings</h1>
-          <p className="text-slate-400 text-sm">
+          <p className="text-slate-300 text-sm">
             Configure Mission Control parameters and local LLM providers.
           </p>
         </div>
@@ -143,7 +143,7 @@ const Settings: React.FC = () => {
           </div>
           <div className="flex-1">
             <h3 className="text-lg font-bold text-white leading-tight mb-1">Local LLM</h3>
-            <p className="text-slate-500 text-sm">
+            <p className="text-slate-300 text-sm">
               Auto-discovery and selection for Ollama and LM Studio.
             </p>
           </div>
@@ -151,7 +151,7 @@ const Settings: React.FC = () => {
             type="button"
             onClick={load}
             disabled={loading}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-colors disabled:opacity-50"
             title="Refresh"
           >
             {loading ? (
@@ -186,13 +186,13 @@ const Settings: React.FC = () => {
                 {status?.connected ? (
                   <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                 ) : status === null ? (
-                  <Loader2 className="w-4 h-4 text-slate-500 animate-spin shrink-0" />
+                  <Loader2 className="w-4 h-4 text-slate-300 animate-spin shrink-0" />
                 ) : (
                   <Unplug className="w-5 h-5 text-amber-400 shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
                   <span className="block text-sm font-bold text-white">{prov.label}</span>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[10px] text-slate-300">
                     localhost:{prov.port}
                     {status?.connected
                       ? " · connected"
@@ -212,13 +212,13 @@ const Settings: React.FC = () => {
         </div>
 
         {loading && !providerStatus ? (
-          <div className="flex items-center gap-2 text-slate-500 text-sm">
+          <div className="flex items-center gap-2 text-slate-300 text-sm">
             <Loader2 className="w-4 h-4 animate-spin" /> Loading…
           </div>
         ) : (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <span className="text-slate-400 text-sm">Provider:</span>
+              <span className="text-slate-300 text-sm">Provider:</span>
               {PROVIDERS.filter((p) => p.value === llmSettings?.provider).map((p) => (
                 <span
                   key={p.value}
@@ -238,7 +238,7 @@ const Settings: React.FC = () => {
               )}
             </div>
             <div>
-              <label className="block text-slate-400 text-sm mb-2">Model</label>
+              <label className="block text-slate-300 text-sm mb-2">Model</label>
               <select
                 data-testid="llm-model-select"
                 value={llmSettings?.model ?? ""}
@@ -254,7 +254,7 @@ const Settings: React.FC = () => {
                 ))}
               </select>
               {saving && (
-                <span className="ml-2 text-slate-500 text-xs inline-flex items-center gap-1">
+                <span className="ml-2 text-slate-300 text-xs inline-flex items-center gap-1">
                   <Loader2 className="w-3 h-3 animate-spin" /> Saving…
                 </span>
               )}
@@ -295,7 +295,7 @@ const Settings: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-white leading-tight mb-1">{section.label}</h3>
-                <p className="text-slate-500 text-sm font-medium">{section.desc}</p>
+                <p className="text-slate-300 text-sm font-medium">{section.desc}</p>
               </div>
             </div>
             <span className="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/20">

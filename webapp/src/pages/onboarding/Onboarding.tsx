@@ -42,10 +42,10 @@ function Step2SubstrateLink({
       </div>
       <div>
         <h2 className="text-xl font-bold text-white mb-2">Establishing Substrate Link...</h2>
-        <p className="text-slate-400 text-sm font-medium">
+        <p className="text-slate-300 text-sm font-medium">
           Scanning for ROS 2 nodes on {config.robotIp}.
         </p>
-        <p className="text-slate-500 text-xs mt-2">Auto-skip in {countdown}s, or skip now.</p>
+        <p className="text-slate-300 text-xs mt-2">Auto-skip in {countdown}s, or skip now.</p>
       </div>
       <button
         type="button"
@@ -76,8 +76,13 @@ const Onboarding: React.FC = () => {
           <Rocket className="text-indigo-400 w-6 h-6" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Robot Onboarding</h1>
-          <p className="text-slate-400 text-sm">
+          <h1
+            data-testid="onboarding-title"
+            className="text-3xl font-bold text-white tracking-tight"
+          >
+            Robot Onboarding
+          </h1>
+          <p className="text-slate-300 text-sm">
             Initialize and bind your Yahboom Raspbot v2 to the Mission Control Gateway.
           </p>
         </div>
@@ -95,13 +100,13 @@ const Onboarding: React.FC = () => {
           >
             <div className="flex items-center gap-3 mb-2">
               <span
-                className={`w-6 h-6 rounded-full text-xs flex items-center justify-center ${step === s.id ? "bg-indigo-500 text-white" : "bg-slate-800 text-slate-500"}`}
+                className={`w-6 h-6 rounded-full text-xs flex items-center justify-center ${step === s.id ? "bg-indigo-500 text-white" : "bg-slate-800 text-slate-300"}`}
               >
                 {s.id}
               </span>
               <span className="text-sm font-semibold text-slate-200">{s.label}</span>
             </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed font-medium">{s.desc}</p>
+            <p className="text-[11px] text-slate-300 leading-relaxed font-medium">{s.desc}</p>
           </div>
         ))}
       </div>
@@ -120,7 +125,7 @@ const Onboarding: React.FC = () => {
           <div className="space-y-8 relative z-10">
             <div>
               <h2 className="text-xl font-bold text-white mb-2">Hardware Discovery</h2>
-              <p className="text-slate-400 text-sm font-medium">
+              <p className="text-slate-300 text-sm font-medium">
                 Configure your Raspbot v2 IP and bridge port. Use the robot hotspot or your LAN.
               </p>
             </div>
@@ -129,7 +134,7 @@ const Onboarding: React.FC = () => {
               <h3 className="text-sm font-bold text-indigo-300 mb-2">
                 Raspbot v2 hotspot (recommended)
               </h3>
-              <p className="text-slate-400 text-xs mb-3">
+              <p className="text-slate-300 text-xs mb-3">
                 Connect this PC to the robot&apos;s WiFi, then use the preset below.
               </p>
               <ul className="text-xs text-slate-300 font-mono space-y-1 mb-3">
@@ -157,7 +162,7 @@ const Onboarding: React.FC = () => {
               <div className="space-y-2">
                 <label
                   htmlFor="onboarding-robot-ip"
-                  className="text-xs font-bold text-slate-500 uppercase tracking-widest"
+                  className="text-xs font-bold text-slate-300 uppercase tracking-widest"
                 >
                   Robot host / IP
                 </label>
@@ -172,7 +177,7 @@ const Onboarding: React.FC = () => {
               <div className="space-y-2">
                 <label
                   htmlFor="onboarding-bridge-port"
-                  className="text-xs font-bold text-slate-500 uppercase tracking-widest"
+                  className="text-xs font-bold text-slate-300 uppercase tracking-widest"
                 >
                   Bridge Port
                 </label>
@@ -183,7 +188,7 @@ const Onboarding: React.FC = () => {
                   onChange={(e) => setConfig({ ...config, port: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-indigo-500/50 transition-colors font-mono"
                 />
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-slate-300">
                   6000 = robot service; 9090 = standard rosbridge
                 </p>
               </div>
@@ -227,7 +232,7 @@ const Onboarding: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
+              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest pl-1">
                 Health Summary
               </h3>
               <div className="space-y-2">
