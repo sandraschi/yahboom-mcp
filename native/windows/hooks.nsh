@@ -20,14 +20,15 @@
   !insertmacro KillProcesses
 !macroend
 
+!define MCP_REG_NAME "yahboom-mcp"                 ; key written into the AI client configs
+!define MCP_REG_EXE  "yahboom-mcp-backend.exe"     ; stdio-capable exe under $INSTDIR\resources\
+!include "mcp-clients.nsh"
+
 !macro NSIS_HOOK_PREUNINSTALL
   !insertmacro KillProcesses
+  !insertmacro McpClientsUnregister
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL
-  ; Optional: register yahboom-mcp in Cursor / Claude Desktop
-  IfFileExists "$INSTDIR\resources\install-mcp-clients.ps1" 0 mcp_hook_done
-    DetailPrint "Optional: register yahboom-mcp in Cursor / Claude Desktop"
-    ExecWait 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\resources\install-mcp-clients.ps1" -Interactive'
-  mcp_hook_done:
+  !insertmacro McpClientsRegister
 !macroend

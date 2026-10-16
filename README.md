@@ -28,6 +28,28 @@
 
 ## Quick Start
 
+Claude Desktop only (MCPB bundle):
+
+```powershell
+irm https://github.com/sandraschi/yahboom-mcp/releases/latest/download/install.ps1 | iex
+```
+
+Every other client (Cursor, Windsurf, OpenCode, Claude Code) — stdio via uvx:
+
+```json
+{
+  "mcpServers": {
+    "yahboom-mcp": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/sandraschi/yahboom-mcp", "yahboom-mcp", "--mode", "stdio"],
+      "env": { "YAHBOOM_IP": "192.168.1.11" }
+    }
+  }
+}
+```
+
+Developers from source:
+
 ```powershell
 git clone https://github.com/sandraschi/yahboom-mcp
 cd yahboom-mcp
@@ -123,6 +145,20 @@ This project clearly distinguishes between human-operable controls and machine-o
 ---
 
 *Historical status logs and legacy research are preserved in the [docs/archive/](docs/archive/) directory.*
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| MCP | FastMCP 3.4 (Unified Gateway: stdio + HTTP/SSE) |
+| Backend | FastAPI + uvicorn, Pydantic v2, structlog |
+| Robot link | roslibpy (rosbridge) / direct ESP32 TCP / mock bridge, paramiko SSH |
+| Vision/audio | OpenCV, faster-whisper, edge-tts, pytapo |
+| Frontend | React 19 + Vite 5 + TailwindCSS 3 + Lucide + Framer Motion + Zustand + Three.js |
+| Package managers | uv (Python), bun (webapp) |
+| Desktop | Tauri 2 + NSIS (PyInstaller sidecar backend) |
+| Quality | ruff + pyright + pytest (+coverage) / tsc + Biome / Playwright |
+| LLM | Ollama (:11434) + LM Studio (:1234) auto-discovery, Gemini mission planning |
 
 
 ## 🛡️ Industrial Quality Stack
