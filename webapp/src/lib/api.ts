@@ -356,11 +356,29 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ model, provider }),
     }),
-  postChat: (messages: ChatMessage[]) =>
+  postChat: (messages: ChatMessage[], personality?: string) =>
     request<ChatResponse>("/api/v1/chat", {
       method: "POST",
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({ messages, personality }),
     }),
+  getSkills: () =>
+    request<{ success: boolean; skills: { name: string; uri: string }[] }>("/api/skills"),
+  getFleetApps: () =>
+    request<{
+      apps: {
+        name: string;
+        desc: string;
+        url: string | null;
+        primary: boolean;
+        detected: boolean;
+      }[];
+      count: number;
+    }>("/api/fleet/apps"),
+  getCapabilities: () =>
+    request<{
+      tool_surface: { portmanteau_tools: string[]; atomic_tools: string[] };
+      features: { available_operations: string[] };
+    }>("/api/capabilities"),
   /** Voice Module */
   postVoiceSay: (text: string) =>
     request<{ success: boolean }>("/api/v1/voice/say", {

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import {
   Activity,
+  BookOpen,
   Box,
   ChevronLeft,
   ChevronRight,
@@ -9,6 +10,7 @@ import {
   Gauge,
   Headphones,
   HelpCircle,
+  Inbox as InboxIcon,
   Layers,
   LayoutDashboard,
   Lightbulb,
@@ -73,6 +75,7 @@ const navGroups = [
       { path: "/chat", label: "AI Companion", icon: MessageSquare },
       { path: "/missions", label: "Missions", icon: Target },
       { path: "/llm", label: "Local LLM", icon: Cpu },
+      { path: "/skills", label: "Skills", icon: BookOpen },
       { path: "/workflows", label: "Workflows", icon: Play },
     ],
   },
@@ -82,6 +85,7 @@ const navGroups = [
     icon: Wrench,
     items: [
       { path: "/diagnostics", label: "Diagnostic Hub", icon: Shield },
+      { path: "/inbox", label: "Event Inbox", icon: InboxIcon },
       { path: "/logs", label: "Server logs", icon: ScrollText },
       { path: "/tools", label: "MCP Tools", icon: Wrench },
       { path: "/apps", label: "Apps Hub", icon: Box },
@@ -127,7 +131,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
         {navGroups.map((group) => (
           <div key={group.id} className="space-y-1">
             {!isCollapsed && (
-              <div className="px-3 py-1 flex items-center justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              <div className="px-3 py-1 flex items-center justify-between text-[10px] font-black text-slate-300 uppercase tracking-widest">
                 {group.label}
               </div>
             )}
@@ -141,7 +145,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                                         ${
                                           isActive
                                             ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-lg shadow-indigo-500/5"
-                                            : "text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent"
+                                            : "text-slate-300 hover:bg-white/5 hover:text-slate-200 border border-transparent"
                                         }
                                     `}
                 >

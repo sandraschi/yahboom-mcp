@@ -15,6 +15,7 @@ import Status from "./pages/dashboard/Status";
 import Workflows from "./pages/dashboard/Workflows";
 import DiagnosticsPage from "./pages/diagnostics/Diagnostics";
 import Help from "./pages/help/Help";
+import Inbox from "./pages/inbox/Inbox";
 import LidarAddonPage from "./pages/lidar/LidarAddon";
 import LidarMapPage from "./pages/lidar/LidarMap";
 import LLM from "./pages/llm/LLM";
@@ -24,6 +25,7 @@ import MovementPage from "./pages/movement/Movement";
 import Onboarding from "./pages/onboarding/Onboarding";
 import SensorsPage from "./pages/sensors/Sensors";
 import Settings from "./pages/settings/Settings";
+import Skills from "./pages/skills/Skills";
 import SlamMap from "./pages/slam/SlamMap";
 import Tools from "./pages/tools/Tools";
 import Viz from "./pages/viz/Viz";
@@ -60,6 +62,8 @@ function App() {
           <Route path="/movement" element={<MovementPage />} />
           <Route path="/sensors" element={<SensorsPage />} />
           <Route path="/diagnostics" element={<DiagnosticsPage />} />
+          <Route path="/inbox" element={<Inbox />} />
+          <Route path="/skills" element={<Skills />} />
           <Route path="/logs" element={<Logger />} />
 
           <Route path="/voice" element={<Voice />} />

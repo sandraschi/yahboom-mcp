@@ -59,6 +59,10 @@ npm-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# Playwright e2e artifacts
+webapp/test-results/
+webapp/playwright-report/
+
 # Build / package
 *.tar.gz
 *.zip

@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 
-const ZOOM_LEVELS = [0.8, 1.0, 1.25, 1.5, 2.0, 3.0];
+const ZOOM_LEVELS = [0.5, 0.6, 0.7, 0.8, 1.0, 1.25, 1.5, 2.0, 3.0];
+const DEFAULT_INDEX = ZOOM_LEVELS.indexOf(1.0);
 
 export function useZoom() {
   const [zoomIndex, setZoomIndex] = useState(() => {
     try {
       const saved = localStorage.getItem("tauri-zoom");
-      return saved ? ZOOM_LEVELS.indexOf(Number.parseFloat(saved)) : 0;
+      const idx = saved ? ZOOM_LEVELS.indexOf(Number.parseFloat(saved)) : -1;
+      return idx >= 0 ? idx : DEFAULT_INDEX;
     } catch {
-      return 0;
+      return DEFAULT_INDEX;
     }
   });
 
@@ -39,8 +41,20 @@ export function useZoom() {
       });
     };
     window.addEventListener("wheel", handler, { passive: false });
+    const keyHandler = (e: KeyboardEvent) => {
+      // Ctrl+0 (or Cmd+0): reset zoom to 100%
+      if ((e.ctrlKey || e.metaKey) && e.key === "0") {
+        e.preventDefault();
+        setZoomIndex(DEFAULT_INDEX);
+        applyZoom(ZOOM_LEVELS[DEFAULT_INDEX]);
+      }
+    };
+    window.addEventListener("keydown", keyHandler);
     const saved = localStorage.getItem("tauri-zoom");
     if (saved) applyZoom(Number.parseFloat(saved));
-    return () => window.removeEventListener("wheel", handler);
+    return () => {
+      window.removeEventListener("wheel", handler);
+      window.removeEventListener("keydown", keyHandler);
+    };
   }, [applyZoom]);
 }
