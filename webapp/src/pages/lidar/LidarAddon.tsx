@@ -44,7 +44,7 @@ const LidarAddonPage: React.FC = () => {
         <ScanLine className="text-indigo-400 w-8 h-8" />
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Lidar addon (MS200)</h1>
-          <p className="text-slate-400 text-sm">
+          <p className="text-slate-300 text-sm">
             Yahboom MS200 TOF LIDAR for Raspbot v2 — setup and integration status.
           </p>
         </div>
@@ -99,7 +99,7 @@ const LidarAddonPage: React.FC = () => {
               {scanActive === true ? (
                 <CheckCircle2 className="w-5 h-5 text-emerald-400" />
               ) : (
-                <AlertCircle className="w-5 h-5 text-slate-500" />
+                <AlertCircle className="w-5 h-5 text-slate-300" />
               )}
               <span className="text-slate-300">
                 /scan data:{" "}
@@ -107,7 +107,7 @@ const LidarAddonPage: React.FC = () => {
               </span>
             </div>
           </div>
-          <p className="text-xs text-slate-500 mt-4">
+          <p className="text-xs text-slate-300 mt-4">
             When the MS200 is installed and the ROS 2 driver is running on the Pi, /scan will
             publish and this page and the Lidar Map will show live data.
           </p>
@@ -128,7 +128,7 @@ const LidarAddonPage: React.FC = () => {
               <strong>Lidar Map</strong> page and telemetry will show data automatically.
             </li>
           </ol>
-          <p className="text-xs text-slate-500 mt-4">
+          <p className="text-xs text-slate-300 mt-4">
             See{" "}
             <a
               href={MS200_DOC_URL}

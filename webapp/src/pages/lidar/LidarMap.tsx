@@ -43,7 +43,7 @@ const LidarMapPage: React.FC = () => {
           <ScanLine className="text-indigo-400 w-8 h-8" />
           <div>
             <h1 className="text-2xl font-bold text-white tracking-tight">Lidar Map</h1>
-            <p className="text-slate-400 text-sm">
+            <p className="text-slate-300 text-sm">
               Dreame hoover bot map (D20 Pro). Set DREAME_MAP_URL to robotics-mcp or dreame-mcp map
               endpoint.
             </p>
@@ -53,7 +53,7 @@ const LidarMapPage: React.FC = () => {
           type="button"
           onClick={fetchMap}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:text-slate-200 hover:bg-white/10 text-sm disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:text-slate-200 hover:bg-white/10 text-sm disabled:opacity-50"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -61,7 +61,7 @@ const LidarMapPage: React.FC = () => {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-24 text-slate-500">
+        <div className="flex items-center justify-center py-24 text-slate-300">
           <RefreshCw className="w-8 h-8 animate-spin mr-2" />
           Loading map…
         </div>
@@ -73,7 +73,7 @@ const LidarMapPage: React.FC = () => {
           <div>
             <p className="font-medium">Map unavailable</p>
             <p className="text-sm text-amber-200/80 mt-1">{error}</p>
-            <p className="text-xs text-slate-400 mt-2">
+            <p className="text-xs text-slate-300 mt-2">
               Configure DREAME_MAP_URL (e.g. http://127.0.0.1:10894/api/v1/map) and ensure the
               Dreame/robotics service is running.
             </p>
@@ -90,16 +90,16 @@ const LidarMapPage: React.FC = () => {
                 alt="Dreame lidar map"
                 className="w-full h-auto max-h-[70vh] object-contain bg-black/40"
               />
-              <p className="p-2 text-xs text-slate-500 border-t border-white/5">
+              <p className="p-2 text-xs text-slate-300 border-t border-white/5">
                 Source: Dreame hoover bot (imported via DREAME_MAP_URL)
               </p>
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-[#0f0f12]/80 p-4">
-              <p className="text-slate-400 text-sm mb-2">
+              <p className="text-slate-300 text-sm mb-2">
                 Map endpoint returned JSON (no image field). Displaying summary.
               </p>
-              <p className="text-xs text-slate-500">Keys: {Object.keys(mapData).join(", ")}</p>
+              <p className="text-xs text-slate-300">Keys: {Object.keys(mapData).join(", ")}</p>
             </div>
           )}
 
@@ -110,10 +110,10 @@ const LidarMapPage: React.FC = () => {
               className="w-full px-4 py-3 flex items-center justify-between text-left text-sm font-medium text-slate-300 hover:bg-white/5"
             >
               <span>Raw response</span>
-              <span className="text-slate-500">{showRaw ? "Hide" : "Show"}</span>
+              <span className="text-slate-300">{showRaw ? "Hide" : "Show"}</span>
             </button>
             {showRaw && (
-              <pre className="p-4 pt-0 text-xs text-slate-400 overflow-auto max-h-64 border-t border-white/5 font-mono whitespace-pre-wrap break-all">
+              <pre className="p-4 pt-0 text-xs text-slate-300 overflow-auto max-h-64 border-t border-white/5 font-mono whitespace-pre-wrap break-all">
                 {JSON.stringify(mapData, null, 2)}
               </pre>
             )}
@@ -122,7 +122,7 @@ const LidarMapPage: React.FC = () => {
       )}
 
       {!loading && !error && !mapData && (
-        <p className="text-slate-500 text-sm">No map data returned.</p>
+        <p className="text-slate-300 text-sm">No map data returned.</p>
       )}
     </div>
   );

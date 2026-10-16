@@ -57,8 +57,10 @@ const LLM: React.FC = () => {
       <div className="flex items-center gap-4">
         <Cpu className="text-indigo-400 w-8 h-8" />
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Local Intelligence</h1>
-          <p className="text-slate-400 text-sm">GPU-accelerated LLM orchestration.</p>
+          <h1 data-testid="llm-title" className="text-3xl font-bold text-white tracking-tight">
+            Local Intelligence
+          </h1>
+          <p className="text-slate-300 text-sm">GPU-accelerated LLM orchestration.</p>
         </div>
       </div>
 
@@ -116,7 +118,7 @@ const LLM: React.FC = () => {
                     >
                       <stat.icon className={`${stat.color} w-5 h-5 flex-shrink-0`} />
                       <div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
+                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest block">
                           {stat.label}
                         </span>
                         <span className="text-sm font-bold text-slate-200">{stat.value}</span>
@@ -126,7 +128,7 @@ const LLM: React.FC = () => {
                 </div>
               </>
             ) : loading ? (
-              <div className="flex items-center gap-3 text-slate-400">
+              <div className="flex items-center gap-3 text-slate-300">
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span>Probing GPU and LLM providers...</span>
               </div>
@@ -138,7 +140,7 @@ const LLM: React.FC = () => {
                 <h2 className="text-2xl lg:text-3xl font-bold text-white leading-tight mb-4">
                   GPU not detected
                 </h2>
-                <p className="text-slate-400 text-sm lg:text-base leading-relaxed font-medium">
+                <p className="text-slate-300 text-sm lg:text-base leading-relaxed font-medium">
                   nvidia-smi did not report a GPU. LLM inference runs on CPU via Ollama or LM
                   Studio. For GPU acceleration, ensure NVIDIA drivers are installed and the GPU is
                   available.
@@ -185,18 +187,18 @@ const LLM: React.FC = () => {
               {ollamaConnected === true ? (
                 <CheckCircle2 className="w-5 h-5 text-emerald-400" />
               ) : (
-                <Unplug className="w-5 h-5 text-slate-500" />
+                <Unplug className="w-5 h-5 text-slate-300" />
               )}
               <div>
                 <span className="text-sm font-bold text-white">Ollama</span>
-                <p className="text-[10px] text-slate-500">localhost:11434</p>
+                <p className="text-[10px] text-slate-300">localhost:11434</p>
               </div>
             </div>
             <span
               className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
                 ollamaConnected === true
                   ? "bg-emerald-500/20 text-emerald-400"
-                  : "bg-slate-700/50 text-slate-500"
+                  : "bg-slate-700/50 text-slate-300"
               }`}
             >
               {ollamaConnected === true ? "Online" : "Offline"}
@@ -209,18 +211,18 @@ const LLM: React.FC = () => {
               {lmstudioConnected === true ? (
                 <CheckCircle2 className="w-5 h-5 text-emerald-400" />
               ) : (
-                <Unplug className="w-5 h-5 text-slate-500" />
+                <Unplug className="w-5 h-5 text-slate-300" />
               )}
               <div>
                 <span className="text-sm font-bold text-white">LM Studio</span>
-                <p className="text-[10px] text-slate-500">localhost:1234</p>
+                <p className="text-[10px] text-slate-300">localhost:1234</p>
               </div>
             </div>
             <span
               className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
                 lmstudioConnected === true
                   ? "bg-emerald-500/20 text-emerald-400"
-                  : "bg-slate-700/50 text-slate-500"
+                  : "bg-slate-700/50 text-slate-300"
               }`}
             >
               {lmstudioConnected === true ? "Online" : "Offline"}

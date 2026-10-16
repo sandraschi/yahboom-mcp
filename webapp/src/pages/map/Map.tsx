@@ -115,8 +115,10 @@ const MapPage: React.FC = () => {
         <div className="flex items-center gap-4">
           <MapPin className="text-indigo-400 w-8 h-8" />
           <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Map</h1>
-            <p className="text-slate-400 text-sm">Robot position and movement trail (odometry)</p>
+            <h1 data-testid="map-title" className="text-2xl font-bold text-white tracking-tight">
+              Map
+            </h1>
+            <p className="text-slate-300 text-sm">Robot position and movement trail (odometry)</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -133,7 +135,7 @@ const MapPage: React.FC = () => {
           <button
             type="button"
             onClick={clearTrail}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:text-slate-200 hover:bg-white/10 text-sm"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:text-slate-200 hover:bg-white/10 text-sm"
           >
             <Trash2 size={14} />
             Clear trail
@@ -203,10 +205,10 @@ const MapPage: React.FC = () => {
               strokeWidth="2"
             />
           </svg>
-          <div className="mt-3 flex gap-4 text-xs text-slate-500">
+          <div className="mt-3 flex gap-4 text-xs text-slate-300">
             <span>Scale: 1 m = {Math.round(1 / METRES_PER_PX)} px</span>
             {position && (
-              <span className="text-slate-400">
+              <span className="text-slate-300">
                 Pos: ({position.x.toFixed(2)}, {position.y.toFixed(2)})
               </span>
             )}
@@ -221,15 +223,15 @@ const MapPage: React.FC = () => {
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2">
                 <Compass className="text-indigo-400 w-4 h-4" />
-                <span className="text-slate-400 text-sm">Heading</span>
+                <span className="text-slate-300 text-sm">Heading</span>
                 <span className="text-white font-mono">{heading.toFixed(1)}°</span>
               </div>
               <div className="flex items-center gap-2">
                 <Battery className="text-emerald-400 w-4 h-4" />
-                <span className="text-slate-400 text-sm">Battery</span>
+                <span className="text-slate-300 text-sm">Battery</span>
                 <span className="text-white font-mono">{battery.toFixed(0)}%</span>
               </div>
-              <div className="text-slate-400 text-sm">
+              <div className="text-slate-300 text-sm">
                 Trail points: <span className="text-white font-mono">{trail.length}</span>
               </div>
             </div>
@@ -239,7 +241,7 @@ const MapPage: React.FC = () => {
             <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">
               Standard actions
             </h2>
-            <p className="text-slate-400 text-sm mb-3">
+            <p className="text-slate-300 text-sm mb-3">
               Use the AI Companion with these prompts for common tasks.
             </p>
             <div className="flex flex-wrap gap-2">

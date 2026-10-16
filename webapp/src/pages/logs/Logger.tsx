@@ -131,16 +131,19 @@ export default function Logger() {
     <div className="p-6 max-w-7xl mx-auto space-y-4 animate-in fade-in duration-500">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1
+            data-testid="logs-title"
+            className="text-2xl font-bold text-white flex items-center gap-3"
+          >
             <Activity className="w-7 h-7 text-emerald-500" />
             Server logs
           </h1>
-          <p className="text-slate-400 mt-1 text-sm">
+          <p className="text-slate-300 mt-1 text-sm">
             Live tail of <span className="font-mono text-slate-300">yahboom-mcp</span> in-process
             ring buffer.
           </p>
           {health && (
-            <p className="text-sm font-mono text-slate-500 mt-1.5">
+            <p className="text-sm font-mono text-slate-300 mt-1.5">
               Target <span className="text-indigo-400">{ip}</span> · ROS{" "}
               <span className={ros === "connected" ? "text-emerald-400" : "text-amber-400"}>
                 {ros}
@@ -153,7 +156,7 @@ export default function Logger() {
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-[#0f0f12] flex-1 min-w-[200px] max-w-md">
-          <Filter className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <Filter className="w-3.5 h-3.5 text-slate-300 shrink-0" />
           <input
             type="text"
             placeholder="Filter…"
@@ -164,7 +167,7 @@ export default function Logger() {
           {filter && (
             <button
               onClick={() => setFilter("")}
-              className="text-slate-500 hover:text-slate-300 text-xs"
+              className="text-slate-300 hover:text-slate-300 text-xs"
             >
               clear
             </button>
@@ -186,7 +189,7 @@ export default function Logger() {
 
         <button
           onClick={() => setPaused((p) => !p)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs font-medium text-slate-300 hover:bg-white/5"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-sm font-medium text-slate-300 hover:bg-white/5"
           title={paused ? "Resume tail" : "Pause tail"}
         >
           {paused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
@@ -195,7 +198,7 @@ export default function Logger() {
 
         <button
           onClick={() => setSortAsc((s) => !s)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs font-medium text-slate-300 hover:bg-white/5"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-sm font-medium text-slate-300 hover:bg-white/5"
           title={sortAsc ? "Newest first" : "Oldest first"}
         >
           {sortAsc ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />}
@@ -204,21 +207,21 @@ export default function Logger() {
 
         <button
           onClick={exportLog}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 text-xs font-medium text-emerald-300 hover:bg-emerald-500/10"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 text-sm font-medium text-emerald-300 hover:bg-emerald-500/10"
         >
           <Download className="w-3 h-3" /> Export
         </button>
 
         <button
           onClick={copyAll}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-indigo-500/20 text-xs font-medium text-indigo-300 hover:bg-indigo-500/10"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-indigo-500/20 text-sm font-medium text-indigo-300 hover:bg-indigo-500/10"
         >
           <Copy className="w-3 h-3" /> Copy
         </button>
 
         <button
           onClick={clear}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-500/20 text-xs font-medium text-red-300 hover:bg-red-500/10"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-500/20 text-sm font-medium text-red-300 hover:bg-red-500/10"
         >
           <Trash2 className="w-3 h-3" /> Clear
         </button>
@@ -226,7 +229,7 @@ export default function Logger() {
 
       {/* Log lines */}
       <div className="bg-[#0a0a0c] border border-white/5 rounded-xl overflow-hidden">
-        <div className="px-4 py-2 border-b border-white/5 flex items-center justify-between text-xs text-slate-500">
+        <div className="px-4 py-2 border-b border-white/5 flex items-center justify-between text-xs text-slate-300">
           <span className="flex items-center gap-2">
             <Circle className="w-1.5 h-1.5 fill-emerald-500 text-emerald-500" />
             /api/v1/logs/stream
