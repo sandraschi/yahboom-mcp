@@ -40,12 +40,13 @@ npx --yes @anthropic-ai/mcpb pack . dist/yahboom-mcp-v2.5.0b1.mcpb
    # dual mode (REST + MCP SSE, web dashboard)
    uv run python -m yahboom_mcp.server --mode dual --port 10892
    ```
-5. (optional) Start the frontend:
-   ```powershell
-   cd webapp
-   npm install
-   npm run dev
-   ```
+5. (optional) Start the frontend (Bun is the fleet package manager; Node still
+   required underneath):
+    ```powershell
+    cd webapp
+    bun install
+    bun run dev
+    ```
 6. Open `http://localhost:10892` or the frontend URL on `10893`.
 
 ## Option D — Developer Mode

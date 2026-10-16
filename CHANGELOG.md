@@ -1,4 +1,40 @@
 
+## [Unreleased] — 2026-10-16 (deferred pass)
+
+### Added
+- **Skill-first chat**: backend merges 4 skill texts + persona into the chat
+  system prompt (`skill_preprompt()`); frontend loads `GET /api/skills` on
+  mount (skills badge), sends personality, `chat-controls`/`chat-skills`
+  testids; health fetch is `VITE_API_BASE`-aware (Tauri-safe).
+- **Prefab card**: `show_robot_status_card` (`@mcp.tool(app=True)`, offline-safe
+  ROS/video/SSH grid) — proven live via direct invocation.
+- **MCPB prompt assets 3-4-100**: `system.md` 3006 words, `user.md` 4001 words,
+  `examples.json` 102 entries (was scaffold placeholders).
+- **Operator skill rebuild**: 89 lines, real registered names (fixed
+  hallucinated `yahboom()`/`yahboom_help()` → `yahboom_tool()`/
+  `yahboom_help_tool()`), agent/human split, catalog, 5 workflows.
+- **Bun migration** (Phase 1): `webapp/bun.lock` committed,
+  `package-lock.json` removed; CI uses `oven-sh/setup-bun` +
+  `bun install --frozen-lockfile`; justfile bootstrap + fleet-start
+  `PackageManager='bun'`; INSTALL notes Bun. Verified: frozen install, build,
+  tsc, biome all green.
+- **NSIS registration**: vendored fleet `mcp-clients.nsh` +
+  `install-mcp-clients.ps1`, wired register/unregister hooks, bundled ps1 in
+  `tauri.conf.json` resources (NOREG cleared, build-unverified).
+- **PRD.md** created (requirements, non-goals, acceptance, roadmap).
+
+### Fixed
+- **Release assets**: `mcpb/pack.ps1` proven end-to-end (162 KB bundle, entry
+  point launches from clean unpack); stable `yahboom-mcp.mcpb` + `install.ps1`
+  (SHA256-baked, canonical Step 8b) uploaded to the v2.5.0b1 pre-release
+  alongside the versioned bundle; README Claude one-liner + uvx stdio config.
+  NOTE: `releases/latest` 404s until the first stable (non-pre) release is cut
+  — the one-liner goes live then.
+
+### Corrected (false positive)
+- **Tauri backend-status**: AppLayout already had `listen("backend-status")`
+  + 5 s HTTP poll fallback — M8 finding withdrawn, no change needed.
+
 ## [Unreleased] — 2026-10-16 (assfix)
 
 ### Fixed
