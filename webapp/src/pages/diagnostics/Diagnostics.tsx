@@ -129,7 +129,10 @@ const Diagnostics: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+          <h1
+            data-testid="diagnostics-title"
+            className="text-3xl font-bold text-white flex items-center gap-3"
+          >
             <Activity className="w-8 h-8 text-blue-500" />
             ROS 2 Insight Hub
           </h1>
@@ -205,25 +208,25 @@ const Diagnostics: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-white">
               <HardDrive className="w-4 h-4 text-indigo-400 shrink-0" />
               <span className="font-black tracking-tight">Docker driver stack</span>
-              <span className="text-slate-500">({driverStack.container})</span>
+              <span className="text-slate-300">({driverStack.container})</span>
               <span
                 className={
                   driverStack.status === "running"
                     ? "text-emerald-400"
                     : driverStack.status === "absent"
                       ? "text-amber-300"
-                      : "text-slate-400"
+                      : "text-slate-300"
                 }
               >
                 {driverStack.status.toUpperCase().replace("_", " ")}
               </span>
-              <span className="text-slate-500">
+              <span className="text-slate-300">
                 nodes: {driverStack.ros_node_line_count}
                 {driverStack.matched_nodes?.length
                   ? ` · drivers: ${driverStack.matched_nodes.join(", ")}`
                   : " · drivers: —"}
               </span>
-              <span className="text-slate-500">
+              <span className="text-slate-300">
                 rosbridge in graph:{" "}
                 {driverStack.rosbridge_node_seen === null
                   ? "—"
@@ -233,7 +236,7 @@ const Diagnostics: React.FC = () => {
               </span>
             </div>
             {driverStack.detail && (
-              <p className="mt-2 text-xs text-slate-400 leading-relaxed">{driverStack.detail}</p>
+              <p className="mt-2 text-sm text-slate-300 leading-relaxed">{driverStack.detail}</p>
             )}
           </div>
         )
@@ -297,7 +300,7 @@ const Diagnostics: React.FC = () => {
                             <p className="text-amber-400 font-semibold text-sm">
                               ROS bridge is not connected
                             </p>
-                            <p className="text-gray-400 text-xs leading-relaxed">
+                            <p className="text-gray-400 text-sm leading-relaxed">
                               The topic table stays empty until{" "}
                               <span className="font-mono text-gray-300">roslibpy</span> can reach
                               WebSocket rosbridge on the Pi (default{" "}
@@ -318,7 +321,7 @@ const Diagnostics: React.FC = () => {
                               </li>
                               <li>Firewall allows TCP to the bridge port from this host</li>
                             </ul>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-slate-300">
                               Host-side errors (SSH, connect timeout) appear in{" "}
                               <Link to="/logs" className="text-indigo-400 hover:underline">
                                 Server logs

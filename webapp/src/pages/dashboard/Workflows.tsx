@@ -88,7 +88,7 @@ export default function Workflows() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Mission Control</h1>
-          <p className="text-slate-400 mt-1">
+          <p className="text-slate-300 mt-1">
             Orchestrate agentic workflows and automated behaviors.
           </p>
         </div>
@@ -137,13 +137,13 @@ export default function Workflows() {
                 </div>
 
                 <h3 className="text-xl font-bold text-white mb-2">{mission.title}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed mb-6">{mission.description}</p>
+                <p className="text-slate-300 text-sm leading-relaxed mb-6">{mission.description}</p>
 
                 <div className="flex flex-wrap gap-2 mb-8">
                   {mission.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="px-2 py-1 bg-slate-800/50 text-slate-500 text-[10px] font-bold uppercase tracking-wider rounded-md border border-slate-700/50"
+                      className="px-2 py-1 bg-slate-800/50 text-slate-300 text-[10px] font-bold uppercase tracking-wider rounded-md border border-slate-700/50"
                     >
                       {tag}
                     </span>
@@ -200,7 +200,7 @@ export default function Workflows() {
               <div className="space-y-6">
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="text-slate-400">Mission Progress</span>
+                    <span className="text-slate-300">Mission Progress</span>
                     <span className="text-blue-400 font-mono font-bold">{status?.progress}%</span>
                   </div>
                   <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
@@ -215,7 +215,7 @@ export default function Workflows() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/30">
-                    <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">
+                    <div className="text-[10px] text-slate-300 uppercase font-bold mb-1">
                       Status
                     </div>
                     <div
@@ -231,11 +231,11 @@ export default function Workflows() {
                     </div>
                   </div>
                   <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/30">
-                    <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">
+                    <div className="text-[10px] text-slate-300 uppercase font-bold mb-1">
                       Uptime
                     </div>
                     <div className="text-sm font-mono text-white flex items-center gap-1.5">
-                      <Clock size={12} className="text-slate-400" />
+                      <Clock size={12} className="text-slate-300" />
                       {status?.uptime}s
                     </div>
                   </div>
@@ -279,7 +279,7 @@ export default function Workflows() {
                       animate={{ x: 0, opacity: 1 }}
                       className="flex items-start gap-3 border-l border-slate-800/50 pl-3 py-0.5"
                     >
-                      <span className="text-slate-500 flex-shrink-0">›</span>
+                      <span className="text-slate-300 flex-shrink-0">›</span>
                       <span className="text-slate-300 leading-relaxed">{log}</span>
                     </motion.div>
                   ))

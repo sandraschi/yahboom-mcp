@@ -72,7 +72,7 @@ export default function Missions() {
         <Bot className="text-indigo-400 w-7 h-7" />
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Autonomous Missions</h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-300">
             Send natural-language goals to the robot. The onboard LLM plans and the mission executor
             runs them.
           </p>
@@ -92,7 +92,7 @@ export default function Missions() {
       <div className="bg-[#0f0f12]/80 border border-white/5 rounded-3xl p-6 backdrop-blur-xl">
         <div className="flex items-center gap-2 mb-4">
           <Target className="text-indigo-400 w-4 h-4" />
-          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
+          <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">
             Mission Prompt
           </h3>
         </div>
@@ -134,7 +134,7 @@ export default function Missions() {
               <Play className="w-3.5 h-3.5 text-indigo-400" />
               <span className="text-sm font-bold text-white">{m.label}</span>
             </div>
-            <p className="text-xs text-slate-500 line-clamp-2">{m.goal}</p>
+            <p className="text-xs text-slate-300 line-clamp-2">{m.goal}</p>
           </button>
         ))}
       </div>
@@ -152,7 +152,7 @@ export default function Missions() {
               <RefreshCw
                 className={`w-4 h-4 ${loading ? "animate-spin text-indigo-400" : "text-emerald-400"}`}
               />
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
+              <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">
                 Report Back
               </h3>
             </div>
@@ -163,7 +163,7 @@ export default function Missions() {
             )}
             {result?.plan && (
               <div className="p-3 rounded-xl bg-black/40 border border-white/5">
-                <p className="text-xs text-slate-500 mb-2 uppercase tracking-wider">Mission Plan</p>
+                <p className="text-xs text-slate-300 mb-2 uppercase tracking-wider">Mission Plan</p>
                 <pre className="text-xs text-slate-300 font-mono whitespace-pre-wrap overflow-x-auto">
                   {JSON.stringify(result.plan, null, 2)}
                 </pre>

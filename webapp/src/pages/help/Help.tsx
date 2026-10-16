@@ -42,7 +42,7 @@ const Code = ({ children }: { children: string }) => {
         {copied ? (
           <Check size={12} className="text-green-400" />
         ) : (
-          <Copy size={12} className="text-slate-400" />
+          <Copy size={12} className="text-slate-300" />
         )}
       </button>
     </div>
@@ -75,7 +75,7 @@ const Accordion = ({
           <span className="text-sm font-bold text-slate-200">{title}</span>
         </div>
         <ChevronDown
-          className={`w-4 h-4 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-slate-300 transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
       <AnimatePresence>
@@ -86,7 +86,7 @@ const Accordion = ({
             exit={{ height: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-5 pb-5 space-y-3 text-sm text-slate-400 leading-relaxed">
+            <div className="px-5 pb-5 space-y-3 text-sm text-slate-300 leading-relaxed">
               {children}
             </div>
           </motion.div>
@@ -105,13 +105,13 @@ const ApiRow = ({ method, path, desc }: { method: string; path: string; desc: st
   return (
     <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
       <span
-        className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest flex-shrink-0 mt-0.5 ${colors[method] ?? "text-slate-400 bg-white/5"}`}
+        className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest flex-shrink-0 mt-0.5 ${colors[method] ?? "text-slate-300 bg-white/5"}`}
       >
         {method}
       </span>
       <div className="min-w-0">
         <div className="text-xs font-mono text-slate-200 truncate">{path}</div>
-        <div className="text-[11px] text-slate-500 mt-0.5">{desc}</div>
+        <div className="text-[11px] text-slate-300 mt-0.5">{desc}</div>
       </div>
     </div>
   );
@@ -124,7 +124,7 @@ const ToolRow = ({ call, desc, example }: { call: string; desc: string; example?
       <Radio size={13} className="text-indigo-400 mt-0.5 flex-shrink-0" />
       <div className="min-w-0 flex-1">
         <div className="text-xs font-mono text-slate-200">{call}</div>
-        <div className="text-[11px] text-slate-500 mt-0.5">{desc}</div>
+        <div className="text-[11px] text-slate-300 mt-0.5">{desc}</div>
       </div>
     </div>
     {example && <Code>{example}</Code>}
@@ -148,7 +148,7 @@ const TabHardware = () => (
   <div className="space-y-6">
     <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5">
       <h3 className="text-sm font-bold text-amber-300 mb-2">Yahboom</h3>
-      <p className="text-[13px] text-slate-400 leading-relaxed mb-2">
+      <p className="text-[13px] text-slate-300 leading-relaxed mb-2">
         Yahboom builds ROS-based educational and research robots, expansion boards, and kits.
         Product lines include the <strong className="text-slate-300">Raspbot</strong> (Raspberry Pi
         + ROS 2), <strong className="text-slate-300">G1</strong> (humanoid/other), and the{" "}
@@ -168,7 +168,7 @@ const TabHardware = () => (
 
     <div className="space-y-3">
       <h3 className="text-sm font-bold text-slate-200">Raspbot v2 — at a glance</h3>
-      <ul className="text-[13px] text-slate-400 space-y-2 list-disc list-inside">
+      <ul className="text-[13px] text-slate-300 space-y-2 list-disc list-inside">
         <li>
           <strong className="text-slate-300">SBC:</strong> Raspberry Pi 5 (recommended) or Pi 4
         </li>
@@ -202,19 +202,19 @@ const TabHardware = () => (
 
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div className="border border-white/10 rounded-2xl p-4 bg-white/5">
-        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+        <h4 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-2">
           ROSMASTER board (STM32)
         </h4>
-        <p className="text-[12px] text-slate-400 leading-relaxed">
+        <p className="text-[12px] text-slate-300 leading-relaxed">
           STM32F103RCT6 (ARM Cortex-M3, 72 MHz). Runs firmware/RTOS only — no Linux. Handles motor
           PID, encoders, IMU, servos, UART to Pi. Camera and LIDAR run on the Pi, not on the STM32.
         </p>
       </div>
       <div className="border border-white/10 rounded-2xl p-4 bg-white/5">
-        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+        <h4 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-2">
           Pi tiers
         </h4>
-        <p className="text-[12px] text-slate-400 leading-relaxed">
+        <p className="text-[12px] text-slate-300 leading-relaxed">
           <strong className="text-slate-300">Full Pi (Pi 5):</strong> ROS 2 + rosbridge on robot,
           camera, optional LIDAR. <strong className="text-slate-300">Minimal Pi:</strong>{" "}
           camera/stream only. <strong className="text-slate-300">Pi-less:</strong> chassis + ESP32;
@@ -225,7 +225,7 @@ const TabHardware = () => (
 
     <div className="space-y-2">
       <h3 className="text-sm font-bold text-slate-200">MS200 LIDAR addon (optional)</h3>
-      <p className="text-[13px] text-slate-400">
+      <p className="text-[13px] text-slate-300">
         Yahboom MS200 TOF LIDAR — 360°, ~0.03–12 m, USB/serial. ~$139 USD. ROS 2 driver publishes{" "}
         <code className="text-indigo-400">/scan</code>; dashboard Lidar Map and telemetry use it.
         See <strong className="text-slate-300">Lidar addon</strong> page and{" "}
@@ -241,9 +241,9 @@ const TabHardware = () => (
       </p>
     </div>
 
-    <div className="text-[12px] text-slate-500">
-      More: <strong className="text-slate-400">docs/HARDWARE_AND_ROS2.md</strong> (Pi tiers, ROS 2
-      interaction, LIDAR), <strong className="text-slate-400">docs/CONNECTIVITY.md</strong> (WiFi,
+    <div className="text-[12px] text-slate-300">
+      More: <strong className="text-slate-300">docs/HARDWARE_AND_ROS2.md</strong> (Pi tiers, ROS 2
+      interaction, LIDAR), <strong className="text-slate-300">docs/CONNECTIVITY.md</strong> (WiFi,
       robot IP, ROSBridge at boot).
     </div>
   </div>
@@ -253,7 +253,7 @@ const TabQuickStart = () => (
   <div className="space-y-5">
     <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-5">
       <h3 className="text-sm font-bold text-indigo-300 mb-1">Prerequisites</h3>
-      <ul className="text-[13px] text-slate-400 space-y-1 list-disc list-inside">
+      <ul className="text-[13px] text-slate-300 space-y-1 list-disc list-inside">
         <li>Yahboom Raspbot v2 powered on and on same LAN (or PC on robot WiFi)</li>
         <li>Raspberry Pi on robot running ROS 2 Humble (pre-installed on stock image)</li>
         <li>
@@ -264,40 +264,40 @@ const TabQuickStart = () => (
       </ul>
     </div>
     <div className="space-y-3">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">
         Step 1 — ROSBridge on the robot
       </p>
-      <p className="text-[12px] text-slate-500">
+      <p className="text-[12px] text-slate-300">
         Stock Raspbot image already has rosbridge. If it is not set to start at boot, run once on
         the Pi:
       </p>
       <Code>ros2 launch rosbridge_server rosbridge_websocket_launch.xml</Code>
-      <p className="text-[12px] text-slate-500">
+      <p className="text-[12px] text-slate-300">
         To start automatically at boot, use the one-time script in{" "}
-        <strong className="text-slate-400">docs/ROSBRIDGE_AT_BOOT.md</strong>.
+        <strong className="text-slate-300">docs/ROSBRIDGE_AT_BOOT.md</strong>.
       </p>
     </div>
     <div className="space-y-3">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">
         Step 2 — Configure robot IP (if needed)
       </p>
       <Code>$env:YAHBOOM_IP = "192.168.1.100" $env:YAHBOOM_BRIDGE_PORT = "9090"</Code>
     </div>
     <div className="space-y-3">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">
         Step 3 — Launch (Windows)
       </p>
       <Code>.\start.ps1 # or double-click start.bat</Code>
     </div>
     <div className="space-y-3">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">
         Alternative — manual launch
       </p>
       <Code>uv run yahboom-mcp --mode dual --robot-ip 192.168.1.100 --port 10892</Code>
     </div>
     <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-5">
       <h3 className="text-sm font-bold text-green-300 mb-1">Verify it's working</h3>
-      <p className="text-[13px] text-slate-400 mb-2">
+      <p className="text-[13px] text-slate-300 mb-2">
         Open the health endpoint — <code className="text-green-400">connected: true</code> means the
         bot is linked.
       </p>
@@ -318,7 +318,7 @@ const TabQuickStart = () => (
           <l.icon size={16} className="text-indigo-400" />
           <div>
             <div className="text-sm font-bold text-slate-200 group-hover:text-white">{l.label}</div>
-            <div className="text-[11px] text-slate-500">{l.url}</div>
+            <div className="text-[11px] text-slate-300">{l.url}</div>
           </div>
           <ExternalLink size={12} className="text-slate-600 ml-auto" />
         </a>
@@ -330,7 +330,7 @@ const TabQuickStart = () => (
 const TabTools = () => (
   <div className="space-y-6">
     <div className="bg-[#0f0f12]/60 border border-white/5 rounded-2xl p-5">
-      <p className="text-sm text-slate-400 leading-relaxed">
+      <p className="text-sm text-slate-300 leading-relaxed">
         All MCP tools are available via AI clients pointed at{" "}
         <code className="text-indigo-400">http://localhost:10892/sse</code>. The main tool is{" "}
         <span className="text-white font-bold">yahboom()</span> — a portmanteau with an{" "}
@@ -338,7 +338,7 @@ const TabTools = () => (
       </p>
     </div>
     <div className="space-y-3">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Motion Control</p>
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">Motion Control</p>
       <ToolRow
         call='yahboom(action="move", linear=0.2, angular=0.0)'
         desc="Move forward at 0.2 m/s"
@@ -352,7 +352,7 @@ yahboom(action="move", linear=0.0, angular=0.0)   # STOP'
       />
     </div>
     <div className="space-y-3">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">
         Sensors & Diagnostics
       </p>
       <ToolRow
@@ -365,7 +365,7 @@ yahboom(action="move", linear=0.0, angular=0.0)   # STOP'
       />
     </div>
     <div className="space-y-3">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">
         Help System (drill-down)
       </p>
       <ToolRow
@@ -377,7 +377,7 @@ yahboom_help(category="motion", topic="mecanum")  # full detail'
       />
     </div>
     <div className="space-y-3">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">
         MCP Client config (mcp_config.json)
       </p>
       <Code>{`{
@@ -389,7 +389,7 @@ yahboom_help(category="motion", topic="mecanum")  # full detail'
   }
 }`}</Code>
     </div>
-    <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-[13px] text-slate-400">
+    <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-[13px] text-slate-300">
       <span className="text-amber-300 font-bold">Velocity limits: </span>
       linear ±1.0 m/s · angular ±2.0 rad/s. Values outside range are clamped by firmware — no hard
       errors.
@@ -400,11 +400,11 @@ yahboom_help(category="motion", topic="mecanum")  # full detail'
 const TabApi = () => (
   <div className="space-y-6">
     <div className="space-y-2">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Base URL</p>
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">Base URL</p>
       <Code>http://localhost:10892</Code>
     </div>
     <div className="space-y-3">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Endpoints</p>
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">Endpoints</p>
       <ApiRow method="GET" path="/api/v1/health" desc="Service health + ROS 2 connection state" />
       <ApiRow
         method="GET"
@@ -425,7 +425,7 @@ const TabApi = () => (
       <ApiRow method="GET" path="/docs" desc="Interactive Swagger UI for all REST endpoints" />
     </div>
     <div className="space-y-3">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">
         Health response shape
       </p>
       <Code>{`{
@@ -436,7 +436,7 @@ const TabApi = () => (
 }`}</Code>
     </div>
     <div className="space-y-3">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">
         Example — move via curl
       </p>
       <Code>curl -X POST "http://localhost:10892/api/v1/control/move?linear=0.2&angular=0.0"</Code>
@@ -452,7 +452,7 @@ const TabApi = () => (
         <div className="text-sm font-bold text-slate-200 group-hover:text-white">
           Open Swagger UI
         </div>
-        <div className="text-[11px] text-slate-500">http://localhost:10892/docs</div>
+        <div className="text-[11px] text-slate-300">http://localhost:10892/docs</div>
       </div>
       <ExternalLink size={12} className="text-slate-600 ml-auto" />
     </a>
@@ -510,22 +510,22 @@ const TabConnect = () => (
 const TabRos = () => (
   <div className="space-y-4">
     <Accordion title="What is ROS 2?" icon={Radio} color="indigo">
-      <p className="text-sm text-slate-400 leading-relaxed">
+      <p className="text-sm text-slate-300 leading-relaxed">
         <strong className="text-slate-300">Robot Operating System 2</strong> (ROS 2) is an
         open-source middleware framework for robot software development. It provides hardware
         abstraction, device drivers, message-passing between processes (topics, services, actions),
         and tools for visualization, debugging, and simulation.
       </p>
-      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+      <p className="text-sm text-slate-300 leading-relaxed mt-2">
         <strong className="text-slate-300">Made by:</strong> Open Robotics (now part of the Open
         Source Robotics Foundation — OSRF). Major industry contributors include Amazon (AWS),
         Google, Microsoft, Intel, Bosch, and BMW. The core is Apache 2.0 licensed.
       </p>
-      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+      <p className="text-sm text-slate-300 leading-relaxed mt-2">
         <strong className="text-slate-300">Versions:</strong> ROS 2 releases follow an annual cycle
         named after turtles (Humble Hawksbill, Iron Irwini, Rolling Ridley, etc.).
       </p>
-      <div className="mt-3 space-y-1 text-sm text-slate-400">
+      <div className="mt-3 space-y-1 text-sm text-slate-300">
         <p>
           <span className="font-mono text-slate-300">Humble Hawksbill</span> —{" "}
           <strong className="text-emerald-400">We use this</strong>. LTS release (May 2022 — May
@@ -544,7 +544,7 @@ const TabRos = () => (
           2025).
         </p>
       </div>
-      <p className="text-sm text-slate-400 leading-relaxed mt-3">
+      <p className="text-sm text-slate-300 leading-relaxed mt-3">
         <strong className="text-slate-300">Our installation:</strong> ROS 2 Humble inside{" "}
         <span className="font-mono text-slate-300">yahboomtechnology/ros-humble:0.1.0</span> Docker
         container on Raspberry Pi 5 with Raspberry Pi OS (Debian 12 Bookworm). The container has the
@@ -553,7 +553,7 @@ const TabRos = () => (
         <span className="font-mono text-slate-300">boomy_mission_executor</span>) and shares the
         host network stack.
       </p>
-      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+      <p className="text-sm text-slate-300 leading-relaxed mt-2">
         Key ROS 2 concepts used:
         <strong className="text-slate-300"> Nodes</strong> (driver_node, mission_executor,
         rosbridge_websocket) ← <strong className="text-slate-300"> Topics</strong> (/cmd_vel,
@@ -564,24 +564,24 @@ const TabRos = () => (
       </p>
     </Accordion>
     <Accordion title="How does ROS 2 work on Boomy?" icon={Radio} color="indigo">
-      <p className="text-sm text-slate-400 leading-relaxed">
+      <p className="text-sm text-slate-300 leading-relaxed">
         ROS 2 Humble runs inside a Docker container (
         <span className="font-mono text-slate-300">yahboom_ros2_final</span>) on the Raspberry Pi 5.
         The container uses host networking and has all Yahboom workspace packages installed.
       </p>
-      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+      <p className="text-sm text-slate-300 leading-relaxed mt-2">
         <strong className="text-slate-300">Architecture:</strong> MCP Server (PC) →
         rosbridge_websocket (container, port 9090) → DDS → driver_node (reads I2C sensors, controls
         motors/servos/lightstrip).
       </p>
-      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+      <p className="text-sm text-slate-300 leading-relaxed mt-2">
         The rosbridge runs inside the driver container so it has access to all custom message types
         (<span className="font-mono text-slate-300">yahboomcar_msgs/ServoControl</span>). Host-level
         rosbridge was permanently disabled — it didn't have the needed packages.
       </p>
     </Accordion>
     <Accordion title="Which ROS topics exist?" icon={Activity} color="indigo">
-      <div className="text-sm text-slate-400 leading-relaxed space-y-1">
+      <div className="text-sm text-slate-300 leading-relaxed space-y-1">
         <p>
           <span className="font-mono text-slate-300">/cmd_vel</span> — Motion commands
           (geometry_msgs/Twist)
@@ -620,13 +620,13 @@ const TabRos = () => (
       </div>
     </Accordion>
     <Accordion title="Why don't IMU and battery work?" icon={AlertTriangle} color="amber">
-      <p className="text-sm text-slate-400 leading-relaxed">
+      <p className="text-sm text-slate-300 leading-relaxed">
         The Raspbot V2 Rosmaster STM32 board does NOT expose IMU or battery data through I2C or UART
         in the factory firmware. A full I2C register scan (0x00-0x3f) found only: motor control,
         servos, lightstrip, line sensors, and ultrasonic. No IMU (accelerometer/gyroscope) or
         battery ADC registers exist.
       </p>
-      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+      <p className="text-sm text-slate-300 leading-relaxed mt-2">
         <strong className="text-slate-300">To add these:</strong> external I2C hardware — INA219 for
         battery (~$5) or MPU6050 for IMU (~$8).
       </p>
@@ -637,19 +637,19 @@ const TabRos = () => (
 const TabMissions = () => (
   <div className="space-y-4">
     <Accordion title="What are autonomous missions?" icon={Play} color="indigo">
-      <p className="text-sm text-slate-400 leading-relaxed">
+      <p className="text-sm text-slate-300 leading-relaxed">
         Autonomous missions let you send a natural-language goal to the robot. The onboard LLM
         (Ollama/Gemma3:1b on the Pi) plans the mission, and the mission executor ROS node drives the
         robot autonomously.
       </p>
-      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+      <p className="text-sm text-slate-300 leading-relaxed mt-2">
         <strong className="text-slate-300">Pipeline:</strong> Goal text → Ollama on Pi → structured
         MissionPlanV1 JSON → ROS /boomy/mission → mission_executor node → /cmd_vel motion. Status
         published on /boomy/mission_status, vision detections on /boomy/detections_json.
       </p>
     </Accordion>
     <Accordion title="Sample missions" icon={Target} color="indigo">
-      <div className="space-y-3 text-sm text-slate-400">
+      <div className="space-y-3 text-sm text-slate-300">
         <div>
           <p className="font-bold text-slate-300">"Patrol in a square"</p>
           <p>
@@ -675,12 +675,12 @@ const TabMissions = () => (
       </div>
     </Accordion>
     <Accordion title="How does obstacle avoidance work?" icon={Activity} color="indigo">
-      <p className="text-sm text-slate-400 leading-relaxed">
+      <p className="text-sm text-slate-300 leading-relaxed">
         The mission executor subscribes to{" "}
         <span className="font-mono text-slate-300">/ultrasonic</span> (Float32, cm). If the distance
         drops below <strong>25cm</strong>, the executor:
       </p>
-      <ol className="list-decimal list-inside text-sm text-slate-400 mt-2 space-y-1">
+      <ol className="list-decimal list-inside text-sm text-slate-300 mt-2 space-y-1">
         <li>Reverses for 1.5 seconds</li>
         <li>Turns for 2 seconds to clear the obstacle</li>
         <li>Resumes the search pattern</li>
@@ -688,11 +688,11 @@ const TabMissions = () => (
       </ol>
     </Accordion>
     <Accordion title="Ollama & vision detection" icon={Cpu} color="indigo">
-      <p className="text-sm text-slate-400 leading-relaxed">
+      <p className="text-sm text-slate-300 leading-relaxed">
         Missions use <strong>Gemma3:1b</strong> running on the Pi via Ollama (192.168.1.11:11434).
         The system prompt defines the MissionPlanV1 JSON schema.
       </p>
-      <p className="text-sm text-slate-400 leading-relaxed mt-2">
+      <p className="text-sm text-slate-300 leading-relaxed mt-2">
         Vision detection runs a <strong>SSD MobileNet v2 COCO</strong> model (90 classes: dog,
         person, cat, bowl, chair, bottle, etc.) inside the Docker container. Frames are captured
         from the raspbot.pyc demo's MJPEG stream (avoiding /dev/video0 contention). Inference runs
@@ -706,14 +706,14 @@ const TabAudio = () => (
   <div className="space-y-6">
     <div className="bg-violet-500/10 border border-violet-500/30 rounded-2xl p-5">
       <h3 className="text-sm font-bold text-violet-300 mb-2">Audio Soundboard (v2.4.3)</h3>
-      <p className="text-[13px] text-slate-400 leading-relaxed mb-2">
+      <p className="text-[13px] text-slate-300 leading-relaxed mb-2">
         Play audio through the <strong className="text-slate-300">C-Media USB speaker</strong> on
         the voice module (plughw:2,0). 17 built-in sound effects generated procedurally — no audio
         files needed. Upload .mp3/.wav files to play/store on the Pi.
       </p>
     </div>
     <div className="space-y-3">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">
         MCP Tool: audio()
       </p>
       <ToolRow
@@ -741,7 +741,7 @@ audio(operation="sound", file_name="take_five") # 🎵'
       <ToolRow call='audio(operation="stop")' desc="Kill all running playback" />
     </div>
     <div className="space-y-3">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">
         Portmanteau (yahboom_tool)
       </p>
       <ToolRow
@@ -750,7 +750,7 @@ audio(operation="sound", file_name="take_five") # 🎵'
       />
     </div>
     <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-5">
-      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+      <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-3">
         Built-in Sound Effects (17)
       </h3>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[11px] font-mono">
@@ -780,13 +780,13 @@ audio(operation="sound", file_name="take_five") # 🎵'
       </div>
     </div>
     <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-5">
-      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+      <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-3">
         Fleet Audio Cross-Connect
       </h3>
-      <p className="text-[12px] text-slate-400 leading-relaxed mb-2">
+      <p className="text-[12px] text-slate-300 leading-relaxed mb-2">
         The audio soundboard links to 9 fleet audio repos for DAW, DJ, media, TTS, and AI music:
       </p>
-      <ul className="text-[12px] text-slate-400 space-y-1 list-disc list-inside font-mono">
+      <ul className="text-[12px] text-slate-300 space-y-1 list-disc list-inside font-mono">
         <li>reaper-mcp :10797 — DAW recording/mixing</li>
         <li>virtualdj-mcp :10877 — DJ deck control</li>
         <li>plex-mcp :10740 — Media server playback</li>
@@ -860,7 +860,7 @@ const TabTrouble = () => (
     ].map((item, i) => (
       <Accordion key={i} title={item.title} icon={item.icon} color={item.color}>
         <p>{item.body}</p>
-        <ul className="mt-2 space-y-1 text-[12px] text-slate-400">
+        <ul className="mt-2 space-y-1 text-[12px] text-slate-300">
           {item.fix.map((f, j) => (
             <li key={j} className="font-mono">
               {f}
@@ -894,8 +894,10 @@ const Help = () => {
       <div className="flex items-center gap-4">
         <HelpCircle className="text-indigo-400 w-8 h-8" />
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Mission Support</h1>
-          <p className="text-slate-400 text-sm">
+          <h1 data-testid="help-title" className="text-3xl font-bold text-white tracking-tight">
+            Mission Support
+          </h1>
+          <p className="text-slate-300 text-sm">
             Complete reference for the Yahboom ROS 2 MCP server and dashboard.
           </p>
         </div>
@@ -912,7 +914,7 @@ const Help = () => {
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
                 active
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30"
-                  : "text-slate-500 hover:text-slate-300"
+                  : "text-slate-300 hover:text-slate-300"
               }`}
             >
               <t.icon size={13} />

@@ -54,8 +54,10 @@ export default function Status() {
       <div className="flex items-center gap-3">
         <Activity className="text-indigo-400 w-7 h-7" />
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">System Status</h1>
-          <p className="text-sm text-slate-400">
+          <h1 data-testid="status-title" className="text-2xl font-bold text-white tracking-tight">
+            System Status
+          </h1>
+          <p className="text-sm text-slate-300">
             Connection health, telemetry, and stack diagnostics.
           </p>
         </div>
@@ -88,20 +90,20 @@ export default function Status() {
                   ? "Pi reachable — ROS bridge down"
                   : "No connection"}
             </h2>
-            <p className="text-sm text-slate-400 mt-1 font-mono">
+            <p className="text-sm text-slate-300 mt-1 font-mono">
               Target <span className="text-indigo-300">{robotIp}</span>
               {health && (
                 <>
                   {" · "}ROS{" "}
-                  <span className={rc?.ros === "connected" ? "text-emerald-400" : "text-slate-500"}>
+                  <span className={rc?.ros === "connected" ? "text-emerald-400" : "text-slate-300"}>
                     {rc?.ros ?? "—"}
                   </span>
                   {" · "}SSH{" "}
-                  <span className={rc?.ssh === "connected" ? "text-emerald-400" : "text-slate-500"}>
+                  <span className={rc?.ssh === "connected" ? "text-emerald-400" : "text-slate-300"}>
                     {rc?.ssh ?? "—"}
                   </span>
                   {" · "}Video{" "}
-                  <span className={rc?.video === "active" ? "text-emerald-400" : "text-slate-500"}>
+                  <span className={rc?.video === "active" ? "text-emerald-400" : "text-slate-300"}>
                     {rc?.video ?? "—"}
                   </span>
                   {typeof rc?.cmd_vel_ready === "boolean" && (
@@ -156,7 +158,7 @@ export default function Status() {
           layout
           className="rounded-3xl border border-white/10 bg-[#0f0f12]/80 p-5 lg:p-6 backdrop-blur-xl"
         >
-          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">
+          <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4">
             Stack Health
           </h3>
           <StackStatusTable stack={health.stack} />
@@ -166,7 +168,7 @@ export default function Status() {
       {/* Server Info */}
       {health?.system && (
         <div className="rounded-3xl border border-white/5 bg-[#0f0f12]/80 p-5 backdrop-blur-xl">
-          <div className="flex items-center gap-3 text-sm text-slate-400">
+          <div className="flex items-center gap-3 text-sm text-slate-300">
             <span>
               Server uptime:{" "}
               <span className="text-white font-mono">
@@ -197,9 +199,9 @@ function StatCard({
           {icon}
         </div>
       </div>
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</p>
+      <p className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">{label}</p>
       <p className="text-xl font-bold text-white tracking-tight">{value}</p>
-      <p className="text-xs text-slate-500 mt-1">{sub}</p>
+      <p className="text-xs text-slate-300 mt-1">{sub}</p>
     </div>
   );
 }
