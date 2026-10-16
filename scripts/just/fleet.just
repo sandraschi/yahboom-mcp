@@ -9,9 +9,10 @@ REPO_DIR := justfile_directory()
 
 # --- Build & Release ---------------------------------------------------------
 
-# Build .mcpb bundle for Claude Desktop (sync src into mcpb/, validate, pack)
+# Build .mcpb bundle for Claude Desktop (fleet canonical pipeline: fresh stage,
+# validate, pack, stable name + install.ps1, launch-check)
 mcpb-pack:
-    powershell.exe -NoProfile -File "{{REPO_DIR}}/mcpb/pack.ps1"
+    powershell.exe -NoProfile -File "{{REPO_DIR}}/scripts/mcpb-pack.ps1"
 
 # Run CUA-NSIS smoke test (install -> launch -> verify -> uninstall)
 # Syncs reports/cua-<repo>-<date>.md to mcd when the smoke script writes one.
