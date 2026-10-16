@@ -4,10 +4,18 @@ export default defineConfig({
   timeout: 60000,
   retries: 1,
   use: { baseURL: "http://localhost:10893", headless: true, screenshot: "only-on-failure" },
-  webServer: {
-    command: "uv run python -m yahboom_mcp.server --port 10892",
-    port: 10892,
-    timeout: 30000,
-    reuseExistingServer: false,
-  },
+  webServer: [
+    {
+      command: "uv run python -m yahboom_mcp.server --port 10892",
+      port: 10892,
+      timeout: 30000,
+      reuseExistingServer: true,
+    },
+    {
+      command: "bun run dev",
+      port: 10893,
+      timeout: 60000,
+      reuseExistingServer: true,
+    },
+  ],
 });

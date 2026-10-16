@@ -3,7 +3,7 @@ const BE = "http://127.0.0.1:10892";
 const FE = "http://127.0.0.1:10893";
 test.describe("Fleet Audit", () => {
   test("Backend health", async ({ request }) => {
-    const resp = await request.get(`${BE}/health`);
+    const resp = await request.get(`${BE}/api/v1/health`);
     expect(resp.status()).toBe(200);
   });
   test("Frontend loads", async ({ page }) => {

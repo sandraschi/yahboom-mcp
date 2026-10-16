@@ -345,7 +345,7 @@ export default function Dashboard() {
               {gatewayDown ? (
                 <AlertTriangle className="w-8 h-8 text-red-400 shrink-0" />
               ) : waitingHealth ? (
-                <Loader2 className="w-8 h-8 text-slate-400 shrink-0 animate-spin" />
+                <Loader2 className="w-8 h-8 text-slate-300 shrink-0 animate-spin" />
               ) : allGood ? (
                 <CheckCircle2 className="w-8 h-8 text-emerald-400 shrink-0" />
               ) : partialRobot ? (
@@ -365,25 +365,25 @@ export default function Dashboard() {
                           ? "Pi reachable — ROS bridge down"
                           : "No connection to robot"}
                 </h2>
-                <p className="text-xs font-mono text-slate-400 mt-0.5">
+                <p className="text-xs font-mono text-slate-300 mt-0.5">
                   Target <span className="text-indigo-300">{robotIp}</span>
                   {health && (
                     <>
                       {" · "}
                       <span
-                        className={rc?.ros === "connected" ? "text-emerald-400" : "text-slate-500"}
+                        className={rc?.ros === "connected" ? "text-emerald-400" : "text-slate-300"}
                       >
                         ROS {rc?.ros ?? "—"}
                       </span>
                       {" · "}
                       <span
-                        className={rc?.ssh === "connected" ? "text-emerald-400" : "text-slate-500"}
+                        className={rc?.ssh === "connected" ? "text-emerald-400" : "text-slate-300"}
                       >
                         SSH {rc?.ssh ?? "—"}
                       </span>
                       {" · "}
                       <span
-                        className={rc?.video === "active" ? "text-emerald-400" : "text-slate-500"}
+                        className={rc?.video === "active" ? "text-emerald-400" : "text-slate-300"}
                       >
                         Video {rc?.video ?? "—"}
                       </span>
@@ -420,7 +420,7 @@ export default function Dashboard() {
 
             {health?.stack && (
               <div className="max-w-4xl">
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wide mb-2">
+                <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wide mb-2">
                   Stack health — see{" "}
                   <Link to="/status" className="text-indigo-400 underline">
                     Status page
@@ -431,7 +431,7 @@ export default function Dashboard() {
                   {health.stack.layers?.map((l: any) => (
                     <span
                       key={l.id}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${l.ok ? "border-emerald-500/30 bg-emerald-950/40 text-emerald-400" : "border-red-500/30 bg-red-950/40 text-red-400"}`}
+                      className={`px-2.5 py-1 rounded-lg text-sm font-medium border ${l.ok ? "border-emerald-500/30 bg-emerald-950/40 text-emerald-400" : "border-red-500/30 bg-red-950/40 text-red-400"}`}
                     >
                       {l.ok ? "✓" : "✗"} {l.title}
                     </span>
@@ -485,7 +485,7 @@ export default function Dashboard() {
             )}
 
             {waitingHealth && (
-              <p className="text-sm text-slate-400 leading-relaxed max-w-3xl">
+              <p className="text-sm text-slate-300 leading-relaxed max-w-3xl">
                 Contacting this PC&apos;s yahboom-mcp gateway and reading robot health…
               </p>
             )}
@@ -498,7 +498,7 @@ export default function Dashboard() {
             )}
 
             {partialRobot && (
-              <div className="text-sm text-amber-100/85 leading-relaxed max-w-3xl space-y-2">
+              <div className="text-sm text-amber-200/85 leading-relaxed max-w-3xl space-y-2">
                 <p>
                   SSH reaches the Pi, but the WebSocket ROS bridge is not connected (rosbridge not
                   running, wrong <span className="font-mono">YAHBOOM_BRIDGE_PORT</span>, or ROS
@@ -591,7 +591,7 @@ export default function Dashboard() {
             <Activity className="text-indigo-500 animate-pulse" />
             CONTROL CENTER
           </h1>
-          <p className="text-slate-500 text-xs font-medium tracking-[0.2em] mt-1 ml-9">
+          <p className="text-slate-300 text-sm font-medium tracking-[0.2em] mt-1 ml-9">
             SOTA v1.20 | ROS 2 HUMBLE | VIENNA_ALSERGRUND
           </p>
         </div>
@@ -617,7 +617,7 @@ export default function Dashboard() {
               onClick={handleReconnect}
               disabled={isReconnecting}
               title="Reconnect to robot"
-              className="p-2 aspect-square bg-white/5 border border-white/10 rounded-2xl text-slate-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50"
+              className="p-2 aspect-square bg-white/5 border border-white/10 rounded-2xl text-slate-300 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50"
             >
               <Loader2 className={`w-5 h-5 ${isReconnecting ? "animate-spin" : ""}`} />
             </button>
@@ -648,7 +648,7 @@ export default function Dashboard() {
           data-testid="kpi-server"
           className="bg-[#0f0f12]/80 border border-white/5 rounded-3xl p-5 backdrop-blur-xl shadow-xl"
         >
-          <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
+          <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">
             Server
           </p>
           <p className="text-sm font-black text-white tracking-tight">yahboom-mcp</p>
@@ -660,7 +660,7 @@ export default function Dashboard() {
           data-testid="kpi-robot"
           className="bg-[#0f0f12]/80 border border-white/5 rounded-3xl p-5 backdrop-blur-xl shadow-xl"
         >
-          <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
+          <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">
             Robot
           </p>
           <p className="text-sm font-black text-white tracking-tight">{rc?.ip ?? "—"}</p>
@@ -670,7 +670,7 @@ export default function Dashboard() {
           data-testid="kpi-tools"
           className="bg-[#0f0f12]/80 border border-white/5 rounded-3xl p-5 backdrop-blur-xl shadow-xl"
         >
-          <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
+          <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">
             Tools
           </p>
           <p className="text-sm font-black text-white tracking-tight">
@@ -694,7 +694,7 @@ export default function Dashboard() {
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-900/50">
                 <CameraOff className="text-slate-700 w-16 h-16 animate-pulse" />
-                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">
+                <p className="text-slate-300 text-xs font-bold uppercase tracking-widest">
                   Visual Stream Offline — connect ROS bridge first
                 </p>
               </div>
@@ -711,7 +711,7 @@ export default function Dashboard() {
                 </span>
               </div>
               <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-xl border border-white/10 flex items-center gap-2">
-                <Volume2 size={12} className="text-slate-400" />
+                <Volume2 size={12} className="text-slate-300" />
                 <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
                   Mic Idle
                 </span>
@@ -743,7 +743,7 @@ export default function Dashboard() {
                 />
               </div>
               <div>
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">
                   Heading
                 </p>
                 <p className="text-lg font-black text-white leading-none">
@@ -802,14 +802,14 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <Camera className="text-cyan-500 w-5 h-5" />
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest">
                     Camera PTZ
                   </h3>
                 </div>
                 <div className="flex gap-1">
                   <button
                     onClick={() => api.postTool("camera_reset")}
-                    className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-white transition-all"
+                    className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-bold text-slate-300 uppercase tracking-widest hover:text-white transition-all"
                     title="Center Camera"
                   >
                     Center
@@ -828,7 +828,7 @@ export default function Dashboard() {
                 <div />
                 <button
                   onClick={() => api.postTool("camera_move", "up")}
-                  className="w-10 h-10 rounded-xl bg-slate-800 border border-white/5 flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-slate-700 transition-all active:scale-90"
+                  className="w-10 h-10 rounded-xl bg-slate-800 border border-white/5 flex items-center justify-center text-slate-300 hover:text-cyan-400 hover:bg-slate-700 transition-all active:scale-90"
                   title="Tilt Up"
                 >
                   <ChevronUp size={20} />
@@ -837,7 +837,7 @@ export default function Dashboard() {
 
                 <button
                   onClick={() => api.postTool("camera_move", "left")}
-                  className="w-10 h-10 rounded-xl bg-slate-800 border border-white/5 flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-slate-700 transition-all active:scale-90"
+                  className="w-10 h-10 rounded-xl bg-slate-800 border border-white/5 flex items-center justify-center text-slate-300 hover:text-cyan-400 hover:bg-slate-700 transition-all active:scale-90"
                   title="Pan Left"
                 >
                   <ChevronLeft size={20} />
@@ -847,7 +847,7 @@ export default function Dashboard() {
                 </div>
                 <button
                   onClick={() => api.postTool("camera_move", "right")}
-                  className="w-10 h-10 rounded-xl bg-slate-800 border border-white/5 flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-slate-700 transition-all active:scale-90"
+                  className="w-10 h-10 rounded-xl bg-slate-800 border border-white/5 flex items-center justify-center text-slate-300 hover:text-cyan-400 hover:bg-slate-700 transition-all active:scale-90"
                   title="Pan Right"
                 >
                   <ChevronRight size={20} />
@@ -856,7 +856,7 @@ export default function Dashboard() {
                 <div />
                 <button
                   onClick={() => api.postTool("camera_move", "down")}
-                  className="w-10 h-10 rounded-xl bg-slate-800 border border-white/5 flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-slate-700 transition-all active:scale-90"
+                  className="w-10 h-10 rounded-xl bg-slate-800 border border-white/5 flex items-center justify-center text-slate-300 hover:text-cyan-400 hover:bg-slate-700 transition-all active:scale-90"
                   title="Tilt Down"
                 >
                   <ChevronDown size={20} />
@@ -874,7 +874,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <Zap className="text-amber-500 w-5 h-5" />
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest">
                     GPIO
                   </h3>
                 </div>
@@ -902,7 +902,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <Radio className="text-cyan-500 w-5 h-5" />
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest">
                     Tapo Audio
                   </h3>
                 </div>
@@ -933,7 +933,7 @@ export default function Dashboard() {
                 </button>
               </div>
               {tapoTranscript && (
-                <p className="text-[10px] text-slate-400 mt-2">"{tapoTranscript}"</p>
+                <p className="text-[10px] text-slate-300 mt-2">"{tapoTranscript}"</p>
               )}
             </div>
 
@@ -942,7 +942,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <Keyboard className="text-indigo-500 w-5 h-5" />
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest">
                     Keyboard
                   </h3>
                 </div>
@@ -952,13 +952,13 @@ export default function Dashboard() {
                   className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
                     wasdActive
                       ? "bg-emerald-500/20 border border-emerald-500/40 text-emerald-400"
-                      : "bg-white/5 border border-white/10 text-slate-500 hover:text-slate-300"
+                      : "bg-white/5 border border-white/10 text-slate-300 hover:text-slate-300"
                   }`}
                 >
                   {wasdActive ? "Active" : "Enable"}
                 </button>
               </div>
-              <p className="text-[10px] text-slate-500 text-center font-mono">
+              <p className="text-[10px] text-slate-300 text-center font-mono">
                 Use WASD keys to drive
               </p>
             </div>
@@ -968,7 +968,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <Zap className="text-amber-500 w-5 h-5" />
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest">
                     Light Control
                   </h3>
                 </div>
@@ -1007,7 +1007,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <MessageSquare className="text-indigo-400 w-5 h-5" />
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest">
                     Voice & Media Hub
                   </h3>
                 </div>
@@ -1015,7 +1015,7 @@ export default function Dashboard() {
                   <div
                     className={`w-2 h-2 rounded-full ${isListening ? (wakeWordActive ? "bg-emerald-500 animate-ping" : "bg-red-500 animate-ping") : "bg-slate-700"}`}
                   />
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">
+                  <span className="text-xs font-bold text-slate-300 uppercase tracking-tighter">
                     {isListening ? (wakeWordActive ? "Awake" : "Listening") : "Ready"}
                   </span>
                 </div>
@@ -1049,7 +1049,7 @@ export default function Dashboard() {
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="text-[11px] text-slate-400 font-mono"
+                        className="text-[11px] text-slate-300 font-mono"
                       >
                         {transcript}...
                       </motion.div>
@@ -1083,7 +1083,7 @@ export default function Dashboard() {
                       onClick={() => api.postBuzzer(1.0)}
                       disabled={!connected}
                       title="Play buzzer sound"
-                      className="bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2 group"
+                      className="bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-slate-300 uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2 group"
                     >
                       <Zap size={14} className="group-hover:text-amber-500" />
                       Sound Check
@@ -1091,7 +1091,7 @@ export default function Dashboard() {
                     <button
                       onClick={() => api.postTool("play_beep")}
                       disabled={!connected}
-                      className="bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-300 hover:bg-indigo-500/10 transition-all flex items-center justify-center gap-2 group"
+                      className="bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-slate-300 uppercase tracking-widest hover:text-indigo-300 hover:bg-indigo-500/10 transition-all flex items-center justify-center gap-2 group"
                     >
                       <Volume2 size={14} className="group-hover:text-indigo-400" />
                       Voice Beep
@@ -1135,7 +1135,7 @@ function TelemetryCard({
         </div>
         {trend && <div className={`w-1.5 h-1.5 rounded-full ${trendColors[trend]}`} />}
       </div>
-      <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
+      <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">
         {label}
       </p>
       <p className="text-xl font-black text-white tracking-tight">{value}</p>

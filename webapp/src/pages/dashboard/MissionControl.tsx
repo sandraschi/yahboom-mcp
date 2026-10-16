@@ -100,11 +100,14 @@ export default function MissionControl() {
 
       <div className="flex items-center justify-between mb-8 relative z-10">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-3">
+          <h1
+            data-testid="mission-control-title"
+            className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-3"
+          >
             <Bot className="w-8 h-8 text-indigo-400" />
             Yahboom Control Center
           </h1>
-          <p className="text-slate-400">
+          <p className="text-slate-300">
             Unified Gateway Interface • ROS 2 Foxy/Humble • SOTA 2026 Reference Implementation
           </p>
         </div>
@@ -138,7 +141,7 @@ export default function MissionControl() {
               {connState === "connected" ? "Live Forward Chassis Camera" : "Chassis Camera"}
             </h3>
             <div className="flex gap-2">
-              <span className="text-[10px] uppercase tracking-widest bg-slate-800/80 px-2 py-1 rounded text-slate-400 border border-white/5">
+              <span className="text-[10px] uppercase tracking-widest bg-slate-800/80 px-2 py-1 rounded text-slate-300 border border-white/5">
                 {connState === "connected" ? "HARDWARE" : "OFFLINE"}
               </span>
               {connState === "connected" && cameraConnected && (
@@ -151,7 +154,7 @@ export default function MissionControl() {
 
           <div className="flex-1 bg-black/40 relative min-h-[480px] flex items-center justify-center">
             {connState !== "connected" ? (
-              <div className="flex flex-col items-center gap-4 text-slate-500">
+              <div className="flex flex-col items-center gap-4 text-slate-300">
                 <WifiOff className="w-12 h-12 opacity-20" />
                 <p className="text-sm font-mono tracking-tight">Connect robot for live stream</p>
                 <p className="text-xs text-slate-600">
@@ -166,7 +169,7 @@ export default function MissionControl() {
                 onError={() => setCameraConnected(false)}
               />
             ) : (
-              <div className="flex flex-col items-center gap-4 text-slate-500">
+              <div className="flex flex-col items-center gap-4 text-slate-300">
                 <Video className="w-12 h-12 opacity-20" />
                 <p className="text-sm font-mono tracking-tight">Camera feed unavailable</p>
                 <p className="text-xs text-slate-600">
@@ -209,7 +212,7 @@ export default function MissionControl() {
                     m/s
                   </p>
                 </div>
-                <div className="text-right space-y-1 text-slate-400 text-[10px] tracking-widest uppercase">
+                <div className="text-right space-y-1 text-slate-300 text-[10px] tracking-widest uppercase">
                   <p>SOTA_CORE: v1.3.0</p>
                   <p>ROS_DOMAIN_ID: 30</p>
                   <p className="text-emerald-500/60 transition-all hover:text-emerald-400 cursor-pointer pointer-events-auto">
@@ -225,19 +228,19 @@ export default function MissionControl() {
         <div className="flex flex-col gap-6">
           {/* Chassis Navigation Status */}
           <div className="glass-card p-6 rounded-2xl">
-            <h3 className="text-sm uppercase tracking-[0.2em] font-bold text-slate-400 mb-6 flex items-center gap-2">
+            <h3 className="text-sm uppercase tracking-[0.2em] font-bold text-slate-300 mb-6 flex items-center gap-2">
               <Navigation className="w-4 h-4 text-indigo-400" /> Chassis Status
             </h3>
 
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                <span className="text-[10px] text-slate-500 uppercase block mb-1">Heading</span>
+                <span className="text-[10px] text-slate-300 uppercase block mb-1">Heading</span>
                 <span className="text-xl font-bold font-mono text-indigo-300">
                   {connState === "connected" ? (telemetry?.imu?.heading?.toFixed(0) ?? "0") : "—"}°
                 </span>
               </div>
               <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                <span className="text-[10px] text-slate-500 uppercase block mb-1">Battery</span>
+                <span className="text-[10px] text-slate-300 uppercase block mb-1">Battery</span>
                 <span className="text-xl font-bold font-mono text-emerald-400">
                   {connState === "connected" ? (telemetry?.voltage?.toFixed(1) ?? "0.0") : "—"}V
                 </span>
@@ -251,7 +254,7 @@ export default function MissionControl() {
                   <Zap className="w-4 h-4 text-indigo-400" />
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-500 uppercase block leading-none mb-1">
+                  <span className="text-[10px] text-slate-300 uppercase block leading-none mb-1">
                     Sonar Proximity
                   </span>
                   <span className="text-lg font-bold font-mono text-slate-200">
@@ -269,7 +272,7 @@ export default function MissionControl() {
               </div>
             </div>
             {connState !== "connected" && (
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-4">
+              <p className="text-[10px] text-slate-300 uppercase tracking-wider mb-4">
                 Connect robot for live chassis data
               </p>
             )}
@@ -291,7 +294,7 @@ export default function MissionControl() {
                     D
                   </div>
                 </div>
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-2 font-mono">
+                <p className="text-[10px] text-slate-300 uppercase tracking-widest mt-2 font-mono">
                   Drive Override
                 </p>
               </div>
@@ -302,13 +305,13 @@ export default function MissionControl() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <Camera className="text-cyan-500 w-5 h-5" />
-                  <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <h3 className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
                     Camera PTZ
                   </h3>
                 </div>
                 <button
                   onClick={() => api.postTool("camera_center")}
-                  className="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-[8px] font-bold text-slate-400 uppercase tracking-widest hover:text-white transition-all"
+                  className="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-[8px] font-bold text-slate-300 uppercase tracking-widest hover:text-white transition-all"
                 >
                   Center
                 </button>
@@ -319,7 +322,7 @@ export default function MissionControl() {
                 <button
                   title="Tilt up"
                   onClick={() => api.postTool("camera_move", "up")}
-                  className="w-8 h-8 rounded-lg bg-slate-800 border border-white/5 flex items-center justify-center text-slate-400 hover:text-cyan-400 active:scale-95 transition-all"
+                  className="w-8 h-8 rounded-lg bg-slate-800 border border-white/5 flex items-center justify-center text-slate-300 hover:text-cyan-400 active:scale-95 transition-all"
                 >
                   <ChevronUp size={16} />
                 </button>
@@ -327,7 +330,7 @@ export default function MissionControl() {
                 <button
                   title="Pan left"
                   onClick={() => api.postTool("camera_move", "left")}
-                  className="w-8 h-8 rounded-lg bg-slate-800 border border-white/5 flex items-center justify-center text-slate-400 hover:text-cyan-400 active:scale-95 transition-all"
+                  className="w-8 h-8 rounded-lg bg-slate-800 border border-white/5 flex items-center justify-center text-slate-300 hover:text-cyan-400 active:scale-95 transition-all"
                 >
                   <ChevronLeft size={16} />
                 </button>
@@ -337,7 +340,7 @@ export default function MissionControl() {
                 <button
                   title="Pan right"
                   onClick={() => api.postTool("camera_move", "right")}
-                  className="w-8 h-8 rounded-lg bg-slate-800 border border-white/5 flex items-center justify-center text-slate-400 hover:text-cyan-400 active:scale-95 transition-all"
+                  className="w-8 h-8 rounded-lg bg-slate-800 border border-white/5 flex items-center justify-center text-slate-300 hover:text-cyan-400 active:scale-95 transition-all"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -345,7 +348,7 @@ export default function MissionControl() {
                 <button
                   title="Tilt down"
                   onClick={() => api.postTool("camera_move", "down")}
-                  className="w-8 h-8 rounded-lg bg-slate-800 border border-white/5 flex items-center justify-center text-slate-400 hover:text-cyan-400 active:scale-95 transition-all"
+                  className="w-8 h-8 rounded-lg bg-slate-800 border border-white/5 flex items-center justify-center text-slate-300 hover:text-cyan-400 active:scale-95 transition-all"
                 >
                   <ChevronDown size={16} />
                 </button>
@@ -356,13 +359,13 @@ export default function MissionControl() {
 
           {/* Compute Infrastructure */}
           <div className="glass-card p-6 rounded-2xl flex-1">
-            <h3 className="text-sm uppercase tracking-[0.2em] font-bold text-slate-400 mb-6 flex items-center gap-2">
+            <h3 className="text-sm uppercase tracking-[0.2em] font-bold text-slate-300 mb-6 flex items-center gap-2">
               <Zap className="w-4 h-4 text-yellow-400" /> Embedded Payload
             </h3>
 
             <div className="space-y-5">
               <div className="space-y-2">
-                <div className="flex justify-between text-[10px] uppercase font-mono text-slate-400">
+                <div className="flex justify-between text-[10px] uppercase font-mono text-slate-300">
                   <span>Raspi 5 SoC Temp</span>
                   <span className="text-slate-200">45°C</span>
                 </div>
@@ -376,7 +379,7 @@ export default function MissionControl() {
               </div>
 
               <div className="space-y-2">
-                <div className="flex justify-between text-[10px] uppercase font-mono text-slate-400">
+                <div className="flex justify-between text-[10px] uppercase font-mono text-slate-300">
                   <span>Voltage Stability</span>
                   <span className="text-emerald-400">STABLE</span>
                 </div>
@@ -391,9 +394,9 @@ export default function MissionControl() {
 
               <div className="mt-8 pt-6 border-t border-white/5 space-y-4">
                 <div className="flex items-start gap-3">
-                  <Server className="w-4 h-4 text-slate-500 mt-0.5" />
+                  <Server className="w-4 h-4 text-slate-300 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-tight font-mono">
+                    <p className="text-[10px] text-slate-300 uppercase tracking-tight font-mono">
                       Unified Gateway
                     </p>
                     <p className="text-xs text-slate-300 font-mono">localhost:10892</p>
@@ -401,9 +404,9 @@ export default function MissionControl() {
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2" />
                 </div>
                 <div className="flex items-start gap-3">
-                  <Activity className="w-4 h-4 text-slate-500 mt-0.5" />
+                  <Activity className="w-4 h-4 text-slate-300 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-tight font-mono">
+                    <p className="text-[10px] text-slate-300 uppercase tracking-tight font-mono">
                       ROS 2 Bridge
                     </p>
                     <p className="text-xs text-slate-300 font-mono">
@@ -426,7 +429,7 @@ export default function MissionControl() {
           <div className="flex items-center gap-3">
             <Battery className="w-4 h-4 text-emerald-400" />
             <div className="text-left">
-              <p className="text-[9px] text-slate-500 uppercase font-mono leading-none">Power</p>
+              <p className="text-[9px] text-slate-300 uppercase font-mono leading-none">Power</p>
               <p className="text-sm font-bold font-mono text-slate-200">
                 {connState === "connected" ? (telemetry?.battery?.toFixed(0) ?? "0") : "—"}%
               </p>
@@ -436,7 +439,7 @@ export default function MissionControl() {
           <div className="flex items-center gap-3">
             <Compass className="w-4 h-4 text-indigo-400" />
             <div className="text-left">
-              <p className="text-[9px] text-slate-500 uppercase font-mono leading-none">Yaw Rate</p>
+              <p className="text-[9px] text-slate-300 uppercase font-mono leading-none">Yaw Rate</p>
               <p className="text-sm font-bold font-mono text-slate-200">
                 {connState === "connected"
                   ? (telemetry?.velocity?.angular.toFixed(2) ?? "0.00")
@@ -455,7 +458,7 @@ export default function MissionControl() {
                 </span>
               </>
             ) : (
-              <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-500">
+              <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-300">
                 Stream offline
               </span>
             )}
@@ -473,7 +476,7 @@ export default function MissionControl() {
               </div>
               <div>
                 <p className="text-sm font-bold text-white leading-none mb-1">Robot Offline</p>
-                <p className="text-[10px] text-slate-400 font-mono tracking-tight">
+                <p className="text-[10px] text-slate-300 font-mono tracking-tight">
                   Handshake failed @ 192.168.1.11
                 </p>
               </div>
@@ -483,7 +486,7 @@ export default function MissionControl() {
               disabled={reconnecting}
               className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                 reconnecting
-                  ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                  ? "bg-slate-800 text-slate-300 cursor-not-allowed"
                   : "bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/20"
               }`}
             >

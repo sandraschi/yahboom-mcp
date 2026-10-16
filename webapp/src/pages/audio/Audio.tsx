@@ -134,6 +134,7 @@ export default function Audio() {
   const [status, setStatus] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [storedFiles, setStoredFiles] = useState<string[]>([]);
+  const [storedQuery, setStoredQuery] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [storedName, setStoredName] = useState("");
@@ -476,45 +477,59 @@ export default function Audio() {
               <FolderOpen className="w-4 h-4 text-violet-500" /> Stored on Boomy (
               {storedFiles.length})
             </h2>
+            <input
+              data-testid="audio-stored-search"
+              type="text"
+              value={storedQuery}
+              onChange={(e) => setStoredQuery(e.target.value)}
+              placeholder="Filter stored files..."
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/30 transition-all"
+            />
             <div className="space-y-2">
-              {storedFiles.map((line, i) => {
-                const f = parseStoredLine(line);
-                const isPlaying = playing === f.name;
-                const isLoading = loading === f.name;
-                return (
-                  <div
-                    key={i}
-                    className="flex items-center gap-4 px-4 py-3 rounded-xl bg-zinc-800/30 border border-zinc-700/20 group"
-                  >
-                    <FileAudio className="w-4 h-4 text-zinc-500 flex-shrink-0" />
-                    <span className="flex-1 text-xs text-zinc-300 font-mono truncate">
-                      {f.name}
-                    </span>
-                    <span className="text-[10px] text-zinc-600 font-mono flex-shrink-0 hidden md:inline">
-                      {f.size}
-                    </span>
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => playStored(f.name)}
-                      disabled={loading !== null}
-                      className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-400 disabled:opacity-40 transition-colors"
+              {storedFiles
+                .filter(
+                  (line) =>
+                    storedQuery.trim() === "" ||
+                    line.toLowerCase().includes(storedQuery.toLowerCase()),
+                )
+                .map((line, i) => {
+                  const f = parseStoredLine(line);
+                  const isPlaying = playing === f.name;
+                  const isLoading = loading === f.name;
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center gap-4 px-4 py-3 rounded-xl bg-zinc-800/30 border border-zinc-700/20 group"
                     >
-                      {isLoading ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Play className={`w-3.5 h-3.5 ${isPlaying ? "fill-current" : ""}`} />
-                      )}
-                    </motion.button>
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => deleteStored(f.name)}
-                      className="p-2 rounded-lg bg-transparent hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </motion.button>
-                  </div>
-                );
-              })}
+                      <FileAudio className="w-4 h-4 text-zinc-500 flex-shrink-0" />
+                      <span className="flex-1 text-xs text-zinc-300 font-mono truncate">
+                        {f.name}
+                      </span>
+                      <span className="text-[10px] text-zinc-600 font-mono flex-shrink-0 hidden md:inline">
+                        {f.size}
+                      </span>
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => playStored(f.name)}
+                        disabled={loading !== null}
+                        className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-400 disabled:opacity-40 transition-colors"
+                      >
+                        {isLoading ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Play className={`w-3.5 h-3.5 ${isPlaying ? "fill-current" : ""}`} />
+                        )}
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => deleteStored(f.name)}
+                        className="p-2 rounded-lg bg-transparent hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </motion.button>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         )}
