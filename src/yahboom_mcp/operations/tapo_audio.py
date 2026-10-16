@@ -156,7 +156,7 @@ async def speak(text: str, volume: int = 80) -> dict[str, Any]:
         try:
             os.unlink(mulaw_path)
         except Exception:
-            pass
+            logger.debug("mulaw temp cleanup raised for %s", mulaw_path, exc_info=True)
 
         if not mulaw:
             return fail_response("Audio conversion produced no output")
@@ -214,7 +214,7 @@ async def listen(duration_sec: int = 5, language: str = "en") -> dict[str, Any]:
         try:
             os.unlink(wav)
         except Exception:
-            pass
+            logger.debug("wav temp cleanup raised for %s", wav, exc_info=True)
 
 
 async def status() -> dict[str, Any]:

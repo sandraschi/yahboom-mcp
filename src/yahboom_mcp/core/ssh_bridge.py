@@ -80,7 +80,7 @@ class SSHBridge:
                     try:
                         self.client.close()
                     except Exception:
-                        pass
+                        logger.debug("stale SSH client close raised", exc_info=True)
                     self.client = None
                 if not self.connect():
                     return "", "SSH Not Connected", -1
@@ -110,7 +110,7 @@ class SSHBridge:
                     try:
                         self.client.close()
                     except Exception:
-                        pass
+                        logger.debug("stale SSH client close raised", exc_info=True)
                     self.client = None
                 if not self.connect():
                     return "", "SSH Not Connected", -1

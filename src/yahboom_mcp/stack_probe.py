@@ -65,13 +65,13 @@ async def _tcp_port_open(host: str, port: int, timeout: float = 1.2) -> dict[str
         try:
             await writer.wait_closed()
         except Exception:
-            pass
+            logger.debug("probe writer close raised", exc_info=True)
         try:
             close_m = getattr(reader, "aclose", None)
             if callable(close_m):
                 await cast(Callable[[], Any], close_m)()
         except Exception:
-            pass
+            logger.debug("probe reader aclose raised", exc_info=True)
         return {"ok": True, "error": None}
 
 
@@ -609,13 +609,13 @@ async def _stack_overview_uncached(
             pi_host["primary_ip"] = parts[0] if parts else None
             pi_host["all_ips"] = parts[:8] if parts else []
         except Exception:
-            pass
+            logger.debug("hostname -I probe raised", exc_info=True)
 
         try:
             br, _, _ = await ssh.execute("ip -br addr show 2>/dev/null | head -16")
             pi_host["interfaces_preview"] = (br or "").strip() or None
         except Exception:
-            pass
+            logger.debug("ip -br probe raised", exc_info=True)
 
         try:
             iw, _, _ = await ssh.execute("iw dev wlan0 link 2>/dev/null | head -16")
@@ -642,7 +642,7 @@ async def _stack_overview_uncached(
             dv, _, _ = await ssh.execute("docker info --format '{{.ServerVersion}}' 2>/dev/null")
             docker_engine["server_version"] = (dv or "").strip() or None
         except Exception:
-            pass
+            logger.debug("docker info probe raised", exc_info=True)
 
         docker_engine["summary"] = f"Docker daemon systemd state: {docker_engine['systemd_active']}" + (
             f", engine {docker_engine['server_version']}." if docker_engine["server_version"] else "."

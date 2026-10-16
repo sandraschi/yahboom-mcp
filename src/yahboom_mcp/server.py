@@ -27,7 +27,7 @@ from fastapi.responses import Response, StreamingResponse
 from fastmcp import Context, FastMCP
 from pydantic import BaseModel
 
-from . import fail_response
+from . import _error_response, fail_response
 from .core.esp32_bridge import ESP32Bridge
 from .core.ros2_bridge import ROS2Bridge
 from .core.ssh_bridge import SSHBridge
@@ -971,7 +971,7 @@ async def video_feed():
                     frame_bytes = base64.b64decode(img_data)
                     yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n")
                 except Exception:
-                    pass
+                    logger.debug("bad video frame skipped in MJPEG fallback", exc_info=True)
             await asyncio.sleep(0.1)  # 10 FPS
 
     logger.info("Vision: Streaming from Bridge Cache fallback")
@@ -1023,7 +1023,7 @@ async def snapshot():
                 if jpeg:
                     return Response(content=jpeg, media_type="image/jpeg")
         except Exception:
-            pass
+            logger.debug("snapshot fallback chain raised, returning 204", exc_info=True)
     return Response(status_code=204)
 
 
@@ -1884,7 +1884,7 @@ async def get_gpu_status():
                 except (ValueError, IndexError):
                     pass
     except Exception:
-        pass
+        logger.debug("nvidia-smi probe raised, GPU marked absent", exc_info=True)
     return result
 
 
@@ -2075,7 +2075,10 @@ async def yahboom_agent_mission(
         publish_to_ros=publish_to_ros,
         speak=speak,
     )
-    out = await _run_agent_mission(req)
+    try:
+        out = await _run_agent_mission(req)
+    except Exception as e:
+        return _error_response(f"Mission planning failed: {e}", operation="yahboom_agent_mission")
     out.pop("_http_status", None)
     return out
 

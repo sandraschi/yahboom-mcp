@@ -83,7 +83,7 @@ class VideoBridge:
         try:
             self.ros.get_topics(lambda topics: None)
         except Exception:
-            pass
+            logger.debug("ros get_topics preflight raised", exc_info=True)
 
         self.topic = roslibpy.Topic(self.ros, self.topic_name, topic_type)
         self.topic.subscribe(self._image_callback)
@@ -223,13 +223,13 @@ class VideoBridge:
             try:
                 self.topic.unsubscribe()
             except Exception:
-                pass
+                logger.debug("topic unsubscribe raised during stop", exc_info=True)
 
         if self._direct_cap:
             try:
                 self._direct_cap.release()
             except Exception:
-                pass
+                logger.debug("capture release raised during stop", exc_info=True)
 
         logger.info("VideoBridge stopped")
 
