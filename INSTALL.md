@@ -1,8 +1,14 @@
 # Installation
 
+## Option 0 — Windows installer (recommended for operators)
+
+Download `yahboom-mcp-2.5.0-setup.exe` from [GitHub Releases](https://github.com/sandraschi/yahboom-mcp/releases/latest) and run it. Installs the dashboard plus the embedded backend (operator port 11248, side-by-side with dev ports).
+
+> The installer is **unsigned**: Windows SmartScreen will warn on first run — click **More info > Run anyway**. This is expected for fleet installers (no code-signing certificate).
+
 ## Option A — Drag and Drop (Recommended, Claude Desktop)
 
-Download `yahboom-mcp-v2.5.0b1.mcpb` from GitHub Releases and drag it into
+Download `yahboom-mcp-v2.5.0.mcpb` from GitHub Releases and drag it into
 Claude Desktop. No Python, uv, git, or Node required. The bundle ships the
 server, prompts, and config; point `YAHBOOM_IP` at your robot via the server's
 `env` block afterward (see `docs/CONFIGURATION.md`).
@@ -14,7 +20,7 @@ server, prompts, and config; point `YAHBOOM_IP` at your robot via the server's
 Requires Node.js (`winget install OpenJS.NodeJS`). From the repo:
 
 ```powershell
-npx --yes @anthropic-ai/mcpb pack . dist/yahboom-mcp-v2.5.0b1.mcpb
+npx --yes @anthropic-ai/mcpb pack . dist/yahboom-mcp-v2.5.0.mcpb
 ```
 
 > Never `uvx mcpb` — mcpb is an npm package, not on PyPI.

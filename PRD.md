@@ -1,6 +1,6 @@
 # PRD — yahboom-mcp (Yahboom Raspbot v2 "Boomy" control plane)
 
-**Version:** 2.5.0b1 · **Status:** beta, production-capable with hardware ·
+**Version:** 2.5.0 · **Status:** stable release, production-capable with hardware ·
 **Ports:** backend 10892, frontend 10893 · **Owners:** sandraschi
 
 ## 1. Problem
@@ -19,7 +19,7 @@ that into one MCP server plus one dashboard.
   diagnostics, and skill-first chat across 27 routes.
 - **Show operators**: talkbot + chalk demos for visitors and kids.
 
-## 3. Requirements (shipped, v2.5.0b1)
+## 3. Requirements (shipped, v2.5.0)
 
 - R1. Drive + sense over rosbridge/ESP32/mock links with health-first safety
   (battery gates, stop-after-move, LIDAR-gated motion).

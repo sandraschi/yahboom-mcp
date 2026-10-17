@@ -47,7 +47,7 @@ from .state import _state
 start_time = time.time()
 
 # Single source of truth for the server version (pyproject.toml [project] version).
-VERSION = "2.5.0b1"
+VERSION = "2.5.0"
 
 # SOTA 2026 Logging Configuration
 logging.basicConfig(

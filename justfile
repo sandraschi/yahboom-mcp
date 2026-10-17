@@ -5,7 +5,7 @@ import 'scripts/just/fleet.just'
 
 export NAME := "Yahboom MCP"
 export DESC := "Industrial ROS 2 control plane"
-export VER  := "2.5.0b1"
+export VER  := "2.5.0"
 export PORT := "10892"
 export MODE := "dual"
 export HOST := "0.0.0.0"
