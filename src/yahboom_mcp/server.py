@@ -1115,6 +1115,40 @@ async def gpio_status():
 # In-process log ring buffer — captures all yahboom-mcp log records
 _log_ring: collections.deque = collections.deque(maxlen=500)
 
+# Inbound request ledger for the CUA backend-receipt proof
+# (GET /api/v1/request-log). Bounded; method+path+status only, no bodies.
+_request_log: collections.deque = collections.deque(maxlen=200)
+
+
+@app.middleware("http")
+async def _record_request(request, call_next):
+    from datetime import UTC, datetime
+
+    try:
+        response = await call_next(request)
+        status = response.status_code
+    except Exception:
+        status = 500
+        raise
+    finally:
+        if request.url.path != "/api/v1/request-log":
+            _request_log.append(
+                {
+                    "ts": datetime.now(UTC).isoformat(),
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status": status,
+                }
+            )
+    return response
+
+
+@app.get("/api/v1/request-log")
+async def get_request_log():
+    """Recent inbound HTTP requests (CUA backend-receipt proof contract)."""
+    entries = list(_request_log)
+    return {"count": len(entries), "requests": entries}
+
 
 class _RingHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:

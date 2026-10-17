@@ -26,6 +26,10 @@ Toolchain: `just build-native` (build-sidecar PyInstaller exe + Tauri NSIS).
   `webapp/playwright-report/`.
 - **Vendored smoke script ruff failure**: `scripts/smoke_stdio.py` (canonical
   copy) failed RUF005 under repo gate; applied the unpack fix + vendor note.
+- **Rebuild required after request-log**: the first installer was built before
+  `GET /api/v1/request-log` existed in the sidecar; CUA backend-receipt proof
+  needs it in the shipped binary, so `just build-native` was re-run after the
+  final src commit. Only the second installer ships.
 
 ### Verification (this build)
 - Gates: ruff, ruff-format, pyright 0/0/0, pytest 100 passed / 28 skipped,
