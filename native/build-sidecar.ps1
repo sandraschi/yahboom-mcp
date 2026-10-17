@@ -4,10 +4,10 @@ $Triple = "x86_64-pc-windows-msvc"
 $ResourceDir = "$PSScriptRoot\resources"
 $DevDir = "$PSScriptRoot\binaries"
 
-# Step 1: React frontend
+# Step 1: React frontend (bun is the fleet package manager; absolute path, off-PATH by design)
 Push-Location "$Root\webapp"
-npm install
-npm run build
+& "$env:USERPROFILE\.bun\bin\bun.exe" install --frozen-lockfile
+& "$env:USERPROFILE\.bun\bin\bun.exe" run build
 Pop-Location
 
 # Step 2: PyInstaller backend (onefile)

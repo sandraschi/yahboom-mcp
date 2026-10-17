@@ -29,7 +29,12 @@ foreach ($dir in $frontendDirs) {
     if (Test-Path "$frontend\package.json") {
         Write-Host "-> [1/4] Building frontend ($dir)..." -ForegroundColor Yellow
         Push-Location $frontend
-        npm install --silent 2>$null
+        $bunExe = Join-Path $env:USERPROFILE ".bun\bin\bun.exe"
+        if (Test-Path $bunExe) {
+            & $bunExe install --frozen-lockfile
+        } else {
+            npm install --silent 2>$null
+        }
 
         Write-Host "  tsc --noEmit..." -ForegroundColor Gray
         $tscOut = npx tsc --noEmit 2>&1
@@ -42,7 +47,7 @@ foreach ($dir in $frontendDirs) {
 
         # Operator backend port (yahboom-mcp-native claim); same value as backend.rs BACKEND_PORT.
         $env:VITE_API_BASE = "http://127.0.0.1:11248"
-        npm run build
+        if (Test-Path $bunExe) { & $bunExe run build } else { npm run build }
         if ($LASTEXITCODE -ne 0) { throw "Frontend build failed" }
         Pop-Location
         break
