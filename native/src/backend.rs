@@ -14,10 +14,11 @@ use tauri::{AppHandle, Emitter, Manager};
 pub struct BackendProcess(pub Mutex<Option<Child>>);
 
 const BACKEND_NAME: &str = "yahboom-mcp-backend.exe";
-// Operator backend port (claimed as yahboom-mcp-native). Never the dev backend port 10892:
-// the installed app and `start.ps1` must run side by side. Keep in sync with native/build.ps1
-// (VITE_API_BASE).
-const BACKEND_PORT: u16 = 11246;
+// Operator backend port (yahboom-mcp-native pair 11247/11248, backend slot).
+// Never the dev backend port 10892 and never democraft-mcp's 11246: the installed
+// app and `start.ps1` must run side by side. Keep in sync with native/build.ps1
+// (VITE_API_BASE) and operations/WEBAPP_PORTS.md.
+const BACKEND_PORT: u16 = 11248;
 
 fn dev_backend_path() -> Option<PathBuf> {
     if !cfg!(debug_assertions) {

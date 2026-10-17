@@ -386,7 +386,7 @@ active/failed status.
 
 ## 20. Version and port registry (fleet truth)
 
-Server `2.5.0b1` (pyproject, glama, capabilities, health, justfile aligned).
+Server `2.5.0` (pyproject, glama, capabilities, health, justfile aligned).
 Backend **10892** / frontend **10893** in `WEBAPP_PORTS.md` (adjacent pair,
 non-forbidden). Rosbridge 9090 (robot-side), ESP32 2323 (robot-side), Ollama
 11434 (Pi default; host override via env), LM Studio 1234, Dreame 10894/10895,

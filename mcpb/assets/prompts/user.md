@@ -19,7 +19,7 @@ flows through the MCP tools; the dashboard mirrors them for manual use.
 5. First tool call, always: `yahboom_tool(operation="health_check")`. Green
    across ROS/SSH/video means you may drive. No hardware? Set
    `YAHBOOM_USE_MOCK_BRIDGE=1` and practice the whole guide risk-free.
-6. Claude Desktop users: drag `yahboom-mcp-v2.5.0b1.mcpb` from GitHub Releases
+6. Claude Desktop users: drag `yahboom-mcp-v2.5.0.mcpb` from GitHub Releases
    into the app (see INSTALL.md Option A), then set `YAHBOOM_IP` in the server
    env block.
 
@@ -411,7 +411,7 @@ resync, restart — one ladder, then hands-on hardware.
 
 ## 21. About this bundle (version notes)
 
-Bundle `yahboom-mcp` for server v2.5.0b1: 13 MCP tools plus prompts, skills,
+Bundle `yahboom-mcp` for server v2.5.0: 13 MCP tools plus prompts, skills,
 and Prefab cards; stdio entry `python -m yahboom_mcp`; backend 10892,
 dashboard 10893. New in this revision: skill-first chat (skills merged into
 the system prompt with persona), robot status Prefab card, shared error
