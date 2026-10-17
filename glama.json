@@ -1,7 +1,7 @@
 {
   "name": "yahboom-mcp",
   "display_name": "Yahboom ROS 2 MCP",
-  "version": "2.5.0b1",
+  "version": "2.5.0",
   "description": "MCP server for Yahboom Raspbot v2 (ROS 2 Humble) with FastMCP 3.4 Unified Gateway",
   "long_running": true,
   "contact_email": "",

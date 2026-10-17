@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.2",
   "name": "yahboom-mcp",
-  "version": "2.5.0b1",
+  "version": "2.5.0",
   "description": "SOTA 2026 Yahboom Raspbot v2 ROS 2 MCP Server — motion, sensors, LIDAR, voice, camera PTZ, display, lightstrip, audio, diagnostics, agentic missions, and ROS 2 management for the Yahboom Raspbot v2 robot.",
   "author": { "name": "sandraschi" },
   "server": {

@@ -1,6 +1,6 @@
 [project]
 name = "yahboom-mcp"
-version = "2.5.0b1"
+version = "2.5.0"
 description = "Control a Yahboom Raspbot v2 ROS 2 robot car from chat, with a web dashboard"
 readme = "README.md"
 requires-python = ">=3.12"
