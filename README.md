@@ -26,6 +26,8 @@
 
 ![Boomy Hero Shot](assets/boomy_hero.png)
 
+> **Download for Windows:** [`yahboom-mcp-2.5.0-setup.exe`](https://github.com/sandraschi/yahboom-mcp/releases/latest/download/yahboom-mcp-2.5.0-setup.exe) — installer with webapp + embedded backend, one shortcut. The installer is **unsigned**: SmartScreen will warn — click **More info > Run anyway**. Claude Desktop users can instead install the MCP bundle (one-liner below).
+
 ## Quick Start
 
 Claude Desktop only (MCPB bundle):

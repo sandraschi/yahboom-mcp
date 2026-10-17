@@ -1,5 +1,7 @@
 
-## [Unreleased] — 2026-10-16 (deferred pass)
+## [2.5.0] - 2026-10-17
+
+First stable release. All changes below shipped in this release.
 
 ### Added
 - **Skill-first chat**: backend merges 4 skill texts + persona into the chat
@@ -35,7 +37,7 @@
 - **Tauri backend-status**: AppLayout already had `listen("backend-status")`
   + 5 s HTTP poll fallback — M8 finding withdrawn, no change needed.
 
-## [Unreleased] — 2026-10-16 (assfix)
+### Assfix round (2026-10-16)
 
 ### Fixed
 - **MCPB manifests**: `${PWD}` → `${__dirname}` in `manifest.json` and
@@ -60,7 +62,7 @@
 - Assess report: `reports/assess-2026-10-16.md` +
   `docs/assess-reports/2026-10-16.md` (self-assessed rescore 67/100, unverified).
 
-## [Unreleased] — 2026-08-19
+### Beta round (2026-08-19)
 
 ### Added
 - **`yahboom_shutdown`** MCP tool + `POST /api/shutdown` (self-termination).
