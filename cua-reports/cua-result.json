@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "smoke_version": 15,
+  "product": "Yahboom MCP",
+  "installer": "Yahboom MCP_2.5.0_x64-setup.exe",
+  "installer_sha256": "fd93b715365576f6c81be363b023e6338717a8fd892c5e665d55e3db2be95a82",
+  "installer_size": 165958463,
+  "pywinauto": true,
+  "backend_receipt_proof": false,
+  "phases": [
+    {
+      "name": "Kill stale processes",
+      "ok": true
+    },
+    {
+      "name": "Install NSIS",
+      "ok": true
+    }
+  ],
+  "passed": 2,
+  "failed": 0,
+  "all_passed": false,
+  "finished_at": "2026-10-17T01:22:40.683287+00:00"
+}
