@@ -6,11 +6,11 @@ import FreeCAD
 import FreeCADGui
 import Mesh
 
-# Must enable Gui for proper STEP assembly import
+# Must enable Gui for proper STEP assembly import (headless FreeCAD raises here).
 try:
     FreeCADGui.showMainWindow(False)
-except:
-    pass
+except Exception as e:
+    print(f"showMainWindow failed (continuing headless): {e}", flush=True)
 
 STEP = r"C:\Users\sandr\AppData\Local\Temp\raspbot_v2_step.STEP"
 OUT = r"D:\Dev\repos\yahboom-mcp\webapp\public\assets\meshes"
