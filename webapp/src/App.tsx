@@ -33,49 +33,49 @@ import Voice from "./pages/voice/Voice";
 import VoiceUpgrade from "./pages/voice/VoiceUpgrade";
 
 function App() {
-  useEffect(() => {}, []);
+	useEffect(() => {}, []);
 
-  return (
-    <ErrorBoundary>
-      <AppLayout>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/mission-control" element={<MissionControl />} />
-          <Route path="/missions" element={<Missions />} />
-          <Route path="/status" element={<Status />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/chat" element={<Chat />} />
-          <Route path="/tools" element={<Tools />} />
-          <Route path="/apps" element={<Apps />} />
-          <Route path="/llm" element={<LLM />} />
-          <Route path="/peripherals" element={<Peripherals />} />
-          <Route path="/workflows" element={<Workflows />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/help" element={<Help />} />
-          <Route path="/viz" element={<Viz />} />
-          <Route path="/map" element={<MapPage />} />
-          <Route path="/lidar-map" element={<LidarMapPage />} />
-          <Route path="/lidar-addon" element={<LidarAddonPage />} />
-          <Route path="/slam" element={<SlamMap />} />
-          <Route path="/movement" element={<MovementPage />} />
-          <Route path="/sensors" element={<SensorsPage />} />
-          <Route path="/diagnostics" element={<DiagnosticsPage />} />
-          <Route path="/inbox" element={<Inbox />} />
-          <Route path="/skills" element={<Skills />} />
-          <Route path="/logs" element={<Logger />} />
+	return (
+		<ErrorBoundary>
+			<AppLayout>
+				<Routes>
+					<Route path="/" element={<Navigate to="/dashboard" replace />} />
+					<Route path="/dashboard" element={<Dashboard />} />
+					<Route path="/mission-control" element={<MissionControl />} />
+					<Route path="/missions" element={<Missions />} />
+					<Route path="/status" element={<Status />} />
+					<Route path="/onboarding" element={<Onboarding />} />
+					<Route path="/analytics" element={<Analytics />} />
+					<Route path="/chat" element={<Chat />} />
+					<Route path="/tools" element={<Tools />} />
+					<Route path="/apps" element={<Apps />} />
+					<Route path="/llm" element={<LLM />} />
+					<Route path="/peripherals" element={<Peripherals />} />
+					<Route path="/workflows" element={<Workflows />} />
+					<Route path="/settings" element={<Settings />} />
+					<Route path="/help" element={<Help />} />
+					<Route path="/viz" element={<Viz />} />
+					<Route path="/map" element={<MapPage />} />
+					<Route path="/lidar-map" element={<LidarMapPage />} />
+					<Route path="/lidar-addon" element={<LidarAddonPage />} />
+					<Route path="/slam" element={<SlamMap />} />
+					<Route path="/movement" element={<MovementPage />} />
+					<Route path="/sensors" element={<SensorsPage />} />
+					<Route path="/diagnostics" element={<DiagnosticsPage />} />
+					<Route path="/inbox" element={<Inbox />} />
+					<Route path="/skills" element={<Skills />} />
+					<Route path="/logs" element={<Logger />} />
 
-          <Route path="/voice" element={<Voice />} />
-          <Route path="/voice-upgrade" element={<VoiceUpgrade />} />
-          <Route path="/audio" element={<Audio />} />
+					<Route path="/voice" element={<Voice />} />
+					<Route path="/voice-upgrade" element={<VoiceUpgrade />} />
+					<Route path="/audio" element={<Audio />} />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </AppLayout>
-    </ErrorBoundary>
-  );
+					{/* Fallback */}
+					<Route path="*" element={<Navigate to="/dashboard" replace />} />
+				</Routes>
+			</AppLayout>
+		</ErrorBoundary>
+	);
 }
 
 export default App;
