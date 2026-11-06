@@ -9,6 +9,8 @@
 </p>
 
 
+MCP server and web dashboard for the Yahboom Raspbot v2 (Boomy) ROS 2 robot - lidar mapping, navigation, camera missions and voice control.
+
 > 📖 **[Installation Guide](INSTALL.md)** — quick start, manual setup, and troubleshooting
 
 [![CI](https://github.com/sandraschi/yahboom-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/sandraschi/yahboom-mcp/actions/workflows/ci.yml)
